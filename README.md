@@ -21,6 +21,14 @@
 
 GetANNY brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media, keep a searchable download history, and optionally connect your browser to GetANNY.
 
+## See GetANNY in action
+
+<p align="center">
+  <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
+</p>
+
+<p align="center"><sub>A quick tour of the download library, media formats, thumbnails, metadata, subtitles, themes, browser setup and preferences.</sub></p>
+
 ## Download GetANNY
 
 <sub>Current release: **2.1.3** · Windows 10/11 · 64-bit</sub>
