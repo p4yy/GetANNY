@@ -1,7 +1,7 @@
 {
   "name": "getanny",
   "version": "2.1.3",
-  "description": "GetANNY — reliable downloads, clear control",
+  "description": "Windows download manager for files, media and browser downloads.",
   "main": "src/main/main.js",
   "author": "GetANNY Team",
   "license": "Apache-2.0",
@@ -52,5 +52,18 @@
   },
   "overrides": {
     "ip": "npm:@webpod/ip@^0.6.1"
-  }
+  },
+  "homepage": "https://github.com/p4yy/GetANNY",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/p4yy/GetANNY.git"
+  },
+  "keywords": [
+    "download-manager",
+    "electron",
+    "windows",
+    "yt-dlp",
+    "ffmpeg",
+    "browser-extension"
+  ]
 }

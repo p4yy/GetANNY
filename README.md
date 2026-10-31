@@ -27,7 +27,7 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
   <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
 </p>
 
-<p align="center"><sub>A quick tour of the download library, media formats, thumbnails, metadata, subtitles, themes, browser setup and preferences.</sub></p>
+<p align="center"><sub>The download library, media studio, browser setup and settings.</sub></p>
 
 ## Download GetANNY
 
@@ -56,7 +56,7 @@ Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releas
 - Use verified range requests when the server supports them.
 - Keep download history in a local SQLite database.
 - Search, filter, sort, inspect, open and reveal completed downloads.
-- Avoid silently overwriting existing files or automatically running downloaded files.
+- Never overwrites existing files or runs downloaded files automatically.
 
 ### Media downloads
 - Inspect supported media pages with yt-dlp.
