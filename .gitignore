@@ -27,3 +27,21 @@ bin/*
 !bin/README.md
 .DS_Store
 Thumbs.db
+
+# Local credentials and signing material
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+.netrc
+.pypirc
+.npmrc
+.aws/
+.ssh/
+.config/gcloud/
