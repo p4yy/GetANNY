@@ -1,137 +1,132 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-horizontal-white.png">
-    <img src="assets/brand/lockup-horizontal-black.png" alt="GetANNY" width="440">
+    <img src="assets/brand/lockup-horizontal-black.png" alt="GetANNY" width="420">
   </picture>
 </p>
 
-# GetANNY
+<h1 align="center">GetANNY</h1>
 
-**Reliable downloads. Clear control.** A Windows-first Electron download manager with a React workspace, persistent SQLite history, verified HTTP range transfers, yt-dlp media downloads, and authenticated browser integration.
+<p align="center"><strong>A focused Windows download manager for files, media and browser downloads.</strong></p>
 
-> **Current source: 2.1.3.** This release refines the desktop workspace, adds live completion telemetry, improves theme previews, and fixes close-to-tray behavior. The official artwork remains consistent across the application and Windows packages. See [testing evidence and remaining gates](docs/TESTING.md).
+<p align="center">
+  <a href="https://github.com/p4yy/GetANNY/releases/latest">Download for Windows</a>
+  ·
+  <a href="https://github.com/p4yy/GetANNY/releases">All releases</a>
+  ·
+  <a href="docs/INSTALL_WINDOWS.md">Installation guide</a>
+  ·
+  <a href="docs/BROWSERS.md">Browser setup</a>
+</p>
 
-## Get the Windows app
+GetANNY brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media, keep a searchable download history, and optionally connect your browser to GetANNY.
 
-### Official GetANNY 2.1.3 release
+## Download GetANNY
 
-The [**GetANNY 2.1.3 GitHub Release**](https://github.com/p4yy/GetANNY/releases/tag/v2.1.3) contains the Windows installers, portable build, eight browser packages, complete distribution bundle, guides, build evidence and SHA-256 checksums.
+<sub>Current release: **2.1.3** · Windows 10/11 · 64-bit</sub>
 
-**Direct downloads:** [GetANNY Setup.exe](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Setup.exe) · [GetANNY Setup.msi](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Setup.msi) · [GetANNY Portable.exe](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Portable.exe) · [Windows bundle ZIP](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY-v2.1.3-Windows.zip) · [SHA256SUMS.txt](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/SHA256SUMS.txt).
+**[Open the official GetANNY 2.1.3 release page](https://github.com/p4yy/GetANNY/releases/tag/v2.1.3)**
 
-Use **one installer format**, not both simultaneously. Windows 10/11 x64 is required.
+Choose one Windows package:
 
-- EXE: interactive per-user installer, installation-folder selection, Start Menu and optional desktop shortcut.
-- MSI: Windows Installer package for interactive or scripted deployment; optional desktop shortcut.
-- Portable: single executable for use from a writable folder; browser integration uses the paired WebSocket fallback while it runs (see `docs/PORTABLE_WINDOWS.md`).
-- All Windows packages include the renderer, SQLite native module, asynchronous HTTP range engine, yt-dlp, FFmpeg/ffprobe, a compiled native-host executable, and Chromium / Firefox extension resources. No separately installed Node or Python is required.
-- Installer setup prepares detected browsers and registers native hosts for the installing user. **It does not silently install an extension.** Follow the in-app setup guide and approve installation in your browser.
-- No signing certificate was supplied to this build session. The binaries are **unsigned**; check the release evidence for the actual Authenticode status. An installer icon is not a signature.
+| Package | Best for |
+| --- | --- |
+| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Setup.exe) | Recommended for most users |
+| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Setup.msi) | Managed or scripted Windows installation |
+| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY%20Portable.exe) | Running from a writable folder without a standard install |
 
-[Detailed Windows installation and upgrade instructions](docs/INSTALL_WINDOWS.md) · [Browser installation and troubleshooting](docs/BROWSERS.md)
+Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/GetANNY-v2.1.3-Windows.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.1.3/SHA256SUMS.txt).
 
-### Brand and appearance
+**Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
-- `assets/brand/source/` holds the untouched supplied PNGs. `scripts/brand/generate-brand-assets.py` derives every icon by rebuilding transparency and recolouring only — the eagle, shield, lettering, proportions and arrangement are never redrawn.
-- The app, tray, installer, uninstaller, MSI, shortcuts, notifications, favicon and browser extensions all use the same mark. The wordmark is used where space allows; the eagle/shield alone is used for icon-sized surfaces.
-- Twelve palettes share the identity. **Obsidian** (dark) and **Porcelain** (light) are the logo-native defaults; the alternative palettes keep their own character with restrained, logo-compatible accents. Brand marks are drawn as CSS masks, so the original artwork always renders in the theme's ink colour.
+## What GetANNY does
 
-## Implemented functionality
+### Download manager
+- Download files over HTTP and HTTPS, including large files.
+- Show transfer progress, speed and estimated time when the server provides enough information.
+- Pause, resume, retry and manage multiple downloads.
+- Use verified range requests when the server supports them.
+- Keep download history in a local SQLite database.
+- Search, filter, sort, inspect, open and reveal completed downloads.
+- Avoid silently overwriting existing files or automatically running downloaded files.
 
-### Files and history
+### Media downloads
+- Inspect supported media pages with yt-dlp.
+- Choose available video or audio formats and resolutions.
+- Download subtitles and thumbnails when the source provides them.
+- Use bundled FFmpeg for supported audio extraction and format processing.
+- Track queued jobs, progress, processing and completed output.
 
-- HTTP/HTTPS, redirect handling, streamed large-file downloads, real bytes/s and ETA when size and speed are known.
-- Actual one-byte range capability probing; bounded asynchronous segmentation only when supported, with adaptive range counts and reusable keep-alive connections. Exact response range, segment length and final byte count checks.
-- ID-isolated partials, persisted entity validators, safe continuation, restart when an entity changes, and atomic no-overwrite completion. Same-name files are numbered.
-- Pause waits for writers/streams to stop. HTTP/media cancellation removes only that job's owned partials. Torrent cancellation stops peers while retaining verified pieces in its isolated folder. Retry, bounded transient HTTP retries, a shared per-transfer bandwidth limiter, and one concurrent-job queue for files/media/torrents.
-- All / Active / Completed / Paused / Failed views, search, file-type filters, sorting, context menus, details, confirmed history removal / deletion, and OS file/folder opening, plus an Open source action for HTTP(S) links.
-- Completed rows show format, size, completion time and location, with lazy cached OS/FFmpeg previews, plus open/reveal actions. Preview generation never loads the full media file into renderer memory.
-- SQLite migration preserves v1 history. Interrupted transfers restore paused unless startup resumption is enabled. URLs without an entity validator restart safely instead of mixing old and new bytes. Downloaded files are never automatically executed.
+Website support depends on the source site, authentication, region and changes to that site's delivery system. GetANNY does not bypass DRM or guarantee that every website can be downloaded.
 
-### Media studio
+### Browser integration
+GetANNY can work with:
+- Google Chrome and Chromium
+- Microsoft Edge
+- Brave
+- Firefox
+- Vivaldi
+- Opera
+- Helium
 
-- Real yt-dlp analysis, playable-format filtering, no MHTML storyboards or thumbnails in the format picker.
-- Video and audio-only categories, resolution / frame rate / codecs / language where reported, and honest unknown or approximate sizes.
-- Video-only selections add audio through bundled FFmpeg. Unknown audio tracks are **not** labeled included.
-- Queued media jobs, JSON progress, cancellable child process trees, continuation where yt-dlp supports it, processing state during merge, history, and verification of the actual final output file.
-- Separate Video & Audio, Thumbnails, Description, Tags and Subtitles tabs use metadata legitimately returned by yt-dlp. Download accessible thumbnails, save manual/automatic captions independently as VTT or SRT, or include a separate subtitle job alongside video. Conversion uses FFmpeg when required.
-- No DRM bypass, playlist downloader, cookie import, or promise that every website works. Authentication / regional restrictions / site changes can prevent extraction; errors are shown.
-
-### Browsers
-
-Helium, Google Chrome, Chromium, Brave, Firefox, Vivaldi, Opera, plus Microsoft Edge.
-
-- Shared real Chromium codebase and separate Firefox manifest. Browser-targeted ZIPs carry the correct configuration and installation guide—not placeholder implementations.
-- Executable-path detection, portable-browser locator, guided first-run setup, stable unpacked folders, real native-host launcher, and current-user native-host registration.
-- Ordinary HTTP(S) interception for documents, archives, images, media and unknown/large files. Native downloads pause before handoff; URL, available filename, URL-specific cookies (using the reported cookie store when available), referer and user agent are forwarded. Each handoff gets a unique identifier independent of browser download IDs. Accepted transfers cancel/erase only the matching native history entry, while transfer-ID reconciliation prevents duplicates after timeout/reconnection. Short/unpausable and private downloads remain native. Chromium service-worker handoff state is kept in browser-session storage for reconciliation after worker suspension; a full browser restart clears that session and can require the user to resume a paused native download. Browser APIs do not expose every original request header.
-- Explicit context-menu actions, HTML5 media actions, bounded network-media detection, a compact per-video dismissible overlay and a usable popup.
-- Native-first communication; explicitly paired WebSocket fallback. Per-user secret, restricted origins, bounded messages, request IDs, timeouts and live handshake-based health.
-- **Prepared** and **registered** are not **installed / enabled**. Without a live handshake, extension installation and enablement are unknown. Firefox permanent installation requires Mozilla signing; this repository does not contain a signed XPI or store credentials.
+The browser add-on can hand supported downloads to the desktop app and provides media actions where available. Setup is guided from inside GetANNY. **Extensions are not silently installed or enabled**; you must approve browser installation and permissions yourself.
 
 ### Preferences and workspace
+- Dark, light and alternative colour themes.
+- Download limits, connection settings and concurrent jobs.
+- Notifications, tray behaviour and startup preferences.
+- Scheduled download start windows.
+- Reduced-motion options and adjustable workspace density.
 
-Persisted defaults, simultaneous jobs, connections, per-download speed limit, timeout, retries, auto-start, a daily local-time start window, restart resumption, file categories, browser request confirmation, integration enablement, OS notifications, tray behavior, Windows/macOS login startup, start-minimized, twelve dark/light/alternative palettes plus system appearance, density and standard, reduced or disabled animation modes (with system reduced motion respected). Each displayed setting has a behavioral consumer; transfer connection/rate preferences apply on new/resumed jobs. Scheduled jobs stay queued across a clean restart, and the app must be running to start them. The schedule gates starts; it does not stop transfers already running when the window closes.
+## Getting started
 
-Single desktop titlebar, cohesive theme-aware controls, a dedicated Themes gallery and compact top-left quick switcher, keyboard-friendly dialogs, explicit loading/error states, responsive layouts and restrained animations. Every catalog palette and both system modes are tested for 4.5:1 text-token contrast on normal, raised and selected surfaces. Native frame/menu are no longer duplicated on Windows.
+1. Download one of the Windows packages from the [official release page](https://github.com/p4yy/GetANNY/releases/tag/v2.1.3).
+2. Install GetANNY, or run the portable build from a writable folder.
+3. Open GetANNY and choose your download folder and preferences.
+4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.
+5. Add a direct file URL or use a supported browser action to send a download to GetANNY.
 
-## Development
+See the [Windows installation guide](docs/INSTALL_WINDOWS.md) and [browser setup and troubleshooting guide](docs/BROWSERS.md) for details.
 
-Use **Node 22.22+** and npm. Windows builds require Visual Studio C++ build tools / Python (if native fallback compilation is needed), .NET Framework's C# compiler (native launcher), and access to GitHub Releases. GitHub's `windows-latest` runner supplies these build tools.
+## Privacy and security
+
+- Download history and preferences are stored locally in the app's user-data folder.
+- Browser integration uses a local authenticated bridge; it is not intended to expose a remote service.
+- Browser permissions and extension installation are presented for user approval.
+- Downloaded files are not automatically executed.
+- GetANNY does not claim to bypass DRM or browser/site access restrictions.
+
+For security details, see [Architecture and security contracts](docs/ARCHITECTURE.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+
+## For developers
+
+GetANNY is a Windows-first Electron application built with React, Vite and SQLite.
+
+**Requirements**
+- Node.js 22.22 or newer
+- npm
+- Windows build tools for native modules and Windows packaging
+
+**Run locally**
 
 ```sh
-npm ci                         # downloads Electron / builds native modules
-npm run prepare:tools          # pinned, SHA-256-checked yt-dlp + FFmpeg/ffprobe
-npm run build-extension        # unpacked resources + browser-specific ZIP packages
-npm run dev                    # Vite + Electron
+npm ci
+npm run prepare:tools
+npm run build-extension
+npm run dev
 ```
 
-If you installed with `--ignore-scripts`, explicitly run `npm rebuild node-datachannel`. The locked better-sqlite3 13 package supplies platform N-API prebuilds compatible with both Node 22 and the packaged Electron runtime; it does not require switching legacy Node/Electron ABI binaries. Installed-app tests still verify actual SQLite loading and persistence.
+**Run tests and build**
 
 ```sh
-npm rebuild node-datachannel               # if installed with --ignore-scripts
-npm run build-extension
 npm test
 npm audit --audit-level=high
 npm run build:renderer
-npm run build:win                          # actual EXE + MSI, no automatic publication
+npm run build:win
 ```
 
-`npm run prepare:tools` refuses unverified or missing Windows binaries. Tool versions / hashes are in `scripts/tools-manifest.json`. It deliberately does **not** silently fall back to an old third-party executable. macOS/Linux packaging is not certified by this Windows delivery; macOS additionally needs audited matching FFmpeg tools supplied manually.
-
-### Real web preview
-
-```sh
-npm run dev:web
-npm run test:ui             # in another terminal
-```
-
-This is an explicitly labeled development preview backed by the **real** SQLite and download services, isolated under `.arena/`. No mock download data or simulated progress is shipped. Browser registration, native folder dialogs, file launching and login startup need the installed desktop app. The preview API exists only in Vite development mode and is never packaged.
-
-## Tests, architecture and delivery
-
-- [Audit: actual defects and root causes](docs/AUDIT.md)
-- [Architecture / data / security contracts](docs/ARCHITECTURE.md)
-- [Measured tests, CI evidence and unverified requirements](docs/TESTING.md)
-- [Windows packaging / installation](docs/INSTALL_WINDOWS.md)
-- [Eight browser guides, permissions and troubleshooting](docs/BROWSERS.md)
-- [Release notes](docs/RELEASE_NOTES.md)
-- [Third-party tool licenses and source information](docs/THIRD_PARTY.md)
-
-The Windows workflow builds installers, **installs both**, launches their actual executables, verifies downloads and media, tests restart/reinstall preservation, runs an actual Chromium-extension/native-host download, uninstalls, and retains reports. Built installers are retained immediately as `GetANNY-unsigned-test-build` artifacts even when later verification fails. These are clearly labelled development builds, **not** a passing release. Publishing requires explicit `publish=true` workflow dispatch or the opt-in commit trailer `GetANNY-Publish: stable` on this session branch, and every automated gate must succeed for the fully verified route. An explicit `GetANNY-Publish-Existing` request can instead publish the exact immutable existing RC with pending/failed verification prominently disclosed; provenance, binary checksums and uploaded asset digests are mandatory. It never promotes to stable. The official release explicitly discloses manual gates and limitations that remain unresolved.
-
-## Data and troubleshooting
-
-Data lives under Electron's per-user application-data directory (`getanny` by default). Open **Settings → Storage → Open data folder** to see SQLite history, preferences, extension resources, native manifests and setup diagnostics. Incomplete HTTP files are `.getanny-<id>.*` beside their destination. Media continuation files contain the job's full ID, avoiding prefix collisions. Do not rename these during a paused transfer.
-
-- `HTTP 401/403`: the server requires authorization, denied automated access, or the link expired. Obtain a new direct link; use Media studio for supported media pages.
-- `HTTP 404`: the resource is unavailable. Retrying an unchanged link does not repair it.
-- Missing yt-dlp / FFmpeg / native launcher: reinstall the complete package or run the preparation script before building.
-- `Server returned an incorrect byte range`: GetANNY refuses to assemble unsafe data. Retry with one connection; never rename a partial into a completed file.
-- Native host cannot be found: run the selected browser's in-app setup again; see [browser troubleshooting](docs/BROWSERS.md).
-- Port 29615 in use: close other GetANNY instances and retry. An unavailable bridge is shown offline; file downloads remain available.
-- SmartScreen / unsigned extension warnings: expected for unsigned release candidates. Inspect source, checksums and release evidence; do not disable browser security or antivirus globally.
-- Uninstall retains settings/history intentionally for upgrades. Remove the application-data directory manually **only** if you want to erase them. Browser extensions must also be removed in the browser's UI; uninstall never edits personal profiles.
+See the project documentation for [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), [Windows packaging](docs/INSTALL_WINDOWS.md), [browser integration](docs/BROWSERS.md), and [release notes](docs/RELEASE_NOTES.md).
 
 ## License
 
-GetANNY source is [Apache-2.0](LICENSE). Separately executed yt-dlp and FFmpeg retain their own licenses; see [third-party notices](docs/THIRD_PARTY.md).
+GetANNY is released under the [Apache License 2.0](LICENSE). Third-party tools and bundled components retain their respective licenses; see [third-party notices](docs/THIRD_PARTY.md).
