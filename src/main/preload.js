@@ -39,6 +39,10 @@ const channels = [
   "app:open-data-folder",
   "app:window-state",
   "app:quit",
+  "updates:get-state",
+  "updates:check",
+  "updates:download",
+  "updates:install",
 ];
 const events = [
   "downloads:changed",
@@ -53,6 +57,7 @@ const events = [
   "menu:add-download",
   "menu:settings",
   "window:state",
+  "update:status",
 ];
 contextBridge.exposeInMainWorld("getanny", {
   desktop: true,

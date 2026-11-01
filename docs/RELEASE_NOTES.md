@@ -1,3 +1,15 @@
+# GetANNY 2.2.4 — Updates and smoother large libraries
+
+The installed Windows Setup EXE can now check GitHub Releases for a newer GetANNY version. GetANNY asks before downloading and asks the user to restart to install. MSI, portable, Microsoft Store, and browser-extension distribution remain on their separate update paths.
+
+- Added an in-app update prompt with download progress and a restart-to-install action.
+- Configured the NSIS Setup EXE release feed and include its `latest.yml` and block map in the Windows release assets.
+- Limited GitHub updater activation to installs made by the NSIS Setup EXE. Store, MSI, and portable installs do not use this updater.
+- Separated high-frequency transfer progress from download metadata so a progress tick updates the affected row instead of recalculating the entire library.
+- Improved variable-height list windowing and playlist rendering for large libraries.
+
+---
+
 # GetANNY 2.2.2 — Cairo Arabic typography, lighter tray idle, and smoother controls
 
 This build bundles the Cairo font for Arabic, makes completion-volume dragging smooth, releases the hidden renderer when the app closes to tray, and reduces hidden-page polling. Download, pause/resume, file integrity, browser bridge, and tray wake behavior were covered by local automated tests. The Windows binaries are unsigned in this environment; this file records local build status and does not claim GitHub or installed-consumer certification.

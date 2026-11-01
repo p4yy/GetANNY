@@ -20,6 +20,7 @@ const {
 } = require("./tray-window");
 const { createMenu } = require("./menu");
 const { Logger } = require("./utils/logger");
+const { configureAutoUpdater } = require("./auto-updater");
 const { validateUrl } = require("./engine/utils");
 const {
   clearDesktopExitMarker,
@@ -297,10 +298,24 @@ async function init() {
       notification.show();
     }
   });
+  let updater = null;
+  if (
+    app.isPackaged &&
+    process.platform === "win32" &&
+    (await fs
+      .access(path.join(process.resourcesPath, "getanny-github-updates"))
+      .then(() => true)
+      .catch(() => false))
+  ) {
+    updater = configureAutoUpdater({
+      mainWindow: () => win,
+      logger: log,
+    });
+  }
   setupIpcHandlers({
     ipcMain,
     services,
-    desktop: { app, shell, dialog, clipboard, mainWindow: () => win },
+    desktop: { app, shell, dialog, clipboard, mainWindow: () => win, updater },
   });
   if (process.platform === "darwin") createMenu({ mainWindow: () => win });
   else Menu.setApplicationMenu(null);
@@ -325,6 +340,14 @@ async function init() {
   )
     hiddenToTray = true;
   else await createWindow();
+  if (updater)
+    setTimeout(
+      () =>
+        updater
+          .check()
+          .catch((error) => log.warn("Update check:", error.message)),
+      5000,
+    );
   if (selfTest) {
     const reportIndex = process.argv.indexOf("--report");
     const report = process.argv[reportIndex + 1];

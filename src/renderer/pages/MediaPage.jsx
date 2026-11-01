@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LuAudioLines,
   LuFilm,
@@ -52,6 +52,28 @@ export default function MediaPage({ tools }) {
     [playlistSelection, setPlaylistSelection] = useState(() => new Set()),
     [playlistQuality, setPlaylistQuality] = useState("1080"),
     [playlistBusy, setPlaylistBusy] = useState(false);
+  const playlistGetKey = useCallback((item) => item.url, []);
+  const renderPlaylistEntry = useCallback(
+    (entry, index) => (
+      <label className="playlist-row">
+        <input
+          type="checkbox"
+          checked={playlistSelection.has(index)}
+          onChange={() =>
+            setPlaylistSelection((old) => {
+              const next = new Set(old);
+              if (next.has(index)) next.delete(index);
+              else next.add(index);
+              return next;
+            })
+          }
+        />
+        <span>{entry.title}</span>
+        <small>{entry.duration ? duration(entry.duration) : ""}</small>
+      </label>
+    ),
+    [playlistSelection],
+  );
   const generation = useRef(0),
     lastAuto = useRef(0);
   const clearLink = () => {
@@ -334,27 +356,10 @@ export default function MediaPage({ tools }) {
           </div>
           <VirtualList
             items={playlist.entries}
-            getKey={(item) => item.url}
+            getKey={playlistGetKey}
             estimate={54}
             className="playlist-list"
-            renderItem={(entry, index) => (
-              <label className="playlist-row">
-                <input
-                  type="checkbox"
-                  checked={playlistSelection.has(index)}
-                  onChange={() =>
-                    setPlaylistSelection((old) => {
-                      const next = new Set(old);
-                      if (next.has(index)) next.delete(index);
-                      else next.add(index);
-                      return next;
-                    })
-                  }
-                />
-                <span>{entry.title}</span>
-                <small>{entry.duration ? duration(entry.duration) : ""}</small>
-              </label>
-            )}
+            renderItem={renderPlaylistEntry}
           />
         </section>
       )}

@@ -51,6 +51,11 @@ $measured.Add('')
 foreach ($signature in $overall.signatures) { $measured.Add(('- Authenticode `{0}`: **{1}**.' -f $signature.file,$signature.status)) }
 $measured -join "`n" | Set-Content 'release-assets/MEASURED_RESULTS.md'
 Copy-Item 'dist/GetANNY Setup.exe' 'release-assets/GetANNY Setup.exe'
+# electron-builder normalizes the NSIS filename in latest.yml to this asset name.
+# Keep the friendly spaced download too; the updater needs the exact feed path.
+Copy-Item 'dist/GetANNY Setup.exe' 'release-assets/GetANNY-Setup.exe'
+Copy-Item 'dist/latest.yml','dist/GetANNY Setup.exe.blockmap' 'release-assets/'
+Copy-Item 'dist/GetANNY Setup.exe.blockmap' 'release-assets/GetANNY-Setup.exe.blockmap'
 Copy-Item 'dist/GetANNY Setup.msi' 'release-assets/GetANNY Setup.msi'
 Copy-Item 'dist/GetANNY Portable.exe' 'release-assets/GetANNY Portable.exe'
 Copy-Item 'docs/INSTALL_WINDOWS.md' 'release-assets/INSTALL_WINDOWS.md'

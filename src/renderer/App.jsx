@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LuArrowDownToLine,
   LuArrowDown,
@@ -80,9 +80,18 @@ function Sidebar({ bridge, version, platform }) {
   const tab = useUIStore((state) => state.activeTab),
     setTab = useUIStore((state) => state.setActiveTab);
   const downloads = useDownloadStore((state) => state.downloads),
+    progressById = useDownloadStore((state) => state.progressById),
     settings = useSettingsStore((state) => state.settings);
+  const liveDownloads = useMemo(
+    () =>
+      downloads.map((item) => {
+        const progress = progressById[item.id];
+        return progress ? { ...item, ...progress } : item;
+      }),
+    [downloads, progressById],
+  );
   const count = (key) =>
-    downloads.filter((item) =>
+    liveDownloads.filter((item) =>
       key === "all"
         ? true
         : key === "active"
@@ -90,7 +99,7 @@ function Sidebar({ bridge, version, platform }) {
           : item.status === key,
     ).length;
   const hasLiveTransfer = (key) =>
-    downloads.some(
+    liveDownloads.some(
       (item) =>
         active(item) &&
         (key === "all" ||
@@ -130,8 +139,9 @@ function Sidebar({ bridge, version, platform }) {
           icon={LuMagnet}
           label={t("nav.torrents")}
           count={
-            downloads.filter((item) => item.kind === "torrent" && active(item))
-              .length
+            liveDownloads.filter(
+              (item) => item.kind === "torrent" && active(item),
+            ).length
           }
           live={hasLiveTransfer("torrent")}
         />
@@ -190,7 +200,15 @@ function StatusBar({ version }) {
   );
   useEffect(() => {
     let timer;
-    const refresh = () => setDownloads(useDownloadStore.getState().downloads);
+    const refresh = () => {
+      const state = useDownloadStore.getState();
+      setDownloads(
+        state.downloads.map((item) => {
+          const progress = state.progressById[item.id];
+          return progress ? { ...item, ...progress } : item;
+        }),
+      );
+    };
     const updateVisibility = () => {
       clearInterval(timer);
       timer = undefined;
@@ -270,9 +288,13 @@ function StatusBar({ version }) {
 // the whole shell for a single transfer.
 function DetailSheet() {
   const detailId = useUIStore((state) => state.details);
-  const item = useDownloadStore((state) =>
+  const metadata = useDownloadStore((state) =>
     detailId ? state.downloads.find((entry) => entry.id === detailId) : null,
   );
+  const progress = useDownloadStore((state) =>
+    detailId ? state.progressById[detailId] : null,
+  );
+  const item = metadata && progress ? { ...metadata, ...progress } : metadata;
   if (!item) return null;
   return (
     <DownloadDetails
@@ -292,6 +314,7 @@ export default function App() {
       clients: 0,
     }),
     [maximized, setMaximized] = useState(false);
+  const [update, setUpdate] = useState({ status: "idle" });
   const tab = useUIStore((state) => state.activeTab),
     addModal = useUIStore((state) => state.addModal),
     setAddModal = useUIStore((state) => state.setAddModal),
@@ -319,6 +342,7 @@ export default function App() {
       useDownloadStore.getState().setDownloads(data.downloads);
       useSettingsStore.getState().setSettings(data.settings);
       setBridge(data.bridge);
+      setUpdate(data.update || { status: "idle" });
       setBoot(data);
       for (const request of data.pendingRequests)
         useUIStore.getState().addRequest(request);
@@ -342,8 +366,19 @@ export default function App() {
     const cleanup = api.on("window:state", (value) =>
       setMaximized(!!value.maximized),
     );
-    return cleanup;
+    const stopUpdates = api.on("update:status", setUpdate);
+    return () => {
+      cleanup();
+      stopUpdates();
+    };
   }, []);
+  const updateAction = async (action) => {
+    try {
+      await api.invoke(`updates:${action}`);
+    } catch (error) {
+      useUIStore.getState().notify(errorMessage(error), "error");
+    }
+  };
   useEffect(() => {
     if (!boot) return;
     const poll = () =>
@@ -631,6 +666,50 @@ export default function App() {
               platform={boot.platform}
             />
             <main className="main-content" id="main-content">
+              {boot.capabilities.updates &&
+                !["idle", "current", "unavailable"].includes(update.status) && (
+                  <div className="update-banner" role="status">
+                    <div>
+                      <strong>
+                        {update.status === "available"
+                          ? t("updates.available", { version: update.version })
+                          : update.status === "downloading"
+                            ? t("updates.downloading", {
+                                percent: update.percent,
+                              })
+                            : update.status === "downloaded"
+                              ? t("updates.downloaded", {
+                                  version: update.version,
+                                })
+                              : update.status === "error"
+                                ? t("updates.error")
+                                : t("updates.checking")}
+                      </strong>
+                      <span>{t("updates.githubChannel")}</span>
+                    </div>
+                    {update.status === "available" && (
+                      <Button
+                        variant="primary"
+                        onClick={() => updateAction("download")}
+                      >
+                        {t("updates.downloadButton")}
+                      </Button>
+                    )}
+                    {update.status === "downloaded" && (
+                      <Button
+                        variant="primary"
+                        onClick={() => updateAction("install")}
+                      >
+                        {t("updates.restartButton")}
+                      </Button>
+                    )}
+                    {update.status === "error" && (
+                      <Button onClick={() => updateAction("check")}>
+                        {t("updates.retryButton")}
+                      </Button>
+                    )}
+                  </div>
+                )}
               {!api.desktop && (
                 <div className="preview-strip">
                   <LuMonitor />

@@ -194,6 +194,8 @@ function DownloadRow({
   selectionMode,
   onSelect,
 }) {
+  const progress = useDownloadStore((state) => state.progressById[item.id]);
+  item = progress ? { ...item, ...progress } : item;
   const { t, language } = useI18n();
   const [busy, setBusy] = useState(false),
     [menu, setMenu] = useState(null);

@@ -60,7 +60,9 @@ function createHandlers({ services: s, desktop }) {
       capabilities: {
         login: !!desktop && ["win32", "darwin"].includes(process.platform),
         dialogs: !!desktop,
+        updates: !!desktop?.updater,
       },
+      update: desktop?.updater?.getState() || { status: "unavailable" },
     }),
     "download:add": (options) => manager.addDownload(options),
     "download:add-torrent": (options) => manager.addTorrent(options),
@@ -180,6 +182,11 @@ function createHandlers({ services: s, desktop }) {
       desktopOnly().app.quit();
       return true;
     },
+    "updates:get-state": () =>
+      desktopOnly().updater?.getState() || { status: "unavailable" },
+    "updates:check": () => desktopOnly().updater?.check(),
+    "updates:download": () => desktopOnly().updater?.download(),
+    "updates:install": () => desktopOnly().updater?.install(),
   };
 }
 function setupIpcHandlers({ ipcMain, services, desktop }) {

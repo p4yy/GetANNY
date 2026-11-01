@@ -83,3 +83,9 @@ Known limitations include incomplete localization and Arabic RTL, unsigned Firef
 ## 2.0.0-rc.2
 
 Introduced ordinary browser handoff, an asynchronous range engine, media metadata and subtitles, additional themes, and installed-app verification tooling. The published binaries and their actual verification limits are documented on the rc.2 release page.
+
+# 2.2.4 — Updates and smoother large libraries
+
+- Added an opt-in in-app download and restart prompt for updates from GitHub Releases on NSIS Setup EXE installs.
+- Kept MSI, portable, Microsoft Store, and extension update channels independent.
+- Reduced rerenders during active transfers and improved windowed rendering for large download and media lists.

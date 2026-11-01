@@ -17,6 +17,15 @@ test("Windows packaging fails closed when required runtime resources are absent"
   const config = await fs.readFile("electron-builder.yml", "utf8");
   assert.match(config, /^  - src\/shared\/\*\*\/\*$/m);
 });
+test("Windows packages exclude local native build output and its machine paths", async () => {
+  const config = await fs.readFile("electron-builder.yml", "utf8");
+  for (const pattern of [
+    '!node_modules/better-sqlite3/build/**/*',
+    '!node_modules/bufferutil/**/*',
+    '!node_modules/utf-8-validate/**/*',
+  ])
+    assert.ok(config.includes(pattern), `Missing package exclusion: ${pattern}`);
+});
 test("Windows packaging rejects existing but checksum-invalid tools", async (t) => {
   const root = await temporary(t);
   for (const file of [
