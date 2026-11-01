@@ -443,6 +443,13 @@ function DownloadRow({
                   {item.media?.quality}
                 </>
               )}
+              {item.status === "downloading" &&
+                item.eta != null &&
+                item.totalSize > 0 && (
+                  <span className="file-eta">
+                    {t("downloads.timeLeft", { time: duration(item.eta) })}
+                  </span>
+                )}
             </>
           )}
         </div>
@@ -507,11 +514,9 @@ function DownloadRow({
                   : t("downloads.waitingData")}
               </span>
               <span>
-                {item.eta != null && item.totalSize > 0
-                  ? t("downloads.timeLeft", { time: duration(item.eta) })
-                  : item.kind === "torrent"
-                    ? t("downloads.peers", { count: item.peers || 0 })
-                    : ""}
+                {item.kind === "torrent"
+                  ? t("downloads.peers", { count: item.peers || 0 })
+                  : ""}
               </span>
             </>
           ) : item.status === "processing" ? (
@@ -597,11 +602,7 @@ function DownloadRow({
   );
 }
 const MemoDownloadRow = React.memo(DownloadRow);
-export default function DownloadsPage({
-  filter,
-  active: visible = true,
-  platform,
-}) {
+export default function DownloadsPage({ filter, active: visible = true }) {
   const { t } = useI18n();
   const downloads = useDownloadStore((state) => state.downloads);
   const [search, setSearch] = useState(""),
@@ -646,6 +647,28 @@ export default function DownloadsPage({
         ),
     [base, search, category, sort],
   );
+  const emptyTitleKey =
+    search || category !== "All files"
+      ? "downloads.emptySearchTitle"
+      : {
+          active: "downloads.emptyActiveTitle",
+          completed: "downloads.emptyCompletedTitle",
+          paused: "downloads.emptyPausedTitle",
+          failed: "downloads.emptyFailedTitle",
+          torrent: "downloads.emptyTorrentTitle",
+        }[filter] || "downloads.emptyTitle";
+  const emptyDescriptionKey =
+    search || category !== "All files"
+      ? "downloads.emptySearchDescription"
+      : {
+          active: "downloads.emptyActiveDescription",
+          completed: "downloads.emptyCompletedDescription",
+          paused: "downloads.emptyPausedDescription",
+          failed: "downloads.emptyFailedDescription",
+          torrent: "downloads.emptyTorrentDescription",
+        }[filter] || "downloads.emptyDescription";
+  const showLibraryToolbar =
+    base.length > 0 || !!search || category !== "All files";
   // Stable callbacks keep every memoized row from re-rendering whenever a
   // progress tick changes the list.
   const select = useCallback(
@@ -827,103 +850,105 @@ export default function DownloadsPage({
   return (
     <div className="page downloads-page">
       <PageHeader eyebrow={t("downloads.eyebrow")} title={title} />
-      <div className="library-panel">
-        <div className="library-toolbar">
-          <div className="search-input">
-            <LuSearch />
-            <input
-              aria-label={t("downloads.searchLabel")}
-              placeholder={t("downloads.searchPlaceholder")}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            {search && (
-              <IconButton
-                label={t("downloads.clearSearch")}
-                onClick={() => setSearch("")}
-              >
-                <LuX />
-              </IconButton>
-            )}
-          </div>
-          <div
-            className="category-tabs"
-            role="group"
-            aria-label={t("downloads.filterType")}
-          >
-            {[
-              ["All files", "downloads.allFiles"],
-              ["Video", "downloads.category.video"],
-              ["Audio", "downloads.category.audio"],
-              ["Archives", "downloads.category.archives"],
-              ["Documents", "downloads.category.documents"],
-              ["Applications", "downloads.category.applications"],
-              ["Images", "downloads.category.images"],
-              ["Other", "downloads.category.other"],
-            ]
-              .filter(
-                ([name]) =>
-                  [
-                    "All files",
-                    "Video",
-                    "Audio",
-                    "Archives",
-                    "Documents",
-                  ].includes(name) ||
-                  base.some((item) => item.category === name),
-              )
-              .map(([name, key]) => (
-                <button
-                  className={category === name ? "selected" : ""}
-                  key={name}
-                  onClick={() => setCategory(name)}
+      <div className={`library-panel ${rows.length ? "" : "is-empty"}`}>
+        {showLibraryToolbar && (
+          <div className="library-toolbar">
+            <div className="search-input">
+              <LuSearch />
+              <input
+                aria-label={t("downloads.searchLabel")}
+                placeholder={t("downloads.searchPlaceholder")}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+              {search && (
+                <IconButton
+                  label={t("downloads.clearSearch")}
+                  onClick={() => setSearch("")}
                 >
-                  {t(key)}
-                  {name === "All files" && <span>{base.length}</span>}
-                </button>
-              ))}
-          </div>
-          <div className="toolbar-actions">
-            <Button
-              variant="ghost"
-              icon={LuPause}
-              busy={bulkBusy}
-              disabled={
-                !base.some(
-                  (item) =>
-                    active(item) ||
-                    ["queued", "retrying"].includes(item.status),
+                  <LuX />
+                </IconButton>
+              )}
+            </div>
+            <div
+              className="category-tabs"
+              role="group"
+              aria-label={t("downloads.filterType")}
+            >
+              {[
+                ["All files", "downloads.allFiles"],
+                ["Video", "downloads.category.video"],
+                ["Audio", "downloads.category.audio"],
+                ["Archives", "downloads.category.archives"],
+                ["Documents", "downloads.category.documents"],
+                ["Applications", "downloads.category.applications"],
+                ["Images", "downloads.category.images"],
+                ["Other", "downloads.category.other"],
+              ]
+                .filter(
+                  ([name]) =>
+                    [
+                      "All files",
+                      "Video",
+                      "Audio",
+                      "Archives",
+                      "Documents",
+                    ].includes(name) ||
+                    base.some((item) => item.category === name),
                 )
-              }
-              onClick={pauseAll}
-            >
-              {t("downloads.pauseAll")}
-            </Button>
-            <Select
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-              aria-label={t("downloads.sortLabel")}
-            >
-              <option value="latest">{t("downloads.sort.latest")}</option>
-              <option value="name">{t("downloads.sort.name")}</option>
-              <option value="size">{t("downloads.sort.size")}</option>
-            </Select>
-            <Button
-              variant="ghost"
-              icon={LuTrash2}
-              disabled={!historyCount("all")}
-              onClick={(event) => {
-                const box = event.currentTarget.getBoundingClientRect();
-                setHistoryMenu({
-                  x: box.right - 250,
-                  y: box.bottom + 6,
-                });
-              }}
-            >
-              {t("downloads.clearHistory")}
-            </Button>
+                .map(([name, key]) => (
+                  <button
+                    className={category === name ? "selected" : ""}
+                    key={name}
+                    onClick={() => setCategory(name)}
+                  >
+                    {t(key)}
+                    {name === "All files" && <span>{base.length}</span>}
+                  </button>
+                ))}
+            </div>
+            <div className="toolbar-actions">
+              <Button
+                variant="ghost"
+                icon={LuPause}
+                busy={bulkBusy}
+                disabled={
+                  !base.some(
+                    (item) =>
+                      active(item) ||
+                      ["queued", "retrying"].includes(item.status),
+                  )
+                }
+                onClick={pauseAll}
+              >
+                {t("downloads.pauseAll")}
+              </Button>
+              <Select
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                aria-label={t("downloads.sortLabel")}
+              >
+                <option value="latest">{t("downloads.sort.latest")}</option>
+                <option value="name">{t("downloads.sort.name")}</option>
+                <option value="size">{t("downloads.sort.size")}</option>
+              </Select>
+              <Button
+                variant="ghost"
+                icon={LuTrash2}
+                disabled={!historyCount("all")}
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect();
+                  setHistoryMenu({
+                    x: box.right - 250,
+                    y: box.bottom + 6,
+                  });
+                }}
+              >
+                {t("downloads.clearHistory")}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
         {selectionMode && (
           <div className="selection-bar" role="status">
             <LuSquareCheck />
@@ -938,28 +963,30 @@ export default function DownloadsPage({
             </Button>
           </div>
         )}
-        <div className="list-heading">
-          <button
-            type="button"
-            className={`select-all-check ${selectState === "all" ? "selected" : ""}`}
-            role="checkbox"
-            aria-checked={
-              selectState === "some" ? "mixed" : selectState === "all"
-            }
-            aria-label={t("downloads.selectAll")}
-            disabled={!rows.length}
-            onClick={selectAll}
-          >
-            {selectState === "some" ? (
-              <LuMinus />
-            ) : selectState === "all" ? (
-              <LuCheck />
-            ) : null}
-          </button>
-          <span className="heading-name">{t("downloads.fileName")}</span>
-          <span className="heading-transfer">{t("downloads.transfer")}</span>
-          <span className="heading-status">{t("downloads.status")}</span>
-        </div>
+        {rows.length > 0 && (
+          <div className="list-heading">
+            <button
+              type="button"
+              className={`select-all-check ${selectState === "all" ? "selected" : ""}`}
+              role="checkbox"
+              aria-checked={
+                selectState === "some" ? "mixed" : selectState === "all"
+              }
+              aria-label={t("downloads.selectAll")}
+              disabled={!rows.length}
+              onClick={selectAll}
+            >
+              {selectState === "some" ? (
+                <LuMinus />
+              ) : selectState === "all" ? (
+                <LuCheck />
+              ) : null}
+            </button>
+            <span className="heading-name">{t("downloads.fileName")}</span>
+            <span className="heading-transfer">{t("downloads.transfer")}</span>
+            <span className="heading-status">{t("downloads.status")}</span>
+          </div>
+        )}
         <div
           role="list"
           aria-label={title}
@@ -999,7 +1026,9 @@ export default function DownloadsPage({
           ) : (
             <div className="empty-state">
               <div className="empty-icon">
-                {filter === "completed" ? (
+                {filter === "torrent" ? (
+                  <LuMagnet />
+                ) : filter === "completed" ? (
                   <LuCheck />
                 ) : filter === "failed" ? (
                   <LuCircleAlert />
@@ -1009,32 +1038,13 @@ export default function DownloadsPage({
                   <LuArrowDownToLine />
                 )}
               </div>
-              <h2>
-                {search || category !== "All files"
-                  ? t("downloads.emptySearchTitle")
-                  : filter === "completed"
-                    ? t("downloads.emptyCompletedTitle")
-                    : filter === "failed"
-                      ? t("downloads.emptyFailedTitle")
-                      : filter === "paused"
-                        ? t("downloads.emptyPausedTitle")
-                        : t("downloads.emptyTitle")}
-              </h2>
-              <p>
-                {search || category !== "All files"
-                  ? t("downloads.emptySearchDescription")
-                  : filter === "failed"
-                    ? t("downloads.emptyFailedDescription")
-                    : filter === "paused"
-                      ? t("downloads.emptyPausedDescription")
-                      : filter === "completed"
-                        ? t("downloads.emptyCompletedDescription")
-                        : t("downloads.emptyDescription")}
-              </p>
-              {!search && filter !== "failed" && filter !== "paused" && (
+              <h2>{t(emptyTitleKey)}</h2>
+              <p>{t(emptyDescriptionKey)}</p>
+              {!search && category === "All files" && (
                 <div className="empty-actions">
                   <Button
                     icon={LuPlus}
+                    variant="primary"
                     onClick={() =>
                       useUIStore
                         .getState()
@@ -1045,28 +1055,24 @@ export default function DownloadsPage({
                   >
                     {filter === "torrent"
                       ? t("downloads.addTorrentEmpty")
-                      : t("downloads.addFirst")}
+                      : filter === "all" && downloads.length === 0
+                        ? t("downloads.addFirst")
+                        : t("downloads.newDownload")}
                   </Button>
                 </div>
               )}
-              <Button
-                className="clipboard-empty-action"
-                variant="ghost"
-                icon={LuClipboardPaste}
-                onClick={() =>
-                  window.dispatchEvent(new Event("getanny:paste-clipboard"))
-                }
-              >
-                {t("downloads.pasteClipboard")}
-              </Button>
-              <span className="keyboard-hint">
-                {filter === "all" && (
-                  <>
-                    {t("downloads.quickAdd")}{" "}
-                    <kbd>{platform === "darwin" ? "⌘N" : "Ctrl + N"}</kbd>
-                  </>
-                )}
-              </span>
+              {!search && category === "All files" && (
+                <Button
+                  className="clipboard-empty-action"
+                  variant="ghost"
+                  icon={LuClipboardPaste}
+                  onClick={() =>
+                    window.dispatchEvent(new Event("getanny:paste-clipboard"))
+                  }
+                >
+                  {t("downloads.pasteClipboard")}
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -1088,7 +1094,7 @@ export default function DownloadsPage({
           </span>
         </div>
       </div>
-      {filter === "torrent" && (
+      {filter === "torrent" && base.length > 0 && (
         <p className="page-footnote">
           <LuInfo />
           {t("downloads.torrentNote")}

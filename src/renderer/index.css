@@ -513,6 +513,23 @@ small {
   min-height: 38px;
   position: relative;
 }
+.nav-item:before {
+  content: "";
+  position: absolute;
+  width: 3px;
+  height: 15px;
+  border-radius: 3px;
+  left: -1px;
+  top: 11px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleY(0.8);
+  transform-origin: center;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  pointer-events: none;
+}
 .nav-item svg {
   width: 16px;
   height: 16px;
@@ -527,21 +544,25 @@ small {
   border-color: var(--line);
   color: var(--text);
 }
+.nav-item.has-live-transfer.selected {
+  animation: nav-transfer-surface 2.2s ease-in-out infinite;
+}
 .nav-item.selected:before {
-  content: "";
-  position: absolute;
-  width: 3px;
-  height: 15px;
-  border-radius: 3px;
-  left: -1px;
-  top: 11px;
-  background: var(--accent);
+  opacity: 1;
+  transform: scaleY(1);
+}
+.nav-item.has-live-transfer.selected:before {
+  animation: nav-transfer-marker 2.2s ease-in-out infinite;
 }
 .nav-item.selected svg {
   color: var(--accent);
   opacity: 1;
 }
 .nav-item b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
   font-size: 9px;
   font-weight: 550;
   color: var(--muted);
@@ -550,10 +571,56 @@ small {
   background: var(--bg);
   margin-left: auto;
   line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  animation: nav-count-appear 140ms ease-out both;
 }
 .nav-item.selected b {
   color: var(--accent);
   background: var(--accent-soft);
+}
+.nav-item.has-live-transfer b {
+  color: var(--accent);
+  background: var(--accent-soft);
+  animation: nav-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes nav-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+  50% {
+    opacity: 0.82;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+}
+@keyframes nav-transfer-surface {
+  0%,
+  100% {
+    background: var(--raised);
+  }
+  50% {
+    background: color-mix(in srgb, var(--accent) 11%, var(--raised));
+  }
+}
+@keyframes nav-transfer-marker {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 9px 1px color-mix(in srgb, var(--accent) 42%, transparent);
+  }
+}
+@keyframes nav-count-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -1453,6 +1520,13 @@ html.theme-transition *::after {
 .file-source > span {
   color: var(--muted);
   opacity: 0.55;
+}
+.file-source > .file-eta {
+  padding-inline-start: 7px;
+  border-inline-start: 1px solid var(--line-soft);
+  color: var(--secondary);
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
 }
 .row-error {
   color: var(--red);
@@ -5243,6 +5317,140 @@ html.theme-transition *::after {
     flex-wrap: wrap;
   }
   .bridge-status-pill .mono {
+    display: none;
+  }
+}
+
+/* Empty libraries show the next useful action, not an inactive table. */
+.library-panel.is-empty .download-list {
+  display: flex;
+  justify-content: center;
+}
+.library-panel.is-empty .empty-state {
+  width: 100%;
+  min-height: 264px;
+  padding: 30px 24px;
+  justify-content: center;
+}
+.library-panel.is-empty .empty-icon {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 17px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+.library-panel.is-empty .empty-state h2 {
+  font-size: 16px;
+  letter-spacing: -0.25px;
+}
+.library-panel.is-empty .empty-state p {
+  margin: 7px 0 17px;
+  line-height: 1.55;
+}
+.library-panel.is-empty .empty-actions .button {
+  min-height: 38px;
+  padding-inline: 15px;
+}
+.library-panel.is-empty .clipboard-empty-action {
+  margin-top: 5px;
+  padding: 5px 9px;
+  min-height: 30px;
+  color: var(--secondary);
+}
+
+/* Keep search, filters and list-wide controls readable as distinct groups. */
+.library-toolbar .search-input {
+  flex: 0 1 230px;
+  min-width: 175px;
+  max-width: 260px;
+}
+.library-toolbar .category-tabs {
+  gap: 15px;
+}
+.library-toolbar .category-tabs button {
+  color: var(--secondary);
+  font-size: 11px;
+}
+.library-toolbar .category-tabs button.selected {
+  color: var(--accent);
+}
+.library-toolbar .toolbar-actions {
+  margin-left: auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
+  gap: 7px;
+}
+.library-toolbar .toolbar-actions .button:disabled {
+  opacity: 0.72;
+  color: var(--muted);
+}
+.library-toolbar .toolbar-actions .button:disabled svg {
+  opacity: 0.8;
+}
+
+/* The footer has a stable left status group and a compact right metrics group. */
+.statusbar-start {
+  flex: 0 0 auto;
+}
+.statusbar-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+  margin-left: auto;
+}
+.statusbar .status-speed {
+  gap: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.statusbar .status-speed-count {
+  margin-left: 4px;
+  color: var(--secondary);
+}
+.statusbar-completed,
+.statusbar-local {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.statusbar-completed {
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.statusbar-local {
+  color: var(--muted);
+  opacity: 0.82;
+  font-size: 8px;
+}
+
+@media (max-width: 1180px) {
+  .library-toolbar .toolbar-actions {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+@media (max-width: 760px) {
+  .statusbar-end {
+    gap: 8px;
+  }
+  .statusbar .status-speed-count,
+  .statusbar-local {
+    display: none;
+  }
+  .statusbar-completed {
+    padding-left: 8px;
+  }
+  .statusbar .statusbar-start > span:last-child {
+    display: inline-flex;
+  }
+}
+@media (max-width: 480px) {
+  .statusbar-completed {
     display: none;
   }
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.1 — Library polish, bundled browser setup, and reliable torrent drop
+
+- Refined empty library pages with page-specific copy, less inactive table chrome and one clear primary action.
+- Rebalanced toolbar spacing, control legibility and status-bar grouping across window sizes.
+- Stabilized sidebar navigation during progress updates and added a quiet pulse to the selected section while its transfers are running.
+- Moved the estimated time remaining next to each active download's name; estimates appear only when size and speed data are available.
+- Fixed Windows `.torrent` drag and drop by resolving the real dropped file path through Electron's safe file utility.
+- Included browser extension files in Windows app packages and added an **Install extension** action that prepares them and opens the selected browser's extension manager. GetANNY detects the extension handshake after the browser's required approval; standalone extension ZIPs remain available as a fallback.
+- Opened browser extension managers in a new browser window with their browser-specific internal URL.
+- Increased the selected navigation item's activity pulse while keeping it restrained and aligned with the active theme.
+
 ## 2.2.0 — Capture, playlists and performance
 
 - Added window-wide drag and drop and clipboard paste/monitoring for supported links, magnets and torrent files; clipboard monitoring is opt-in.

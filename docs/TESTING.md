@@ -1,6 +1,6 @@
-# 2.2.0 local verification status
+# 2.2.1 local verification status
 
-This release was verified locally. GitHub Actions Windows/browser verification was intentionally skipped at the owner's request; the official release notes state this explicitly. Local checks are recorded below when each completes. No manual installed-app close/reopen certification is claimed.
+The 2.2.1 renderer build is checked locally before packaging. The full automated suite and manual installed-app flow are not certified for this patch. GitHub Actions Windows/browser verification remains intentionally skipped at the owner's request; see `RELEASE_STATUS.md` for the release-specific record.
 
 The current application has 12 themes. The `--muted` token contrasts against `--bg`, `--panel` and `--raised` at a measured minimum of 4.81:1 across the theme catalog; `--secondary` is above 5.49:1. These token checks are not a full WCAG audit of every rendered text element.
 

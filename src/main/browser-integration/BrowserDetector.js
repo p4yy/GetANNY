@@ -180,7 +180,18 @@ class BrowserDetector {
       throw new Error(
         "Browser executable not detected. Use Locate browser, or open its extensions page manually.",
       );
-    const child = spawn(detected.executable, [browser.page], {
+    // Chromium derivatives can consume an internal URL as a launch request
+    // without navigating the existing window. Force a new window and use a
+    // canonical trailing slash so the extensions manager opens reliably.
+    const page =
+      browser.family === "firefox"
+        ? browser.page
+        : `${browser.page.replace(/\/$/, "")}/`;
+    const args =
+      browser.family === "firefox"
+        ? ["-new-window", page]
+        : ["--new-window", page];
+    const child = spawn(detected.executable, args, {
       detached: true,
       stdio: "ignore",
       windowsHide: false,
@@ -190,7 +201,7 @@ class BrowserDetector {
       child.once("error", reject);
     });
     child.unref();
-    return { opened: true, page: browser.page };
+    return { opened: true, page };
   }
 }
 module.exports = { BrowserDetector };

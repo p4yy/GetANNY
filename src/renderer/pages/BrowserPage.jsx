@@ -90,6 +90,16 @@ export default function BrowserPage() {
         .getState()
         .notify(t("browser.prepareNotice"));
     });
+  const installInBrowser = () =>
+    run(async () => {
+      const result = await api.invoke("browser:prepare", selected);
+      setPrepared(result);
+      await save("preferredBrowser", selected);
+      await api.invoke("browser:open-extensions", selected);
+      useUIStore.getState().notify(
+        t("browser.installNextStep", { path: result.path }),
+      );
+    });
   const copy = (text) =>
     navigator.clipboard.writeText(text).then(
       () => useUIStore.getState().notify(t("browser.copied")),
@@ -346,7 +356,7 @@ export default function BrowserPage() {
               {browser?.connected ? <LuCheck /> : "2"}
             </span>
             <div className="step-content">
-              <h3>{t("browser.step2Title")}</h3>
+            <h3>{t("browser.step2Title")}</h3>
               {selected === "firefox" ? (
                 <p>{t("browser.firefoxText")}</p>
               ) : (
@@ -358,13 +368,17 @@ export default function BrowserPage() {
               )}
               <div className="step-actions">
                 <Button
+                  variant="primary"
                   icon={LuExternalLink}
-                  disabled={!api.desktop || !browser?.installed}
-                  onClick={() =>
-                    run(() => api.invoke("browser:open-extensions", selected))
+                  busy={busy}
+                  disabled={
+                    !api.desktop ||
+                    !settings.browserIntegrationEnabled ||
+                    !browser?.installed
                   }
+                  onClick={installInBrowser}
                 >
-                  {t("browser.openExtensions")}
+                  {t("browser.installExtension")}
                 </Button>
                 {api.desktop && !browser?.installed && (
                   <Button

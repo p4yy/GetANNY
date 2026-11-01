@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 const channels = [
   "app:bootstrap",
   "clipboard:read-text",
@@ -56,6 +56,9 @@ const events = [
 ];
 contextBridge.exposeInMainWorld("getanny", {
   desktop: true,
+  getDroppedFilePath(file) {
+    return webUtils.getPathForFile(file);
+  },
   invoke(channel, ...args) {
     if (!channels.includes(channel))
       return Promise.reject(new Error("Unsupported desktop action."));

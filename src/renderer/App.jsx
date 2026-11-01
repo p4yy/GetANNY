@@ -53,6 +53,28 @@ const navigation = [
   ["failed", LuCircleAlert, "nav.failed"],
 ];
 const downloadTabs = navigation.map(([id]) => id);
+const Nav = React.memo(function Nav({
+  id,
+  icon: Icon,
+  label,
+  count: amount,
+  live = false,
+}) {
+  const tab = useUIStore((state) => state.activeTab);
+  const setTab = useUIStore((state) => state.setActiveTab);
+  return (
+    <button
+      className={`nav-item ${tab === id ? "selected" : ""} ${live && tab === id ? "has-live-transfer" : ""}`}
+      aria-current={tab === id ? "page" : undefined}
+      title={label}
+      onClick={() => setTab(id)}
+    >
+      <Icon />
+      <span>{label}</span>
+      {amount > 0 && <b>{amount}</b>}
+    </button>
+  );
+});
 function Sidebar({ bridge, version, platform }) {
   const { t } = useI18n();
   const tab = useUIStore((state) => state.activeTab),
@@ -67,18 +89,14 @@ function Sidebar({ bridge, version, platform }) {
           ? active(item) || ["queued", "retrying"].includes(item.status)
           : item.status === key,
     ).length;
-  const Nav = ({ id, icon: Icon, label, count: amount }) => (
-    <button
-      className={`nav-item ${tab === id ? "selected" : ""}`}
-      aria-current={tab === id ? "page" : undefined}
-      title={label}
-      onClick={() => setTab(id)}
-    >
-      <Icon />
-      <span>{label}</span>
-      {amount > 0 && <b>{amount}</b>}
-    </button>
-  );
+  const hasLiveTransfer = (key) =>
+    downloads.some(
+      (item) =>
+        active(item) &&
+        (key === "all" ||
+          key === "active" ||
+          (key === "torrent" && item.kind === "torrent")),
+    );
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -96,7 +114,14 @@ function Sidebar({ bridge, version, platform }) {
       <nav aria-label="Main navigation">
         <div className="nav-group-label">{t("nav.library")}</div>
         {navigation.map(([id, Icon, key]) => (
-          <Nav key={id} id={id} icon={Icon} label={t(key)} count={count(id)} />
+          <Nav
+            key={id}
+            id={id}
+            icon={Icon}
+            label={t(key)}
+            count={count(id)}
+            live={hasLiveTransfer(id)}
+          />
         ))}
         <div className="nav-group-label tools-label">{t("nav.tools")}</div>
         <Nav id="media" icon={LuFilm} label={t("nav.media")} />
@@ -108,6 +133,7 @@ function Sidebar({ bridge, version, platform }) {
             downloads.filter((item) => item.kind === "torrent" && active(item))
               .length
           }
+          live={hasLiveTransfer("torrent")}
         />
       </nav>
       <div className="sidebar-bottom">
@@ -183,7 +209,7 @@ function StatusBar({ version }) {
   );
   return (
     <footer className="statusbar">
-      <div>
+      <div className="statusbar-start">
         <span className={`live-dot ${transferring.length ? "live" : ""}`} />
         {transferring.length
           ? t("shell.activeTransfers", { count: transferring.length })
@@ -197,33 +223,32 @@ function StatusBar({ version }) {
           })}
         </span>
       </div>
-      <button
-        type="button"
-        className="status-speed"
-        title={t("shell.openActive")}
-        onClick={() => useUIStore.getState().setActiveTab("active")}
-      >
-        <LuArrowDown />
-        {speed > 0 ? `${bytes(speed)}/s` : "0 B/s"}
-        {uploadSpeed > 0 && (
-          <>
-            <span>/</span>
-            <LuArrowUp />
-            {bytes(uploadSpeed)}/s
-          </>
-        )}
-        <span>
-          {t("shell.activeTransfers", { count: transferring.length })}
-        </span>
-      </button>
-      <div>
-        <span className="status-separator">/</span>
-        <LuCircleCheck />
-        <span>
+      <div className="statusbar-end">
+        <button
+          type="button"
+          className="status-speed"
+          title={t("shell.openActive")}
+          aria-label={`${t("shell.openActive")}: ${bytes(speed)}/s download, ${t("shell.activeTransfers", { count: transferring.length })}`}
+          onClick={() => useUIStore.getState().setActiveTab("active")}
+        >
+          <LuArrowDown />
+          {speed > 0 ? `${bytes(speed)}/s` : "0 B/s"}
+          {uploadSpeed > 0 && (
+            <>
+              <span className="status-separator">/</span>
+              <LuArrowUp />
+              {bytes(uploadSpeed)}/s
+            </>
+          )}
+          <span className="status-speed-count">
+            {t("shell.activeTransfers", { count: transferring.length })}
+          </span>
+        </button>
+        <span className="statusbar-completed">
+          <LuCircleCheck />
           {completed} {t("downloads.completedCount")}
         </span>
-        <span className="status-separator">/</span>
-        <span>
+        <span className="statusbar-local">
           {t("shell.storedLocally")} · {version}
         </span>
       </div>
@@ -439,16 +464,32 @@ export default function App() {
       dragDepth.current = Math.max(0, dragDepth.current - 1);
       if (!dragDepth.current) setDropActive(false);
     };
-    const handleDrop = (event) => {
+    const handleDrop = async (event) => {
       event.preventDefault();
       dragDepth.current = 0;
       setDropActive(false);
       const file = event.dataTransfer?.files?.[0];
       if (file && /\.torrent$/i.test(file.name)) {
+        let torrentPath;
+        try {
+          torrentPath =
+            api.getDroppedFilePath?.(file) ||
+            file.path ||
+            (api.desktop ? "" : file.name);
+        } catch {
+          torrentPath = file.path || "";
+        }
+        if (!torrentPath) {
+          useUIStore
+            .getState()
+            .notify(t("shell.dropTorrentPathUnavailable"), "error");
+          return;
+        }
         useUIStore.getState().setActiveTab("torrent");
-        useUIStore
-          .getState()
-          .setAddModal({ torrent: true, torrentUrl: file.path || file.name });
+        useUIStore.getState().setAddModal({
+          torrent: true,
+          torrentUrl: torrentPath,
+        });
         return;
       }
       const text =

@@ -1,4 +1,23 @@
-# GetANNY 2.2.0 — Capture, playlists and smoother libraries
+# GetANNY 2.2.1 — Interface polish and reliable torrent drop
+
+Version 2.2.1 refines empty library states and transfer status hierarchy, fixes dragging `.torrent` files from Windows Explorer into the app, and bundles browser extensions in the Windows app packages. The Browser integration page can prepare the selected browser and open its extension manager from one **Install extension** action. Once the user completes the browser's required installation step, GetANNY recognizes the extension handshake and verifies the connection automatically. Manual browser extension ZIPs remain in the release bundle as a fallback.
+
+## Interface refinements
+
+- Empty library pages now hide table headings when there are no rows, and hide the search/filter toolbar when that page has no records. Search-result empty states keep their controls.
+- Active, completed, paused, failed and torrent pages use direct, page-specific empty-state copy. The main download action has clear primary emphasis; clipboard capture remains a quieter secondary action.
+- Search, type filters and bulk actions have clearer spacing and disabled-state legibility. The footer groups readiness on the left and transfer metrics on the right, with secondary metadata reduced in emphasis on narrow windows.
+- Sidebar items keep their identity through progress updates, eliminating the selected-tab flicker. A subtle count pulse appears only when the selected section has a running transfer.
+- Estimated time remaining appears beside an active download's name when both file size and transfer-speed data are available. Torrent peer count stays with the transfer meter.
+- Empty torrent pages no longer show completion/resume guidance before a torrent is added.
+- Browser integration prepares the bundled extension and opens the selected browser's extension manager. The browser requires the user to approve/load the unpacked extension; GetANNY then detects its handshake and verifies the connection.
+
+## Torrent drag and drop
+
+- Electron now resolves the actual filesystem path for a dropped `.torrent` file through `webUtils.getPathForFile`, then passes that path to the existing torrent flow. This avoids sending the filename alone, which the torrent engine correctly rejected as neither a magnet link nor a valid file path.
+- If the dropped file path cannot be read, GetANNY gives a clear fallback to the existing **Choose file** control.
+
+## 2.2.0 feature set
 
 GetANNY 2.2.0 adds faster ways to capture downloads, playlist extraction, and optional feedback while keeping the existing desktop design, themes, translations and browser handoff flow.
 
