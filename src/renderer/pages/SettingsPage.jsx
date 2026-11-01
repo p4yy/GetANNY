@@ -23,6 +23,7 @@ import {
 import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
 import { useI18n } from "../i18n/useI18n";
+import completionChime from "../assets/completion-chime.wav";
 function NumberControl({ value, onChange, min, max, label, suffix, disabled }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(String(value ?? ""));
@@ -40,10 +41,7 @@ function NumberControl({ value, onChange, min, max, label, suffix, disabled }) {
       setDraft(String(value));
       useUIStore
         .getState()
-        .notify(
-          t("settings.numberRange", { label, min, max }),
-          "error",
-        );
+        .notify(t("settings.numberRange", { label, min, max }), "error");
     }
   };
   return (
@@ -136,10 +134,7 @@ export default function SettingsPage({ capabilities, version }) {
   );
   return (
     <div className="page settings-page">
-      <PageHeader
-        eyebrow={t("settings.eyebrow")}
-        title={t("settings.title")}
-      >
+      <PageHeader eyebrow={t("settings.eyebrow")} title={t("settings.title")}>
         <span className="save-indicator">
           {saving ? (
             t("settings.saving")
@@ -184,6 +179,12 @@ export default function SettingsPage({ capabilities, version }) {
               description={t("settings.autoStart.description")}
             >
               {toggle("autoStartDownloads")}
+            </SettingRow>
+            <SettingRow
+              title={t("settings.clipboardMonitor.title")}
+              description={t("settings.clipboardMonitor.description")}
+            >
+              {toggle("clipboardMonitoring")}
             </SettingRow>
             <SettingRow
               title={t("settings.maxDownloads.title")}
@@ -475,6 +476,53 @@ export default function SettingsPage({ capabilities, version }) {
               <p>{t("settings.startup.description")}</p>
             </div>
             <SettingRow
+              title={t("settings.completionSound.title")}
+              description={t("settings.completionSound.description")}
+            >
+              {toggle("completionSound")}
+            </SettingRow>
+            <SettingRow
+              title={t("settings.completionSound.volume")}
+              description={t("settings.completionSound.volumeDescription")}
+            >
+              <input
+                aria-label={t("settings.completionSound.volume")}
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={settings.completionSoundVolume ?? 50}
+                disabled={!!saving}
+                onChange={(event) =>
+                  persist("completionSoundVolume", Number(event.target.value))
+                }
+              />
+            </SettingRow>
+            <SettingRow
+              title={t("settings.completionSound.preview")}
+              description={t("settings.completionSound.previewDescription")}
+            >
+              <Button
+                onClick={() => {
+                  try {
+                    const audio = new Audio(completionChime);
+                    audio.volume = Math.max(
+                      0,
+                      Math.min(
+                        1,
+                        Number(settings.completionSoundVolume ?? 50) / 100,
+                      ),
+                    );
+                    audio.play().catch(() => {});
+                  } catch {
+                    /* optional preview */
+                  }
+                }}
+              >
+                {t("settings.completionSound.play")}
+              </Button>
+            </SettingRow>
+            <SettingRow
               title={t("settings.notifications.title")}
               description={t("settings.notifications.description")}
             >
@@ -515,11 +563,7 @@ export default function SettingsPage({ capabilities, version }) {
         <div className="about-app">
           <div className="about-brand">
             <span className="brand-mark" aria-hidden="true" />
-            <span
-              className="brand-wordmark"
-              role="img"
-              aria-label="GetANNY"
-            />
+            <span className="brand-wordmark" role="img" aria-label="GetANNY" />
             <span className="about-version">{version}</span>
           </div>
           <small>{t("settings.tagline")}</small>

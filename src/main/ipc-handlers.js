@@ -77,6 +77,7 @@ function createHandlers({ services: s, desktop }) {
     "download:open-file": (id) => openKnown(id, false),
     "download:open-folder": (id) => openKnown(id, true),
     "media:get-formats": (url) => mediaDetector.getFormats(url),
+    "media:get-playlist": (url) => mediaDetector.getPlaylist(url),
     "media:download": async (options) => {
       const selection = mediaDetector.selection(options);
       const subtitle = options.subtitle
@@ -174,6 +175,7 @@ function createHandlers({ services: s, desktop }) {
     "app:window-state": () => ({
       maximized: desktop?.mainWindow()?.isMaximized() || false,
     }),
+    "clipboard:read-text": () => desktopOnly().clipboard.readText(),
     "app:quit": () => {
       desktopOnly().app.quit();
       return true;

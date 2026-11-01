@@ -328,6 +328,39 @@ test("restart restores interrupted history as paused with zero stale speed", asy
   assert.equal(item.filenameExplicit, true);
   assert.equal(repo.get("old").connections, 4);
 });
+test("session headers stay in memory, are omitted from persistence, and expire on restart", async (t) => {
+  const { manager, repo } = await managerFixture(t, {
+    autoStartDownloads: false,
+  });
+  let addedPayload;
+  manager.once("added", (value) => (addedPayload = value));
+  const id = await manager.addDownload({
+    url: "https://example.test/private.zip",
+    headers: {
+      Cookie: "session=secret-value",
+      Authorization: "Bearer secret-token",
+      Referer: "https://example.test/",
+    },
+  });
+  const item = manager.requireItem(id);
+  assert.equal(item.sessionHeaders.Cookie, "session=secret-value");
+  assert.equal(item.headers.Referer, "https://example.test/");
+  assert.equal(Object.hasOwn(item.headers, "Cookie"), false);
+  assert.equal(Object.hasOwn(manager.getAll()[0], "sessionHeaders"), false);
+  assert.equal(JSON.stringify(addedPayload).includes("secret-value"), false);
+  const persisted = repo.get(id);
+  assert.equal(JSON.stringify(persisted).includes("secret-value"), false);
+  assert.equal(JSON.stringify(persisted).includes("secret-token"), false);
+  const restored = new DownloadManager({
+    downloadsRepo: repo,
+    settings: manager.settings,
+  });
+  t.after(() => restored.shutdown());
+  await restored.restoreDownloads();
+  assert.equal(restored.requireItem(id).status, "paused");
+  assert.match(restored.requireItem(id).error, /Session expired/);
+  assert.throws(() => restored.resume(id), /Session expired/);
+});
 
 test("concurrent name reservations cannot collide before files are created", async (t) => {
   const server = await fixtureServer(t, { size: 256 * 1024, delay: 5 });
@@ -391,7 +424,10 @@ test("partial data stays outside the destination and history clearing keeps file
   await waitFor(() => manager.requireItem(id).status === "completed");
   const item = manager.requireItem(id);
   assert.deepEqual(await fs.readdir(destination), [item.filename]);
-  assert.equal(checksum(await fs.readFile(item.filePath)), checksum(server.state.data));
+  assert.equal(
+    checksum(await fs.readFile(item.filePath)),
+    checksum(server.state.data),
+  );
   await manager.clearHistory({ scope: "all" });
   assert.equal(
     await fs.access(item.filePath).then(
@@ -404,7 +440,9 @@ test("partial data stays outside the destination and history clearing keeps file
 test("clearing all history leaves unfinished transfers running", async (t) => {
   const server = await fixtureServer(t, { size: 32 * 1024 });
   const { manager } = await managerFixture(t);
-  const completed = await manager.addDownload({ url: server.url + "/done.bin" });
+  const completed = await manager.addDownload({
+    url: server.url + "/done.bin",
+  });
   await waitFor(() => manager.requireItem(completed).status === "completed");
   manager.settings.autoStartDownloads = false;
   const paused = await manager.addDownload({ url: server.url + "/later.bin" });
@@ -412,8 +450,18 @@ test("clearing all history leaves unfinished transfers running", async (t) => {
   assert.equal(await manager.clearHistory({ scope: "all" }), 1);
   assert.equal(manager.getAll().length, 1);
   assert.equal(manager.requireItem(paused).status, "paused");
-  assert.equal(await manager.clearHistory({ scope: "selected", ids: [paused] }), 0);
-  assert.equal(await manager.clearHistory({ scope: "selected", ids: [paused], stopUnfinished: true }), 1);
+  assert.equal(
+    await manager.clearHistory({ scope: "selected", ids: [paused] }),
+    0,
+  );
+  assert.equal(
+    await manager.clearHistory({
+      scope: "selected",
+      ids: [paused],
+      stopUnfinished: true,
+    }),
+    1,
+  );
   assert.equal(manager.getAll().length, 0);
 });
 test("daily start window handles daytime, overnight and equal endpoints in local time", () => {
@@ -494,7 +542,10 @@ test("scheduled downloads remain queued across restart and start when scheduling
   );
 });
 test("torrent output uses the swarm name and migrates legacy UUID folders", () => {
-  const { TorrentEngine, LEGACY_FOLDER } = require("../src/main/engine/TorrentEngine");
+  const {
+    TorrentEngine,
+    LEGACY_FOLDER,
+  } = require("../src/main/engine/TorrentEngine");
   const base = path.join(require("node:os").tmpdir(), "torrent-target");
   const legacy = new TorrentEngine({
     id: "legacy",
@@ -506,8 +557,5 @@ test("torrent output uses the swarm name and migrates legacy UUID folders", () =
   assert.equal(legacy.resolveSavePath(), base);
   legacy.torrent = { name: "Ubuntu 24.04: Desktop" };
   assert.equal(legacy.destinationName(), "Ubuntu 24.04_ Desktop");
-  assert.equal(
-    legacy.destinationName().includes("69e406fe"),
-    false,
-  );
+  assert.equal(legacy.destinationName().includes("69e406fe"), false);
 });

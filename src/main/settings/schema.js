@@ -17,6 +17,8 @@ const BOOLEAN_KEYS = [
   "browserIntegrationEnabled",
   "mediaIntegration",
   "firstRunCompleted",
+  "clipboardMonitoring",
+  "completionSound",
 ];
 const NUMBER_RULES = {
   maxConcurrentDownloads: [1, 12],
@@ -25,6 +27,7 @@ const NUMBER_RULES = {
   requestTimeoutSeconds: [5, 300],
   retryAttempts: [0, 5],
   retryDelaySeconds: [1, 120],
+  completionSoundVolume: [0, 100],
   scheduleStartMinute: [0, 1439],
   scheduleEndMinute: [0, 1439],
 };
@@ -65,6 +68,9 @@ function defaults(downloadPath) {
     browserIntegrationEnabled: true,
     mediaIntegration: true,
     firstRunCompleted: false,
+    clipboardMonitoring: false,
+    completionSound: true,
+    completionSoundVolume: 50,
     preferredBrowser: "chrome",
   };
 }

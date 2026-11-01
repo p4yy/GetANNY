@@ -33,6 +33,7 @@ import {
   LuMagnet,
   LuSquareCheck,
   LuMinus,
+  LuClipboardPaste,
 } from "react-icons/lu";
 import { api, errorMessage } from "../api";
 import {
@@ -46,6 +47,7 @@ import useDownloadStore from "../stores/useDownloadStore";
 import useUIStore from "../stores/useUIStore";
 import { active, bytes, duration, percent, shortHost } from "../utils/format";
 import { useI18n } from "../i18n/useI18n";
+import VirtualList from "../components/VirtualList";
 const icons = {
   Archives: LuFileArchive,
   Documents: LuFileText,
@@ -235,9 +237,7 @@ function DownloadRow({
     try {
       const result = await api.invoke(`download:${action}`, item.id);
       if (result === false)
-        useUIStore
-          .getState()
-          .notify(t("downloads.actionUnavailable"), "error");
+        useUIStore.getState().notify(t("downloads.actionUnavailable"), "error");
     } catch (error) {
       useUIStore.getState().notify(errorMessage(error), "error");
     } finally {
@@ -739,11 +739,12 @@ export default function DownloadsPage({
           ? downloads.filter((item) => item.status === "failed").length
           : downloads.filter(historical).length;
   const clearScope = (scope) => {
-    const ids = scope === "selected"
-      ? downloads
-          .filter((item) => selected.has(item.id) && historical(item))
-          .map((item) => item.id)
-      : [];
+    const ids =
+      scope === "selected"
+        ? downloads
+            .filter((item) => selected.has(item.id) && historical(item))
+            .map((item) => item.id)
+        : [];
     const count = historyCount(scope);
     const labels = {
       selected: "downloads.history.confirmSelected",
@@ -825,10 +826,7 @@ export default function DownloadsPage({
   if (!visible) return <div className="page downloads-page" hidden />;
   return (
     <div className="page downloads-page">
-      <PageHeader
-        eyebrow={t("downloads.eyebrow")}
-        title={title}
-      />
+      <PageHeader eyebrow={t("downloads.eyebrow")} title={title} />
       <div className="library-panel">
         <div className="library-toolbar">
           <div className="search-input">
@@ -871,7 +869,8 @@ export default function DownloadsPage({
                     "Audio",
                     "Archives",
                     "Documents",
-                  ].includes(name) || base.some((item) => item.category === name),
+                  ].includes(name) ||
+                  base.some((item) => item.category === name),
               )
               .map(([name, key]) => (
                 <button
@@ -931,18 +930,10 @@ export default function DownloadsPage({
             <strong>
               {t("downloads.selectedCount", { count: selected.size })}
             </strong>
-            <Button
-              variant="ghost"
-              icon={LuTrash2}
-              onClick={removeSelected}
-            >
+            <Button variant="ghost" icon={LuTrash2} onClick={removeSelected}>
               {t("downloads.removeSelected")}
             </Button>
-            <Button
-              variant="ghost"
-              icon={LuX}
-              onClick={exitSelection}
-            >
+            <Button variant="ghost" icon={LuX} onClick={exitSelection}>
               {t("downloads.cancelSelection")}
             </Button>
           </div>
@@ -952,7 +943,9 @@ export default function DownloadsPage({
             type="button"
             className={`select-all-check ${selectState === "all" ? "selected" : ""}`}
             role="checkbox"
-            aria-checked={selectState === "some" ? "mixed" : selectState === "all"}
+            aria-checked={
+              selectState === "some" ? "mixed" : selectState === "all"
+            }
             aria-label={t("downloads.selectAll")}
             disabled={!rows.length}
             onClick={selectAll}
@@ -967,19 +960,42 @@ export default function DownloadsPage({
           <span className="heading-transfer">{t("downloads.transfer")}</span>
           <span className="heading-status">{t("downloads.status")}</span>
         </div>
-        <div role="list" aria-label={title} className="download-list">
+        <div
+          role="list"
+          aria-label={title}
+          className={`download-list ${rows.length > 150 ? "virtualized" : ""}`}
+        >
           {rows.length ? (
-            rows.map((item, index) => (
-              <MemoDownloadRow
-                key={item.id}
-                item={item}
-                index={index}
-                selected={selected.has(item.id)}
-                selectionMode={selectionMode}
-                onSelect={select}
-                onConfirm={setConfirm}
+            rows.length > 150 ? (
+              <VirtualList
+                items={rows}
+                getKey={(item) => item.id}
+                estimate={112}
+                className="download-window"
+                renderItem={(item, index) => (
+                  <MemoDownloadRow
+                    item={item}
+                    index={index}
+                    selected={selected.has(item.id)}
+                    selectionMode={selectionMode}
+                    onSelect={select}
+                    onConfirm={setConfirm}
+                  />
+                )}
               />
-            ))
+            ) : (
+              rows.map((item, index) => (
+                <MemoDownloadRow
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  selected={selected.has(item.id)}
+                  selectionMode={selectionMode}
+                  onSelect={select}
+                  onConfirm={setConfirm}
+                />
+              ))
+            )
           ) : (
             <div className="empty-state">
               <div className="empty-icon">
@@ -1016,21 +1032,33 @@ export default function DownloadsPage({
                         : t("downloads.emptyDescription")}
               </p>
               {!search && filter !== "failed" && filter !== "paused" && (
-                <Button
-                  icon={LuPlus}
-                  onClick={() =>
-                    useUIStore
-                      .getState()
-                      .setAddModal(
-                        filter === "torrent" ? { torrent: true } : {},
-                      )
-                  }
-                >
-                  {filter === "torrent"
-                    ? t("downloads.addTorrentEmpty")
-                    : t("downloads.addFirst")}
-                </Button>
+                <div className="empty-actions">
+                  <Button
+                    icon={LuPlus}
+                    onClick={() =>
+                      useUIStore
+                        .getState()
+                        .setAddModal(
+                          filter === "torrent" ? { torrent: true } : {},
+                        )
+                    }
+                  >
+                    {filter === "torrent"
+                      ? t("downloads.addTorrentEmpty")
+                      : t("downloads.addFirst")}
+                  </Button>
+                </div>
               )}
+              <Button
+                className="clipboard-empty-action"
+                variant="ghost"
+                icon={LuClipboardPaste}
+                onClick={() =>
+                  window.dispatchEvent(new Event("getanny:paste-clipboard"))
+                }
+              >
+                {t("downloads.pasteClipboard")}
+              </Button>
               <span className="keyboard-hint">
                 {filter === "all" && (
                   <>

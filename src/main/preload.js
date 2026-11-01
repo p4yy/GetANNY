@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const channels = [
   "app:bootstrap",
+  "clipboard:read-text",
   "download:add",
   "download:add-torrent",
   "download:pause",
@@ -15,6 +16,7 @@ const channels = [
   "download:open-file",
   "download:open-folder",
   "media:get-formats",
+  "media:get-playlist",
   "media:download",
   "media:download-subtitle",
   "media:download-thumbnail",

@@ -35,6 +35,34 @@ body {
   margin: 0;
   width: 370px;
 }
+.cookie-optin {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  cursor: pointer;
+}
+.cookie-optin input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+.cookie-optin strong,
+.cookie-optin small {
+  display: block;
+}
+.cookie-optin strong {
+  font-size: 11px;
+}
+.cookie-optin small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
 header {
   display: flex;
   align-items: center;

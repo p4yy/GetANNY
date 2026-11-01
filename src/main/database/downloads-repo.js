@@ -59,9 +59,15 @@ class DownloadsRepo {
       updatedAt: new Date().toISOString(),
       error: data.error || null,
       headers: JSON.stringify(
-        typeof data.headers === "string"
-          ? parse(data.headers, {})
-          : data.headers || {},
+        Object.fromEntries(
+          Object.entries(
+            typeof data.headers === "string"
+              ? parse(data.headers, {})
+              : data.headers || {},
+          ).filter(
+            ([key]) => !/cookie|session|authorization|credential/i.test(key),
+          ),
+        ),
       ),
       kind: data.kind || "file",
       metadata: JSON.stringify(
@@ -69,6 +75,7 @@ class DownloadsRepo {
           Object.entries(data).filter(
             ([key, value]) =>
               !COLUMNS.includes(key) &&
+              key !== "sessionHeaders" &&
               key !== "metadata" &&
               value !== undefined,
           ),

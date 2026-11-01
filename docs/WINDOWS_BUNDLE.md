@@ -1,4 +1,4 @@
-# GetANNY 2.1.3 — Windows release bundle
+# GetANNY 2.2.0 — Windows release bundle
 
 Everything needed to install, run and connect GetANNY on Windows 10/11 x64.
 
@@ -8,7 +8,7 @@ Everything needed to install, run and connect GetANNY on Windows 10/11 x64.
 
 | Folder               | Contents                                                                                                                            |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `Installers`         | `GetANNY Setup.exe` (NSIS, per-user) and `GetANNY Setup.msi` (Windows Installer). Use **one**, not both.                             |
+| `Installers`         | `GetANNY Setup.exe` (NSIS, per-user) and `GetANNY Setup.msi` (Windows Installer). Use **one**, not both.                            |
 | `Portable`           | `GetANNY Portable.exe`, a single executable that runs from a writable folder.                                                       |
 | `Browser_Extensions` | Versioned extension ZIPs for Helium, Google Chrome, Chromium, Brave, Firefox, Vivaldi, Opera and Microsoft Edge.                    |
 | `Setup_Helpers`      | `Setup-Browsers.ps1` / `.cmd` to re-run browser and native-host registration for an installed GetANNY, plus native-messaging notes. |
@@ -23,7 +23,7 @@ Everything needed to install, run and connect GetANNY on Windows 10/11 x64.
 4. Launch GetANNY. The installer prepared browser native hosts for the current user; it does **not** silently install an extension.
 5. Open **Browser integration** in GetANNY, choose your browser and select **Set up**. Then load the matching extension (below) and verify the connection in the extension popup.
 
-If you already have an older GetANNY installed, installing 2.1.3 replaces the application files; download history and settings are preserved. Uninstalling does not delete your downloads or profile data unless you choose to remove them.
+If you already have an older GetANNY installed, installing 2.2.0 replaces the application files; download history and settings are preserved. Uninstalling does not delete your downloads or profile data unless you choose to remove them.
 
 ### Verify checksums
 
@@ -66,8 +66,8 @@ The eagle/shield mark and GetANNY wordmark in the application, installers, short
 ## Troubleshooting
 
 - **SmartScreen warning:** expected for an unsigned build. Confirm the checksum, then choose _More info → Run anyway_ only if you trust the source.
-- **Windows keeps an old taskbar or shortcut icon:** Windows caches shell icons. Sign out and back in, or restart Explorer, and unpin/re-pin any old shortcut so the new 2.1.3 icon is used.
+- **Windows keeps an old taskbar or shortcut icon:** Windows caches shell icons. Sign out and back in, or restart Explorer, and unpin/re-pin any old shortcut so the new 2.2.0 icon is used.
 - **Browser does not connect:** open GetANNY → Browser integration, run Set up again, then reconnect from the extension popup. See `Documentation/BROWSERS.md`.
 - **Antivirus flags the portable launcher:** portable Electron executables are frequently heuristically flagged. The installer editions are the supported distribution.
 
-Release page: <https://github.com/p4yy/GetANNY/releases/tag/v2.1.3>
+Release page: <https://github.com/p4yy/GetANNY/releases/tag/v2.2.0>

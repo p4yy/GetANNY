@@ -178,6 +178,61 @@ class YtDlpWrapper {
       formats: normalizeFormats(info),
     };
   }
+  async getPlaylist(url) {
+    const output = await this.run([
+      "--ignore-config",
+      "--js-runtimes",
+      `node:${process.execPath}`,
+      "--flat-playlist",
+      "--dump-single-json",
+      "--no-warnings",
+      "--playlist-end",
+      "1000",
+      "--socket-timeout",
+      "30",
+      "--",
+      validateUrl(url),
+    ]);
+    let info;
+    try {
+      info = JSON.parse(output);
+    } catch {
+      throw new Error("yt-dlp returned invalid playlist metadata.");
+    }
+    const entries = Array.isArray(info.entries) ? info.entries : [];
+    return {
+      title: String(info.title || "Playlist").slice(0, 300),
+      entries: entries
+        .slice(0, 1000)
+        .map((entry) => {
+          const candidate =
+            entry.webpage_url || entry.original_url || entry.url;
+          let entryUrl = candidate;
+          if (
+            !/^https?:\/\//i.test(String(candidate || "")) &&
+            entry.id &&
+            /youtube/i.test(
+              String(entry.extractor_key || info.extractor_key || ""),
+            )
+          )
+            entryUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(entry.id)}`;
+          try {
+            entryUrl = validateUrl(entryUrl);
+          } catch {
+            return null;
+          }
+          return {
+            url: entryUrl,
+            title: String(entry.title || entry.id || "Untitled media").slice(
+              0,
+              300,
+            ),
+            duration: Number(entry.duration) || null,
+          };
+        })
+        .filter(Boolean),
+    };
+  }
   async downloadSubtitles({
     url,
     language,

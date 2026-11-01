@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — Capture, playlists and performance
+
+- Added window-wide drag and drop and clipboard paste/monitoring for supported links, magnets and torrent files; clipboard monitoring is opt-in.
+- Added playlist extraction and bulk MP4 quality selection in Media Studio, with virtualized entry lists.
+- Added per-popup opt-in cookie handoff. Matching URL cookies stay in memory, are stripped from persistent records and logs, and expire with the transfer or app session.
+- Added variable-height virtualization for large download libraries, one-second status-bar updates, click-through to Active downloads, and torrent upload speed.
+- Added a bundled completion chime with on/off, volume and preview controls.
+- Added renderer section error boundaries and audited secondary-text contrast across the 12 themes.
+- Preserved existing 12 themes, browser IDs, translations, shortcuts and SQLite schema.
+
 ## 2.1.3 — Workspace and tray refinement
 
 - Consolidated download search, type filters, pause, sort and history actions into one compact toolbar. The sidebar now holds the single primary New download action.

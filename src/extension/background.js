@@ -68,7 +68,9 @@ function hello() {
 function applyTheme(theme) {
   if (!theme || typeof theme !== "object" || !theme.colors) return;
   currentTheme = theme;
-  Promise.resolve(api.storage.local.set({ getannyTheme: theme })).catch(() => {});
+  Promise.resolve(api.storage.local.set({ getannyTheme: theme })).catch(
+    () => {},
+  );
   interceptor?.theme?.(theme);
 }
 function deliver(message) {
@@ -350,6 +352,7 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
         url: message.url,
         kind: message.kind === "media" ? "media" : "file",
         filename: message.filename,
+        headers: message.headers,
       });
     }
     throw new Error("Unsupported extension action.");

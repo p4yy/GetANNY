@@ -28,6 +28,9 @@ class MediaDetector {
       this.analyses.delete(this.analyses.keys().next().value);
     return { ...result, analysisId, tools: await this.ytdlp.availability() };
   }
+  async getPlaylist(url) {
+    return this.ytdlp.getPlaylist(validateUrl(url));
+  }
   analysis(analysisId) {
     const analysis = this.analyses.get(analysisId);
     if (!analysis || Date.now() - analysis.createdAt > 30 * 60 * 1000)

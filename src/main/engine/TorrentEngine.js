@@ -34,7 +34,12 @@ class TorrentEngine extends EventEmitter {
     const basename = path.basename(name, extension);
     let candidate = path.join(this.savePath, name);
     let counter = 0;
-    while (await fs.access(candidate).then(() => true, () => false))
+    while (
+      await fs.access(candidate).then(
+        () => true,
+        () => false,
+      )
+    )
       candidate = path.join(
         this.savePath,
         `${basename} (${++counter})${extension}`,
@@ -65,7 +70,8 @@ class TorrentEngine extends EventEmitter {
     try {
       this.resolveSavePath();
       // Work data stays out of the destination until every piece is verified.
-      this.workPath = this.tempPath || path.join(this.savePath, ".getanny-torrent");
+      this.workPath =
+        this.tempPath || path.join(this.savePath, ".getanny-torrent");
       await fs.mkdir(this.workPath, { recursive: true });
       this.setStatus("connecting", {
         phase: "Finding torrent metadata",
@@ -106,6 +112,7 @@ class TorrentEngine extends EventEmitter {
             downloadedSize: torrent.downloaded || 0,
             totalSize: torrent.length || 0,
             speed: torrent.downloadSpeed || 0,
+            uploadSpeed: torrent.uploadSpeed || 0,
             eta: Number.isFinite(torrent.timeRemaining)
               ? torrent.timeRemaining / 1000
               : null,
@@ -125,7 +132,9 @@ class TorrentEngine extends EventEmitter {
       const target = await this.uniqueTarget(name);
       this.setStatus("processing", { phase: "Publishing torrent files" });
       await this.publish(source, target);
-      await fs.rm(this.workPath, { recursive: true, force: true }).catch(() => {});
+      await fs
+        .rm(this.workPath, { recursive: true, force: true })
+        .catch(() => {});
       const stat = await fs.stat(target);
       const data = {
         filename: path.basename(target),
@@ -163,7 +172,9 @@ class TorrentEngine extends EventEmitter {
     await this.destroyClient();
     await this.task;
     if (status === "cancelled" && this.workPath)
-      await fs.rm(this.workPath, { recursive: true, force: true }).catch(() => {});
+      await fs
+        .rm(this.workPath, { recursive: true, force: true })
+        .catch(() => {});
     this.setStatus(status);
     return true;
   }

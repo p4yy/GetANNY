@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   LuArrowDownToLine,
   LuArrowDown,
+  LuArrowUp,
   LuActivity,
   LuCircleCheck,
   LuPause,
@@ -42,6 +43,8 @@ import AddDownloadDialog from "./components/AddDownloadDialog";
 import DownloadDetails from "./components/DownloadDetails";
 import { Button, IconButton, Toasts } from "./components/ui";
 import { active, bytes } from "./utils/format";
+import completionChime from "./assets/completion-chime.wav";
+import ErrorBoundary from "./components/ErrorBoundary";
 const navigation = [
   ["all", LuArrowDownToLine, "nav.all"],
   ["active", LuActivity, "nav.active"],
@@ -93,13 +96,7 @@ function Sidebar({ bridge, version, platform }) {
       <nav aria-label="Main navigation">
         <div className="nav-group-label">{t("nav.library")}</div>
         {navigation.map(([id, Icon, key]) => (
-          <Nav
-            key={id}
-            id={id}
-            icon={Icon}
-            label={t(key)}
-            count={count(id)}
-          />
+          <Nav key={id} id={id} icon={Icon} label={t(key)} count={count(id)} />
         ))}
         <div className="nav-group-label tools-label">{t("nav.tools")}</div>
         <Nav id="media" icon={LuFilm} label={t("nav.media")} />
@@ -162,13 +159,26 @@ function Sidebar({ bridge, version, platform }) {
 }
 function StatusBar({ version }) {
   const { t } = useI18n();
-  const downloads = useDownloadStore((state) => state.downloads);
+  const [downloads, setDownloads] = useState(
+    () => useDownloadStore.getState().downloads,
+  );
+  useEffect(() => {
+    const timer = setInterval(
+      () => setDownloads(useDownloadStore.getState().downloads),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, []);
   const transferring = downloads.filter(active);
   const completed = downloads.filter(
     (item) => item.status === "completed",
   ).length;
   const speed = transferring.reduce(
     (sum, item) => sum + (item.status === "downloading" ? item.speed || 0 : 0),
+    0,
+  );
+  const uploadSpeed = transferring.reduce(
+    (sum, item) => sum + (item.kind === "torrent" ? item.uploadSpeed || 0 : 0),
     0,
   );
   return (
@@ -181,18 +191,37 @@ function StatusBar({ version }) {
         <span className="status-separator">/</span>
         <span>
           {t("shell.queued", {
-          count: downloads.filter((item) =>
-            ["queued", "retrying"].includes(item.status),
-          ).length,
+            count: downloads.filter((item) =>
+              ["queued", "retrying"].includes(item.status),
+            ).length,
           })}
         </span>
       </div>
-      <div>
+      <button
+        type="button"
+        className="status-speed"
+        title={t("shell.openActive")}
+        onClick={() => useUIStore.getState().setActiveTab("active")}
+      >
         <LuArrowDown />
         {speed > 0 ? `${bytes(speed)}/s` : "0 B/s"}
+        {uploadSpeed > 0 && (
+          <>
+            <span>/</span>
+            <LuArrowUp />
+            {bytes(uploadSpeed)}/s
+          </>
+        )}
+        <span>
+          {t("shell.activeTransfers", { count: transferring.length })}
+        </span>
+      </button>
+      <div>
         <span className="status-separator">/</span>
         <LuCircleCheck />
-        <span>{completed} {t("downloads.completedCount")}</span>
+        <span>
+          {completed} {t("downloads.completedCount")}
+        </span>
         <span className="status-separator">/</span>
         <span>
           {t("shell.storedLocally")} · {version}
@@ -233,6 +262,10 @@ export default function App() {
     detailId = useUIStore((state) => state.details),
     requests = useUIStore((state) => state.browserRequests);
   const settings = useSettingsStore((state) => state.settings);
+  const [dropActive, setDropActive] = useState(false);
+  const [clipboardNotice, setClipboardNotice] = useState(null);
+  const dragDepth = React.useRef(0);
+  const lastChime = React.useRef(0);
   const [visited, setVisited] = useState(() => new Set(["all"]));
   useEffect(() => {
     setVisited((previous) =>
@@ -320,6 +353,140 @@ export default function App() {
       ? "compact"
       : "comfortable";
   }, [settings.animationMode, settings.compactList]);
+  const routeCapture = (value) => {
+    const text = String(value || "").trim();
+    if (!text) return false;
+    if (/^magnet:\?/i.test(text) || /\.torrent(?:$|[?#])/i.test(text)) {
+      useUIStore.getState().setActiveTab("torrent");
+      useUIStore.getState().setAddModal({ torrent: true, torrentUrl: text });
+    } else if (
+      /^https?:\/\//i.test(text) &&
+      /(?:youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|soundcloud\.com|dailymotion\.com|tiktok\.com|instagram\.com|facebook\.com|twitter\.com|x\.com|bilibili\.com|reddit\.com|kick\.com)/i.test(
+        text,
+      )
+    ) {
+      useUIStore.getState().openMedia(text);
+      useUIStore.getState().setActiveTab("media");
+    } else if (/^https?:\/\//i.test(text)) {
+      useUIStore.getState().setAddModal({ url: text });
+    } else return false;
+    return true;
+  };
+  useEffect(() => {
+    let previous = "";
+    let timer;
+    let dismissTimer;
+    let reading = false;
+    if (settings.clipboardMonitoring && api.desktop) {
+      timer = setInterval(async () => {
+        if (reading) return;
+        reading = true;
+        try {
+          const current = (await api.invoke("clipboard:read-text")).trim();
+          if (
+            current &&
+            current !== previous &&
+            (/^(https?:\/\/|magnet:\?)/i.test(current) ||
+              /\.torrent$/i.test(current))
+          ) {
+            previous = current;
+            setClipboardNotice(current);
+            clearTimeout(dismissTimer);
+            dismissTimer = setTimeout(() => setClipboardNotice(null), 5000);
+          }
+          previous = current;
+        } catch {
+          /* clipboard access is optional and must not interrupt the app */
+        } finally {
+          reading = false;
+        }
+      }, 1000);
+    }
+    return () => {
+      clearInterval(timer);
+      clearTimeout(dismissTimer);
+    };
+  }, [settings.clipboardMonitoring]);
+  useEffect(() => {
+    if (!settings.completionSound) return;
+    const unsubscribe = api.on("download:complete", () => {
+      const now = Date.now();
+      if (now - lastChime.current < 2000) return;
+      lastChime.current = now;
+      try {
+        const audio = new Audio(completionChime);
+        audio.volume = Math.max(
+          0,
+          Math.min(1, Number(settings.completionSoundVolume ?? 50) / 100),
+        );
+        audio.play().catch(() => {});
+      } catch {
+        /* audio is optional */
+      }
+    });
+    return unsubscribe;
+  }, [settings.completionSound, settings.completionSoundVolume]);
+  useEffect(() => {
+    const handleDragEnter = (event) => {
+      if (!event.dataTransfer?.types?.length) return;
+      event.preventDefault();
+      dragDepth.current++;
+      setDropActive(true);
+    };
+    const handleDragOver = (event) => event.preventDefault();
+    const handleDragLeave = (event) => {
+      event.preventDefault();
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (!dragDepth.current) setDropActive(false);
+    };
+    const handleDrop = (event) => {
+      event.preventDefault();
+      dragDepth.current = 0;
+      setDropActive(false);
+      const file = event.dataTransfer?.files?.[0];
+      if (file && /\.torrent$/i.test(file.name)) {
+        useUIStore.getState().setActiveTab("torrent");
+        useUIStore
+          .getState()
+          .setAddModal({ torrent: true, torrentUrl: file.path || file.name });
+        return;
+      }
+      const text =
+        event.dataTransfer?.getData("text/uri-list") ||
+        event.dataTransfer?.getData("text/plain") ||
+        event.dataTransfer?.getData("text");
+      if (!routeCapture(text))
+        useUIStore.getState().notify(t("shell.dropUnsupported"), "error");
+    };
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("drop", handleDrop);
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, [t]);
+  useEffect(() => {
+    const pasteFromClipboard = async () => {
+      try {
+        const value = api.desktop
+          ? await api.invoke("clipboard:read-text")
+          : await navigator.clipboard.readText();
+        if (!routeCapture(value))
+          useUIStore
+            .getState()
+            .notify(t("shell.clipboardUnsupported"), "error");
+      } catch {
+        useUIStore.getState().notify(t("downloads.clipboardDenied"), "error");
+      }
+    };
+    window.addEventListener("getanny:paste-clipboard", pasteFromClipboard);
+    return () =>
+      window.removeEventListener("getanny:paste-clipboard", pasteFromClipboard);
+  }, [t]);
   // File handoffs are queued automatically by the desktop bridge, so the only
   // request that still needs attention is a media page awaiting a format.
   const review = (request) => {
@@ -355,15 +522,16 @@ export default function App() {
   }, [!!boot, requests[0]?.id, !!addModal, detailId]);
   return (
     <div className="app-shell">
+      {dropActive && (
+        <div className="drop-overlay" aria-live="polite">
+          <span>{t("shell.dropToAdd")}</span>
+        </div>
+      )}
       <header className="titlebar">
         <div className="titlebar-left">
           <div className="app-brand">
             <span className="brand-mark" aria-hidden="true" />
-            <span
-              className="brand-wordmark"
-              role="img"
-              aria-label="GetANNY"
-            />
+            <span className="brand-wordmark" role="img" aria-label="GetANNY" />
             <span className="brand-divider" />
             <span className="app-caption">{t("shell.downloadManager")}</span>
           </div>
@@ -454,11 +622,13 @@ export default function App() {
                       key={id}
                       aria-hidden={tab !== id}
                     >
-                      <DownloadsPage
-                        filter={id}
-                        active={tab === id}
-                        platform={boot.platform}
-                      />
+                      <ErrorBoundary>
+                        <DownloadsPage
+                          filter={id}
+                          active={tab === id}
+                          platform={boot.platform}
+                        />
+                      </ErrorBoundary>
                     </div>
                   ),
               )}
@@ -468,34 +638,44 @@ export default function App() {
                   hidden={tab !== "torrent"}
                   aria-hidden={tab !== "torrent"}
                 >
-                  <DownloadsPage
-                    filter="torrent"
-                    active={tab === "torrent"}
-                    platform={boot.platform}
-                  />
+                  <ErrorBoundary>
+                    <DownloadsPage
+                      filter="torrent"
+                      active={tab === "torrent"}
+                      platform={boot.platform}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
               {(visited.has("media") || tab === "media") && (
                 <div className="page-slot" hidden={tab !== "media"}>
-                  <MediaPage tools={boot.tools} />
+                  <ErrorBoundary>
+                    <MediaPage tools={boot.tools} />
+                  </ErrorBoundary>
                 </div>
               )}
               {(visited.has("browser") || tab === "browser") && (
                 <div className="page-slot" hidden={tab !== "browser"}>
-                  <BrowserPage />
+                  <ErrorBoundary>
+                    <BrowserPage />
+                  </ErrorBoundary>
                 </div>
               )}
               {(visited.has("themes") || tab === "themes") && (
                 <div className="page-slot" hidden={tab !== "themes"}>
-                  <ThemesPage />
+                  <ErrorBoundary>
+                    <ThemesPage />
+                  </ErrorBoundary>
                 </div>
               )}
               {(visited.has("settings") || tab === "settings") && (
                 <div className="page-slot" hidden={tab !== "settings"}>
-                  <SettingsPage
-                    capabilities={boot.capabilities}
-                    version={boot.version}
-                  />
+                  <ErrorBoundary>
+                    <SettingsPage
+                      capabilities={boot.capabilities}
+                      version={boot.version}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
             </main>
@@ -506,11 +686,7 @@ export default function App() {
         <div className="startup-screen">
           <div className="startup-brand">
             <span className="brand-mark" aria-hidden="true" />
-            <span
-              className="brand-wordmark"
-              role="img"
-              aria-label="GetANNY"
-            />
+            <span className="brand-wordmark" role="img" aria-label="GetANNY" />
           </div>
           <h1 className="visually-hidden">GetANNY</h1>
           {error ? (
@@ -528,10 +704,19 @@ export default function App() {
           )}
         </div>
       )}
-      {addModal && (
-        <AddDownloadDialog initial={addModal} onClose={closeAdd} />
-      )}
+      {addModal && <AddDownloadDialog initial={addModal} onClose={closeAdd} />}
       <DetailSheet />
+      {clipboardNotice && (
+        <button
+          className="clipboard-toast"
+          onClick={() => {
+            routeCapture(clipboardNotice);
+            setClipboardNotice(null);
+          }}
+        >
+          {t("shell.clipboardDetected")}
+        </button>
+      )}
       <Toasts />
     </div>
   );

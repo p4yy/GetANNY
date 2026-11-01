@@ -39,7 +39,20 @@ async function submit(url, kind) {
   $("send").disabled = true;
   feedback("Waiting for desktop acknowledgement…");
   try {
-    const response = await send({ type: "download", url, kind });
+    let headers;
+    if ($("include-site-cookies").checked && kind === "file") {
+      const target = new URL(url);
+      if (!/^https?:$/.test(target.protocol))
+        throw new Error("Cookies are only available for HTTP or HTTPS links.");
+      const cookies = await api.cookies.getAll({ url: target.href });
+      if (cookies.length)
+        headers = {
+          Cookie: cookies
+            .map(({ name, value }) => `${name}=${value}`)
+            .join("; "),
+        };
+    }
+    const response = await send({ type: "download", url, kind, headers });
     feedback(
       response.action === "queued"
         ? "Download queued in GetANNY."
@@ -96,10 +109,15 @@ $("pair").onclick = async () => {
   } catch {
     /* the popup still works without a synced palette */
   }
-  const saved = await api.storage.local.get(["browserId", "pairingKey"]);
+  const saved = await api.storage.local.get([
+    "browserId",
+    "pairingKey",
+    "includeSiteCookies",
+  ]);
   $("browser").value =
     saved.browserId || globalThis.GETANNY_BROWSER || "chrome";
   $("pairing").value = saved.pairingKey || "";
+  $("include-site-cookies").checked = saved.includeSiteCookies === true;
   const [tab] = await api.tabs.query({ active: true, currentWindow: true });
   const response = await send({ type: "detected", tabId: tab?.id });
   const items = response?.items || [];
@@ -121,5 +139,10 @@ $("pair").onclick = async () => {
     $("detected").appendChild(button);
   }
 })().catch((error) => feedback(error.message, true));
+$("include-site-cookies").addEventListener("change", () => {
+  api.storage.local
+    .set({ includeSiteCookies: $("include-site-cookies").checked })
+    .catch(() => {});
+});
 refresh();
 setInterval(refresh, 2000);

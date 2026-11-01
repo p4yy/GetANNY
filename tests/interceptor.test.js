@@ -22,7 +22,14 @@ function fixture(options = {}) {
   const record = (name, value) => calls.push({ name, value });
   const api = {
     runtime: { id: "getanny-extension" },
-    ...(options.session ? { storage: { session: options.session } } : {}),
+    storage: {
+      local: {
+        get: async () => ({
+          includeSiteCookies: options.includeSiteCookies === true,
+        }),
+      },
+      ...(options.session ? { session: options.session } : {}),
+    },
     cookies: {
       getAll: async (query) => {
         record("cookies", query);
@@ -100,7 +107,7 @@ test("ordinary browser handoff covers documents, archives, images, media and unk
     assert.equal(request.filename, name);
     assert.equal(request.kind, "file");
     assert.equal(request.intercepted, true);
-    assert.equal(request.headers.Cookie, "session=abc");
+    assert.equal(request.headers.Cookie, undefined);
     assert.equal(request.headers.Referer, "https://example.test/page");
     assert.equal(request.headers["User-Agent"], "Browser Test");
     assert.deepEqual(
@@ -255,8 +262,8 @@ test("browser download IDs reused across profiles or restarts get distinct hando
   assert.notEqual(a, "1");
 });
 
-test("cookie lookup uses the download's browser cookie store when provided", async () => {
-  const f = fixture();
+test("cookie lookup is opt-in and uses the download's browser cookie store", async () => {
+  const f = fixture({ includeSiteCookies: true });
   await f.interceptor.created({
     ...item(21),
     cookieStoreId: "firefox-container-2",

@@ -33,7 +33,10 @@ function copy(from, to) {
 }
 
 function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(file))
+    .digest("hex");
 }
 
 function walk(dir) {
@@ -71,7 +74,12 @@ function main() {
 
   const extensions = fs
     .readdirSync(assets)
-    .filter((name) => /^GetANNY-[a-z]+-\d+\.\d+\.\d+\.zip$/.test(name));
+    .filter(
+      (name) =>
+        name.startsWith("GetANNY-") &&
+        /^[a-z]+$/.test(name.slice("GetANNY-".length, name.lastIndexOf("-"))) &&
+        name.endsWith(`-${version}.zip`),
+    );
   if (extensions.length !== 8)
     throw new Error(`Expected 8 browser packages, found ${extensions.length}`);
   for (const name of extensions)
@@ -87,7 +95,7 @@ function main() {
       "@echo off",
       "setlocal",
       "set /p APP=Path to installed GetANNY.exe: ",
-      "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"%~dp0Setup-Browsers.ps1\" -InstalledApp \"%APP%\"",
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Setup-Browsers.ps1" -InstalledApp "%APP%"',
       "pause",
       "",
     ].join("\r\n"),
@@ -103,6 +111,7 @@ function main() {
     ["docs/BROWSERS.md", "BROWSERS.md"],
     ["docs/PORTABLE_WINDOWS.md", "PORTABLE_WINDOWS.md"],
     ["docs/RELEASE_NOTES.md", "RELEASE_NOTES.md"],
+    ["docs/RELEASE_STATUS.md", "RELEASE_STATUS.md"],
     ["docs/CHANGELOG.md", "CHANGELOG.md"],
     ["docs/THIRD_PARTY.md", "THIRD_PARTY.md"],
     ["LICENSE", "LICENSE"],
@@ -158,7 +167,15 @@ function main() {
   fs.rmSync(zipPath, { force: true });
   execFileSync(
     "C:\\WINDOWS\\system32\\tar.exe",
-    ["-a", "-c", "-f", zipPath, "-C", path.dirname(stage), path.basename(stage)],
+    [
+      "-a",
+      "-c",
+      "-f",
+      zipPath,
+      "-C",
+      path.dirname(stage),
+      path.basename(stage),
+    ],
     { stdio: "inherit" },
   );
 

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { EventEmitter } = require("node:events");
 const { execFileSync } = require("node:child_process");
 const {
   normalizeFormats,
@@ -22,6 +23,45 @@ const ffprobe = path.join(
   binPath,
   process.platform === "win32" ? "ffprobe.exe" : "ffprobe",
 );
+
+test("playlist extraction returns bounded normalized entries without losing YouTube IDs", async () => {
+  let command;
+  const wrapper = new YtDlpWrapper({
+    executable: "yt-dlp-test",
+    spawnProcess: (_exe, args) => {
+      command = args;
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      setImmediate(() => {
+        child.stdout.emit(
+          "data",
+          Buffer.from(
+            JSON.stringify({
+              title: "Playlist",
+              extractor_key: "YoutubeTab",
+              entries: [
+                { id: "abc123", title: "First" },
+                { webpage_url: "https://youtu.be/second", title: "Second" },
+              ],
+            }),
+          ),
+        );
+        child.emit("close", 0);
+      });
+      return child;
+    },
+  });
+  const result = await wrapper.getPlaylist(
+    "https://www.youtube.com/playlist?list=PL123",
+  );
+  assert.ok(command.includes("--flat-playlist"));
+  assert.equal(result.title, "Playlist");
+  assert.deepEqual(
+    result.entries.map((entry) => entry.url),
+    ["https://www.youtube.com/watch?v=abc123", "https://youtu.be/second"],
+  );
+});
 
 test("format normalization hides storyboards, DRM and true duplicates; preserves codec / audio distinctions", () => {
   const formats = normalizeFormats({

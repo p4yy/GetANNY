@@ -7,6 +7,7 @@ const {
   Menu,
   Notification,
   nativeImage,
+  clipboard,
 } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
@@ -267,7 +268,7 @@ async function init() {
   setupIpcHandlers({
     ipcMain,
     services,
-    desktop: { app, shell, dialog, mainWindow: () => win },
+    desktop: { app, shell, dialog, clipboard, mainWindow: () => win },
   });
   if (process.platform === "darwin") createMenu({ mainWindow: () => win });
   else Menu.setApplicationMenu(null);
@@ -329,7 +330,9 @@ else {
       const markerPath = desktopExitMarkerPath(app.getPath("userData"));
       const fromBrowser = process.argv.includes("--from-browser");
       if (fromBrowser && isDesktopExitMarked(markerPath)) {
-        log.info("Browser launch ignored because GetANNY was explicitly closed.");
+        log.info(
+          "Browser launch ignored because GetANNY was explicitly closed.",
+        );
         app.exit(0);
         return;
       }

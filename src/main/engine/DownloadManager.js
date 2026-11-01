@@ -59,6 +59,11 @@ class DownloadManager extends EventEmitter {
   snapshot() {
     this.emit("changed", this.getAll());
   }
+  publicItem(item) {
+    const { sessionHeaders, ...safe } = item;
+    safe.headers = persistentHeaders(safe.headers);
+    return safe;
+  }
   persist(item) {
     this.progressDirty.delete(item.id);
     if (this.repo) Object.assign(item, this.repo.save(item, item));
@@ -114,12 +119,15 @@ class DownloadManager extends EventEmitter {
       input.kind === "torrent"
         ? String(input.url).trim()
         : validateUrl(input.url);
-    if (
-      input.kind === "torrent" &&
-      !url.startsWith("magnet:?") &&
-      !path.isAbsolute(url)
-    )
-      throw new Error("Choose a .torrent file or paste a magnet link.");
+    if (input.kind === "torrent" && !url.startsWith("magnet:?")) {
+      const remoteTorrent =
+        /^https?:\/\//i.test(url) && /\.torrent(?:$|[?#])/i.test(url);
+      if (!remoteTorrent && !path.isAbsolute(url))
+        throw new Error(
+          "Choose a .torrent file, a .torrent link, or paste a magnet link.",
+        );
+      if (remoteTorrent) validateUrl(url);
+    }
     const savePath = input.savePath || this.settings.defaultDownloadPath;
     if (!savePath || !path.isAbsolute(savePath))
       throw new Error("Choose a valid absolute destination folder.");
@@ -140,6 +148,17 @@ class DownloadManager extends EventEmitter {
       );
       await fs.mkdir(input.savePath, { recursive: true });
     }
+    const requestHeaders = validateHeaders(input.headers);
+    const sessionHeaders = Object.fromEntries(
+      Object.entries(requestHeaders).filter(([key]) =>
+        /cookie|session|authorization|credential/i.test(key),
+      ),
+    );
+    const safeHeaders = Object.fromEntries(
+      Object.entries(requestHeaders).filter(
+        ([key]) => !/cookie|session|authorization|credential/i.test(key),
+      ),
+    );
     const item = {
       id: randomUUID(),
       url,
@@ -159,7 +178,10 @@ class DownloadManager extends EventEmitter {
       attempt: 0,
       createdAt: new Date().toISOString(),
       kind: input.kind || "file",
-      headers: validateHeaders(input.headers),
+      headers: safeHeaders,
+      ...(Object.keys(sessionHeaders).length
+        ? { sessionHeaders, sessionRequired: true }
+        : {}),
       browserTransferId: input.browserTransferId || undefined,
       browserSource: input.browserSource || undefined,
       ...(input.kind === "media"
@@ -177,7 +199,7 @@ class DownloadManager extends EventEmitter {
     };
     this.items.set(item.id, item);
     this.persist(item);
-    this.emit("added", { ...item });
+    this.emit("added", this.publicItem(item));
     this.snapshot();
     if (item.status === "queued") this.queue.push(item.id);
     this.pump();
@@ -229,6 +251,7 @@ class DownloadManager extends EventEmitter {
   createEngine(item) {
     const options = {
       ...item,
+      headers: { ...(item.headers || {}), ...(item.sessionHeaders || {}) },
       timeout: (this.settings.requestTimeoutSeconds || 30) * 1000,
       connections: this.settings.maxConnectionsPerDownload || 8,
       speedLimit: this.settings.speedLimit || 0,
@@ -244,6 +267,7 @@ class DownloadManager extends EventEmitter {
     });
     engine.on("status", (_id, status, data = {}) => {
       this.flushProgress();
+      if (["failed", "cancelled"].includes(status)) this.burnSession(item);
       Object.assign(item, data, { status, speed: 0, eta: null });
       this.persist(item);
       this.onStatusChange(item.id, status, data);
@@ -252,6 +276,7 @@ class DownloadManager extends EventEmitter {
     });
     engine.on("complete", (_id, data) => {
       this.flushProgress();
+      this.burnSession(item);
       Object.assign(item, data, {
         status: "completed",
         completedAt: item.completedAt || new Date().toISOString(),
@@ -266,6 +291,7 @@ class DownloadManager extends EventEmitter {
     });
     engine.on("error", (_id, error) => {
       this.flushProgress();
+      this.burnSession(item);
       item.error = error.message;
       item.speed = 0;
       item.status = "failed";
@@ -308,6 +334,7 @@ class DownloadManager extends EventEmitter {
           if (
             !this.stopped &&
             item.status === "failed" &&
+            !item.sessionRequired &&
             engine.failure?.retryable &&
             item.attempt < (this.settings.retryAttempts || 0)
           ) {
@@ -365,6 +392,10 @@ class DownloadManager extends EventEmitter {
   }
   resume(id) {
     const item = this.requireItem(id);
+    if (item.sessionRequired && !item.sessionHeaders)
+      throw new Error(
+        "Session expired. Refresh this download from your browser to resume it.",
+      );
     if (
       !["paused", "failed", "cancelled"].includes(item.status) ||
       this.running.has(id)
@@ -387,6 +418,7 @@ class DownloadManager extends EventEmitter {
       item.status = "cancelled";
       item.speed = 0;
       item.eta = null;
+      this.burnSession(item);
       await this.cleanup(item);
       this.persist(item);
       this.snapshot();
@@ -470,7 +502,16 @@ class DownloadManager extends EventEmitter {
   }
   async restoreDownloads() {
     for (const saved of this.repo?.getAll() || []) {
-      const item = { ...saved, speed: 0, eta: null };
+      const hadPersistedSession = Object.keys(saved.headers || {}).some((key) =>
+        /cookie|session|authorization|credential/i.test(key),
+      );
+      const item = {
+        ...saved,
+        headers: persistentHeaders(saved.headers),
+        sessionRequired: !!saved.sessionRequired || hadPersistedSession,
+        speed: 0,
+        eta: null,
+      };
       const scheduledQueue =
         this.settings.scheduleEnabled && item.status === "queued";
       if (
@@ -479,11 +520,20 @@ class DownloadManager extends EventEmitter {
           ["queued", "pending", "retrying"].includes(item.status))
       )
         item.status = "paused";
+      if (
+        item.sessionRequired &&
+        !["completed", "failed", "cancelled"].includes(item.status)
+      ) {
+        item.status = "paused";
+        item.error =
+          "Session expired. Refresh this download from your browser to resume it.";
+      }
       this.items.set(item.id, item);
       this.persist(item);
       if (
-        scheduledQueue ||
-        (this.settings.resumeOnStartup && item.status === "paused")
+        !item.sessionRequired &&
+        (scheduledQueue ||
+          (this.settings.resumeOnStartup && item.status === "paused"))
       )
         this.queue.push(item.id);
     }
@@ -518,12 +568,28 @@ class DownloadManager extends EventEmitter {
         item.speed = 0;
         this.persist(item);
       }
+    for (const item of this.items.values()) this.burnSession(item);
     this.running.clear();
   }
   getAll() {
     return [...this.items.values()]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map((item) => ({ ...item }));
+      .map((item) => this.publicItem(item));
   }
+  burnSession(item) {
+    if (!item?.sessionHeaders) return;
+    for (const key of Object.keys(item.sessionHeaders))
+      item.sessionHeaders[key] = "";
+    delete item.sessionHeaders;
+    item.sessionRequired = true;
+    this.persist(item);
+  }
+}
+function persistentHeaders(headers = {}) {
+  return Object.fromEntries(
+    Object.entries(headers || {}).filter(
+      ([key]) => !/cookie|session|authorization|credential/i.test(key),
+    ),
+  );
 }
 module.exports = { DownloadManager, ACTIVE, isWithinSchedule };

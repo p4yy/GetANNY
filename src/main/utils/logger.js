@@ -5,7 +5,12 @@ class Logger {
     this.scope = scope;
   }
   write(level, args) {
-    const line = `[${new Date().toISOString()}] [${level}] [${this.scope}] ${args.map((x) => (x instanceof Error ? x.stack : typeof x === "string" ? x : JSON.stringify(x))).join(" ")}\n`;
+    const redact = (value) =>
+      String(value).replace(
+        /((?:cookie|set-cookie|session|authorization|credential)[\w-]*\s*[:=]\s*)([^\s,;]+)/gi,
+        "$1[redacted]",
+      );
+    const line = `[${new Date().toISOString()}] [${level}] [${this.scope}] ${args.map((x) => (x instanceof Error ? redact(x.stack) : typeof x === "string" ? redact(x) : redact(JSON.stringify(x)))).join(" ")}\n`;
     (level === "ERROR"
       ? console.error
       : level === "WARN"

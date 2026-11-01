@@ -123,7 +123,13 @@
         headers.Referer = item.referrer;
       if (globalThis.navigator?.userAgent)
         headers["User-Agent"] = globalThis.navigator.userAgent;
-      if (this.api.cookies?.getAll) {
+      const cookiePreference = await this.api.storage.local.get([
+        "includeSiteCookies",
+      ]);
+      if (
+        cookiePreference.includeSiteCookies === true &&
+        this.api.cookies?.getAll
+      ) {
         try {
           // Firefox containers and other cookie stores must not silently use
           // a different account's default-store cookies.

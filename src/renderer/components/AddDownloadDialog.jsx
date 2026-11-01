@@ -24,7 +24,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
   const settings = useSettingsStore((state) => state.settings);
   const intercepted = Boolean(initial.browserRequestId);
   const [kind, setKind] = useState(initial.torrent ? "torrent" : "file");
-  const [url, setUrl] = useState(initial.url || "");
+  const [url, setUrl] = useState(initial.url || initial.torrentUrl || "");
   const [filename, setFilename] = useState(initial.filename || "");
   const [folder, setFolder] = useState(settings.defaultDownloadPath || "");
   const [busy, setBusy] = useState(false),
@@ -66,9 +66,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
             downloadId,
           });
           if (handoff.cancelled === false)
-            useUIStore
-              .getState()
-              .notify(t("add.handoffUnconfirmed"), "error");
+            useUIStore.getState().notify(t("add.handoffUnconfirmed"), "error");
         } catch (error) {
           useUIStore
             .getState()

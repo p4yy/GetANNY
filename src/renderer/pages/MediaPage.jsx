@@ -26,6 +26,7 @@ import {
   Select,
 } from "../components/ui";
 import MediaMetadata from "../components/MediaMetadata";
+import VirtualList from "../components/VirtualList";
 import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
 import { bytes, duration } from "../utils/format";
@@ -47,6 +48,10 @@ export default function MediaPage({ tools }) {
     [withSubtitles, setWithSubtitles] = useState(false),
     [subtitleLanguage, setSubtitleLanguage] = useState(""),
     [subtitleFormat, setSubtitleFormat] = useState("vtt");
+  const [playlist, setPlaylist] = useState(null),
+    [playlistSelection, setPlaylistSelection] = useState(() => new Set()),
+    [playlistQuality, setPlaylistQuality] = useState("1080"),
+    [playlistBusy, setPlaylistBusy] = useState(false);
   const generation = useRef(0),
     lastAuto = useRef(0);
   const clearLink = () => {
@@ -82,12 +87,69 @@ export default function MediaPage({ tools }) {
         video.find((format) => format.hasAudio) || video[0] || info.formats[0];
       setGroup(preferred?.group || "video");
       setSelected(preferred?.formatId || null);
-      if (!info.formats.length)
-        setError(t("media.noFormats"));
+      if (!info.formats.length) setError(t("media.noFormats"));
     } catch (error) {
       if (current === generation.current) setError(errorMessage(error));
     } finally {
       if (current === generation.current) setBusy(false);
+    }
+  };
+  const loadPlaylist = async () => {
+    setPlaylistBusy(true);
+    setError("");
+    try {
+      const result = await api.invoke("media:get-playlist", url.trim());
+      setPlaylist(result);
+      setPlaylistSelection(new Set(result.entries.map((_, index) => index)));
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setPlaylistBusy(false);
+    }
+  };
+  const queuePlaylist = async () => {
+    if (!playlistSelection.size) return;
+    setPlaylistBusy(true);
+    setError("");
+    let queued = 0;
+    let skipped = 0;
+    try {
+      for (const index of playlistSelection) {
+        const entry = playlist.entries[index];
+        const info = await api.invoke("media:get-formats", entry.url);
+        const videos = info.formats.filter(
+          (format) => format.group === "video" && format.ext === "mp4",
+        );
+        const cap =
+          playlistQuality === "highest" ? Infinity : Number(playlistQuality);
+        const format =
+          videos.find((item) => (item.height || 0) <= cap) || videos.at(-1);
+        if (!format) {
+          skipped++;
+          continue;
+        }
+        await api.invoke("media:download", {
+          analysisId: info.analysisId,
+          formatId: format.formatId,
+          ...(folder !== settings.defaultDownloadPath
+            ? { savePath: folder }
+            : {}),
+        });
+        queued++;
+      }
+      useUIStore
+        .getState()
+        .notify(
+          t("media.playlistQueued", { count: queued }) +
+            (skipped
+              ? ` ${t("media.playlistSkipped", { count: skipped })}`
+              : ""),
+        );
+      useUIStore.getState().setActiveTab("all");
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setPlaylistBusy(false);
     }
   };
   useEffect(() => {
@@ -126,9 +188,7 @@ export default function MediaPage({ tools }) {
       useUIStore
         .getState()
         .notify(
-          withSubtitles
-            ? t("media.addedWithSubtitles")
-            : t("media.added"),
+          withSubtitles ? t("media.addedWithSubtitles") : t("media.added"),
         );
       useUIStore.getState().setActiveTab("all");
     } catch (error) {
@@ -139,10 +199,7 @@ export default function MediaPage({ tools }) {
   };
   return (
     <div className="page media-page">
-      <PageHeader
-        eyebrow={t("media.eyebrow")}
-        title={t("media.title")}
-      >
+      <PageHeader eyebrow={t("media.eyebrow")} title={t("media.title")}>
         <span className={`engine-label ${tools.ytdlp ? "ready" : ""}`}>
           <span className="status-dot" />
           {tools.ytdlp ? t("media.engineReady") : t("media.engineMissing")}
@@ -164,6 +221,8 @@ export default function MediaPage({ tools }) {
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
+                  setPlaylist(null);
+                  setPlaylistSelection(new Set());
                   if (result) {
                     setResult(null);
                     setSelected(null);
@@ -193,6 +252,15 @@ export default function MediaPage({ tools }) {
             >
               {t("media.analyze")}
             </Button>
+            <Button
+              type="button"
+              icon={LuFilm}
+              busy={playlistBusy}
+              disabled={!url.trim() || !tools.ytdlp}
+              onClick={loadPlaylist}
+            >
+              {t("media.loadPlaylist")}
+            </Button>
           </div>
         </Field>
         <div className="media-search-note">
@@ -201,6 +269,95 @@ export default function MediaPage({ tools }) {
         </div>
       </form>
       {error && <ErrorBanner>{error}</ErrorBanner>}
+      {playlist && (
+        <section className="playlist-panel">
+          <div className="playlist-heading">
+            <div>
+              <h2>{playlist.title}</h2>
+              <p>
+                {t("media.playlistCount", { count: playlist.entries.length })}
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              busy={playlistBusy}
+              disabled={!playlistSelection.size}
+              onClick={queuePlaylist}
+            >
+              {t("media.queueSelected", { count: playlistSelection.size })}
+            </Button>
+          </div>
+          <div className="playlist-toolbar">
+            <Button
+              variant="ghost"
+              onClick={() =>
+                setPlaylistSelection(
+                  new Set(playlist.entries.map((_, index) => index)),
+                )
+              }
+            >
+              {t("media.selectAll")}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setPlaylistSelection(new Set())}
+            >
+              {t("media.deselectAll")}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() =>
+                setPlaylistSelection(
+                  (old) =>
+                    new Set(
+                      playlist.entries
+                        .map((_, index) => (!old.has(index) ? index : null))
+                        .filter((index) => index !== null),
+                    ),
+                )
+              }
+            >
+              {t("media.invertSelection")}
+            </Button>
+            <label>
+              {t("media.applyQuality")}{" "}
+              <Select
+                value={playlistQuality}
+                onChange={(event) => setPlaylistQuality(event.target.value)}
+              >
+                <option value="1080">1080p MP4</option>
+                <option value="720">720p MP4</option>
+                <option value="480">480p MP4</option>
+                <option value="highest">Highest available</option>
+              </Select>
+            </label>
+          </div>
+          <VirtualList
+            items={playlist.entries}
+            getKey={(item) => item.url}
+            estimate={54}
+            className="playlist-list"
+            renderItem={(entry, index) => (
+              <label className="playlist-row">
+                <input
+                  type="checkbox"
+                  checked={playlistSelection.has(index)}
+                  onChange={() =>
+                    setPlaylistSelection((old) => {
+                      const next = new Set(old);
+                      if (next.has(index)) next.delete(index);
+                      else next.add(index);
+                      return next;
+                    })
+                  }
+                />
+                <span>{entry.title}</span>
+                <small>{entry.duration ? duration(entry.duration) : ""}</small>
+              </label>
+            )}
+          />
+        </section>
+      )}
       {busy && (
         <div className="analysis-loading">
           <div className="loader-ring" />
@@ -242,10 +399,20 @@ export default function MediaPage({ tools }) {
           >
             {[
               ["media", LuFilm, "media.tab.media", result.formats.length],
-              ["thumbnails", LuImage, "media.tab.thumbnails", result.thumbnails.length],
+              [
+                "thumbnails",
+                LuImage,
+                "media.tab.thumbnails",
+                result.thumbnails.length,
+              ],
               ["description", LuFileText, "media.tab.description", null],
               ["tags", LuTags, "media.tab.tags", result.tags.length],
-              ["subtitles", LuCaptions, "media.tab.subtitles", result.subtitles.length],
+              [
+                "subtitles",
+                LuCaptions,
+                "media.tab.subtitles",
+                result.subtitles.length,
+              ],
             ].map(([id, Icon, labelKey, count]) => (
               <button
                 key={id}
@@ -302,7 +469,9 @@ export default function MediaPage({ tools }) {
                   className="format-list"
                   role="radiogroup"
                   aria-label={t("media.formatGroup", {
-                    group: t(group === "audio" ? "media.audioOnly" : "media.video"),
+                    group: t(
+                      group === "audio" ? "media.audioOnly" : "media.video",
+                    ),
                   })}
                 >
                   {result.formats
