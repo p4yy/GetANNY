@@ -31,21 +31,29 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
 
 ## Download GetANNY
 
-<sub>Current release: **2.2.1** · Windows 10/11 · 64-bit</sub>
+<sub>Current release: **2.2.2** · Windows 10/11 · 64-bit</sub>
 
-**[Open the official GetANNY 2.2.1 release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.1)**
+**[Open the official GetANNY 2.2.2 release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.2)**
 
 Choose one Windows package:
 
 | Package | Best for |
 | --- | --- |
-| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.1/GetANNY-2.2.1-Setup.exe) | Recommended for most users |
-| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.2.1/GetANNY-2.2.1-Setup.msi) | Managed or scripted Windows installation |
-| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.1/GetANNY-2.2.1-Portable.exe) | Running from a writable folder without a standard install |
+| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.2/GetANNY-2.2.2-Setup.exe) | Recommended for most users |
+| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.2.2/GetANNY-2.2.2-Setup.msi) | Managed or scripted Windows installation |
+| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.2/GetANNY-2.2.2-Portable.exe) | Running from a writable folder without a standard install |
 
-Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.2.1/GetANNY-2.2.1-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.2.1/SHA256SUMS.txt).
+Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.2.2/GetANNY-2.2.2-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.2.2/SHA256SUMS.txt).
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
+
+## What's new in 2.2.2
+
+GetANNY 2.2.2 bundles the Cairo font for Arabic, makes the completion-volume slider respond smoothly while dragging, and reduces idle work after the window is sent to the tray. The download and browser services remain available in the tray; opening GetANNY restores the window. See the release notes for the verification limits of this build.
+
+## In development: 2.2.3
+
+The next Windows Setup EXE update is being prepared with an in-app GitHub Releases updater. It will show an available version, let the user choose to download it, and offer a restart to install. This updater is limited to the standard NSIS Setup EXE installation; MSI, portable, Microsoft Store and browser-extension updates use their own channels. **This feature is not part of the published release yet.**
 
 ## What's new in 2.2.1
 
@@ -124,7 +132,7 @@ The matching browser extension can hand supported downloads to the desktop app a
 
 ## Getting started
 
-1. Download one of the Windows packages from the [official release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.1).
+1. Download one of the Windows packages from the [official release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.2).
 2. Install GetANNY, or run the portable build from a writable folder.
 3. Open GetANNY and choose your download folder and preferences.
 4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.
@@ -174,3 +182,4 @@ See the project documentation for [architecture](docs/ARCHITECTURE.md), [testing
 ## License
 
 GetANNY is released under the [Apache License 2.0](LICENSE). Third-party tools and bundled components retain their respective licenses; see [third-party notices](docs/THIRD_PARTY.md).
+
