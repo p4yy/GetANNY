@@ -47,88 +47,15 @@ Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releas
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
-## What's new in 2.2.2
+## Features
 
-GetANNY 2.2.2 bundles the Cairo font for Arabic, makes the completion-volume slider respond smoothly while dragging, and reduces idle work after the window is sent to the tray. The download and browser services remain available in the tray; opening GetANNY restores the window. See the release notes for the verification limits of this build.
+- **File transfers:** HTTP and HTTPS downloads with progress, speed, pause, resume, retry and a searchable local history.
+- **Media Studio:** inspect supported media pages, choose available formats, and download provided subtitles or thumbnails.
+- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs.
+- **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through the matching extension. Browser installation and permissions always require your approval.
+- **A configurable workspace:** 12 themes, four interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
 
-## In development: 2.2.3
-
-The next Windows Setup EXE update is being prepared with an in-app GitHub Releases updater. It will show an available version, let the user choose to download it, and offer a restart to install. This updater is limited to the standard NSIS Setup EXE installation; MSI, portable, Microsoft Store and browser-extension updates use their own channels. **This feature is not part of the published release yet.**
-
-## What's new in 2.2.1
-
-Version 2.2.1 tightens the download library's empty states, keeps navigation steady during progress updates, adds a theme-matched activity pulse and remaining-time labels, fixes dragging `.torrent` files from Windows Explorer, and bundles the browser extensions inside the app. Browser integration now has an **Install extension** action that prepares the files and opens the selected browser's extension manager. After the browser's required approval, GetANNY verifies the connection automatically. The standalone extension ZIPs remain in the Windows bundle as a manual fallback.
-
-## What's new in 2.2.0
-
-### Capture downloads from anywhere
-
-- Drop a direct HTTP or HTTPS link anywhere in the app to open **New download** with the link filled in.
-- Drop a recognized media page to open **Media Studio**, or drop a magnet link or `.torrent` file/link to open the torrent flow.
-- Use **Paste from clipboard** in an empty library view to route a copied link, magnet link or `.torrent` path.
-- Optional clipboard monitoring is off by default. When enabled, GetANNY checks once per second and shows a five-second prompt when it finds a supported link; you choose whether to capture it.
-
-### Queue playlists from Media Studio
-
-- Load supported playlists and channels and review up to 1,000 entries in a virtualized list.
-- Select, clear or invert the selection, choose an MP4 quality target, then queue the selected videos as individual library downloads.
-- Items without a matching MP4 format are skipped and reported. Availability and formats depend on the source site; the single-video workflow remains available.
-
-### Optional browser cookie handoff
-
-- The browser extension's **Include site cookies** option is off by default. When enabled for a direct file handoff, it requests cookies matching that link's URL; it does not read or send the browser's entire cookie store.
-- The desktop app keeps the received session headers in memory for that transfer and excludes them from saved download records and application logs. Redirects to another origin drop those headers. After an interrupted transfer, GetANNY asks you to refresh the handoff in your browser.
-- This feature does not provide a guarantee of physically overwriting every temporary copy held by the JavaScript runtime. Browser and site support still apply.
-
-### A smoother library and clearer transfer status
-
-- Download lists switch to windowed rendering for larger libraries, and playlist results are virtualized. This keeps the interface from mounting every row at once.
-- The footer refreshes transfer status once per second and shows download speed, active transfers and queued work. Torrent upload speed appears when available; clicking the status opens **Active** downloads.
-- Major workspace panels have error boundaries so a panel error can be contained without taking down the whole app.
-
-### Optional completion sound
-
-- A soft bundled chime can play when a download completes. It is enabled by default, with a volume control and preview button in **Settings → Application**.
-- Playback is throttled to one chime within two seconds, and audio errors are ignored so an unavailable sound device does not interrupt downloads.
-
-The release retains the existing themes, languages and **Ctrl+N** shortcut. See the [release notes](docs/RELEASE_NOTES.md) for implementation details and the [release verification status](docs/RELEASE_STATUS.md) for build and test limitations.
-
-## What GetANNY does
-
-### Download manager
-- Download files over HTTP and HTTPS, including large files.
-- Show transfer progress, speed and estimated time when the server provides enough information.
-- Pause, resume, retry and manage multiple downloads.
-- Use verified range requests when the server supports them.
-- Keep download history in a local SQLite database.
-- Search, filter, sort, inspect, open and reveal completed downloads.
-- Never overwrites existing files or runs downloaded files automatically.
-
-### Media downloads
-- Inspect supported media pages with yt-dlp.
-- Choose available video or audio formats and resolutions.
-- Download subtitles and thumbnails when the source provides them.
-- Use bundled FFmpeg for supported audio extraction and format processing.
-- Track queued jobs, progress, processing and completed output.
-
-Website support depends on the source site, authentication, region and changes to that site's delivery system. GetANNY does not bypass DRM or guarantee that every website can be downloaded.
-
-### Torrent downloads
-- Add magnet links, local `.torrent` files or supported HTTP/HTTPS `.torrent` links.
-- Track torrent progress in the same library as other downloads. Saved pieces are checked before a resumed transfer continues.
-
-### Browser integration
-GetANNY can work with:
-- Google Chrome, Chromium, Microsoft Edge, Brave, Firefox, Vivaldi, Opera and Helium.
-
-The matching browser extension can hand supported downloads to the desktop app and provides media actions where available. Setup is guided from inside GetANNY. **Extensions are not silently installed or enabled**; you must approve browser installation and permissions yourself.
-
-### Preferences and workspace
-- 12 curated themes, with a choice to follow the system's light or dark appearance.
-- English, Arabic, French and Spanish interface languages; Arabic uses a right-to-left layout.
-- Download folder, simultaneous-download limit, per-file connections, speed limits and a daily start schedule.
-- Startup and tray behavior, completion notifications and optional completion sound.
-- Reduced-motion and compact-list preferences, plus **Ctrl+N** to start a new download.
+Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and [release status](docs/RELEASE_STATUS.md) for verification details.
 
 ## Getting started
 
@@ -142,13 +69,7 @@ See the [Windows installation guide](docs/INSTALL_WINDOWS.md) and [browser setup
 
 ## Privacy and security
 
-- Download history and preferences are stored locally in the app's user-data folder.
-- Browser integration uses a local authenticated bridge; it is not intended to expose a remote service.
-- Browser permissions and extension installation are presented for user approval.
-- Downloaded files are not automatically executed.
-- GetANNY does not claim to bypass DRM or browser/site access restrictions.
-
-For security details, see [Architecture and security contracts](docs/ARCHITECTURE.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+Download history and preferences are stored locally. Browser integration uses a local authenticated bridge; extension installation and permissions require your approval. Downloaded files are not run automatically. For details, see [Architecture and security contracts](docs/ARCHITECTURE.md) or report a vulnerability using [SECURITY.md](SECURITY.md).
 
 ## For developers
 
