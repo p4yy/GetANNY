@@ -47,7 +47,9 @@ Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releas
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
-> Version 2.2.0 adds app-wide drag and drop, optional clipboard capture, playlist downloads, virtualized long lists, an optional completion chime, and opt-in browser cookie handoff. See the [release verification status](docs/RELEASE_STATUS.md).`n`n## What GetANNY does
+> Version 2.2.0 adds app-wide drag and drop, optional clipboard capture, playlist downloads, virtualized long lists, an optional completion chime, and opt-in browser cookie handoff. See the [release verification status](docs/RELEASE_STATUS.md).
+
+## What GetANNY does
 
 ### Download manager
 - Download files over HTTP and HTTPS, including large files.
