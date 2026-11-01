@@ -40,10 +40,12 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       .locator(".sidebar")
       .getByRole("button", { name: new RegExp(`^${name}`) });
   try {
+    await invoke("settings:set", { key: "language", value: "en" });
     await invoke("settings:set", { key: "firstRunCompleted", value: false });
     await invoke("settings:set", { key: "autoStartDownloads", value: true });
     await invoke("settings:set", { key: "scheduleEnabled", value: false });
     await invoke("settings:set", { key: "maxConcurrentDownloads", value: 3 });
+    await invoke("settings:set", { key: "completionSoundVolume", value: 40 });
     // Make the real transfer last long enough to actually click Pause even on
     // fast parallel local sockets; no fabricated progress or sleeps as proof.
     await invoke("settings:set", { key: "speedLimit", value: 1024 ** 2 });
@@ -52,6 +54,22 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     await expect(
       page.getByRole("heading", { name: "Browser integration", exact: true }),
     ).toBeVisible();
+    const cairo = await page.evaluate(async () => {
+      const root = document.documentElement;
+      const language = root.lang;
+      root.lang = "ar";
+      await document.fonts.load("16px Cairo", "اللغة العربية");
+      const result = {
+        loaded: document.fonts.check("16px Cairo", "اللغة العربية"),
+        family: getComputedStyle(document.body).fontFamily,
+      };
+      root.lang = language;
+      return result;
+    });
+    if (!cairo.loaded || !cairo.family.startsWith("Cairo"))
+      throw new Error(
+        `Bundled Cairo font did not load for Arabic: ${JSON.stringify(cairo)}`,
+      );
     await page.screenshot({
       path: path.join(output, "onboarding-1320.png"),
       fullPage: true,
@@ -252,6 +270,48 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     await page
       .getByRole("button", { name: "Application", exact: true })
       .click();
+    const volume = page.getByLabel("Completion sound volume", { exact: true });
+    await volume.focus();
+    await volume.press("ArrowRight");
+    await expect
+      .poll(
+        async () => (await invoke("settings:get-all")).completionSoundVolume,
+      )
+      .toBe(41);
+    await expect(volume).toHaveAttribute("aria-valuetext", "41%");
+    await expect(volume).toBeEnabled();
+    const volumeSaves = [];
+    const recordVolumeSave = (request) => {
+      if (!request.url().includes("/__getanny/invoke")) return;
+      const body = JSON.parse(request.postData() || "{}");
+      if (
+        body.channel === "settings:set" &&
+        body.args?.[0]?.key === "completionSoundVolume"
+      )
+        volumeSaves.push(body.args[0].value);
+    };
+    page.on("request", recordVolumeSave);
+    const volumeBox = await volume.boundingBox();
+    const volumeY = volumeBox.y + volumeBox.height / 2;
+    await page.mouse.move(volumeBox.x + volumeBox.width * 0.4, volumeY);
+    await page.mouse.down();
+    await page.mouse.move(volumeBox.x + volumeBox.width * 0.85, volumeY, {
+      steps: 12,
+    });
+    await expect
+      .poll(async () => Number(await volume.inputValue()))
+      .toBeGreaterThan(41);
+    const draggedVolume = Number(await volume.inputValue());
+    if (volumeSaves.length)
+      throw new Error("Volume slider wrote settings before the drag finished");
+    await page.mouse.up();
+    await expect
+      .poll(
+        async () => (await invoke("settings:get-all")).completionSoundVolume,
+      )
+      .toBe(draggedVolume);
+    expect(volumeSaves).toEqual([draggedVolume]);
+    page.off("request", recordVolumeSave);
     await page.getByLabel("Animations").selectOption("disabled");
     await expect(page.locator("html")).toHaveAttribute(
       "data-motion",
@@ -276,7 +336,9 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       ["system", "dark"],
     ]) {
       await page.emulateMedia({ colorScheme });
-      await page.locator('.theme-quick-button[aria-label*="Change theme"]').click();
+      await page
+        .locator('.theme-quick-button[aria-label*="Change theme"]')
+        .click();
       await page
         .getByRole("menuitemradio", {
           name:
@@ -342,7 +404,9 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       .getByRole("button", { name: "Apply Nord theme", exact: true })
       .click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "nord");
-    await page.locator('.theme-quick-button[aria-label*="Change theme"]').click();
+    await page
+      .locator('.theme-quick-button[aria-label*="Change theme"]')
+      .click();
     await page
       .getByRole("menuitemradio", { name: "Ocean", exact: true })
       .click();
@@ -423,6 +487,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       date: new Date().toISOString(),
       checks: [
         "Browser onboarding renders with honest unknown states",
+        "Bundled Cairo font loads locally when the renderer language is Arabic",
         "New-download IPC/SSE list updates",
         "HTTP UI pause/resume and hash verification",
         "HTTP 404 failure view",
@@ -430,6 +495,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
         "Real yt-dlp metadata, thumbnails, independent SRT, alongside VTT and video downloads",
         "Completed-video lazy preview renders from the bounded cache",
         "Validated settings, scheduling and animation modes affect the backend and renderer",
+        "Completion volume keyboard changes persist; pointer drags save only once on release",
         "All theme palettes and both system modes meet 4.5:1 text-token contrast on normal, raised and selected surfaces",
         "Themes gallery filtering and top-left quick switcher persist selections",
         "Responsive pages including Themes at 1320,1024,760,480 pixels",

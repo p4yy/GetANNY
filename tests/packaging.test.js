@@ -26,6 +26,7 @@ test("Windows packaging rejects existing but checksum-invalid tools", async (t) 
     "node_modules/ws/index.js",
     "node_modules/ws/package.json",
     "dist-renderer/index.html",
+    "dist-renderer/fonts/OFL-Cairo.txt",
     "dist-extension/chromium/manifest.json",
     "dist-extension/firefox/manifest.json",
     "bin/yt-dlp.exe",
@@ -41,6 +42,13 @@ test("Windows packaging rejects existing but checksum-invalid tools", async (t) 
       "deliberately invalid unit-test input",
     );
   }
+  await fs.mkdir(path.join(root, "dist-renderer", "assets"), {
+    recursive: true,
+  });
+  await fs.writeFile(
+    path.join(root, "dist-renderer", "assets", "Cairo-Variable-test.ttf"),
+    "fixture",
+  );
   await assert.rejects(
     verify({ packager: { projectDir: root }, electronPlatformName: "win32" }),
     /checksum mismatch/,
@@ -143,6 +151,35 @@ test("afterPack verifies the real SQLite N-API layout and torrent binary; missin
     "app.asar.unpacked/node_modules/better-sqlite3/prebuilds/win32-x64.node",
     "app.asar.unpacked/node_modules/node-datachannel/build/Release/node_datachannel.node",
   ];
+  await fs.mkdir(resources, { recursive: true });
+  const asarRoot = path.join(root, "asar-input");
+  await fs.mkdir(path.join(asarRoot, "dist-renderer", "assets"), {
+    recursive: true,
+  });
+  await fs.mkdir(path.join(asarRoot, "dist-renderer"), { recursive: true });
+  await fs.mkdir(path.join(asarRoot, "dist-renderer", "fonts"), {
+    recursive: true,
+  });
+  await fs.writeFile(
+    path.join(asarRoot, "dist-renderer", "index.html"),
+    '<link rel="stylesheet" href="assets/index-test.css">',
+  );
+  await fs.writeFile(
+    path.join(asarRoot, "dist-renderer", "assets", "index-test.css"),
+    'src:url("./Cairo-Variable-test.ttf")',
+  );
+  await fs.writeFile(
+    path.join(asarRoot, "dist-renderer", "assets", "Cairo-Variable-test.ttf"),
+    "font fixture",
+  );
+  await fs.writeFile(
+    path.join(asarRoot, "dist-renderer", "fonts", "OFL-Cairo.txt"),
+    "license fixture",
+  );
+  await require("@electron/asar").createPackage(
+    asarRoot,
+    path.join(resources, "app.asar"),
+  );
   // Structural fixtures only. Real executable loading is a separate installed
   // Windows gate; a two-byte MZ fixture does not establish PE validity.
   for (const file of files) {

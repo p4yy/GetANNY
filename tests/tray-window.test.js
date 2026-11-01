@@ -3,10 +3,16 @@ const assert = require("node:assert/strict");
 const {
   showTrayWindow,
   toggleTrayWindow,
+  shouldKeepBackgroundProcess,
+  shouldReleaseTrayWindow,
   shouldRevealOnActivation,
 } = require("../src/main/tray-window");
 
-function fakeWindow({ visible = false, minimized = false, destroyed = false } = {}) {
+function fakeWindow({
+  visible = false,
+  minimized = false,
+  destroyed = false,
+} = {}) {
   const calls = [];
   return {
     calls,
@@ -46,4 +52,15 @@ test("tray actions ignore a destroyed window", () => {
 test("OS activation does not reopen a window intentionally hidden to tray", () => {
   assert.equal(shouldRevealOnActivation(true), false);
   assert.equal(shouldRevealOnActivation(false), true);
+});
+
+test("closing the tray window keeps services resident only with a tray", () => {
+  assert.equal(shouldKeepBackgroundProcess(true, true), true);
+  assert.equal(shouldKeepBackgroundProcess(false, true), false);
+  assert.equal(shouldKeepBackgroundProcess(true, false), false);
+});
+
+test("tray idle releases the renderer unless clipboard monitoring needs it", () => {
+  assert.equal(shouldReleaseTrayWindow(false), true);
+  assert.equal(shouldReleaseTrayWindow(true), false);
 });

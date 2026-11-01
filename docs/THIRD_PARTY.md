@@ -20,6 +20,12 @@ GetANNY source: Apache License 2.0 (root LICENSE). JavaScript dependencies retai
 - FFmpeg builds can be GPL depending on enabled components. Redistribution retains the upstream license and corresponding source/build references; no claim is made that FFmpeg is Apache-licensed or authored by GetANNY. Distributors must honor the exact build's GPL/LGPL obligations, including making corresponding source available where required.
 - This is a pinned build rather than a claim of “latest FFmpeg”. Review / update tools and hashes deliberately as upstream security releases become available. Tool pinning and npm audit are not a full binary security audit.
 
+## Cairo font
+
+- The Cairo variable font is bundled in `src/renderer/assets/fonts/Cairo-Variable.ttf` and distributed with the renderer. It is used for Arabic UI text; users do not need to install it separately.
+- Source: https://github.com/google/fonts/tree/main/ofl/cairo
+- License: SIL Open Font License 1.1, included in the packaged renderer as `fonts/OFL-Cairo.txt`.
+
 ## Other components
 
 Electron (MIT / Chromium third-party notices), React (MIT), better-sqlite3 (MIT) / SQLite (public domain), WebTorrent and related modules (MIT / package licenses), ws (MIT), React Icons (individual icon licenses, see its package), content-disposition (MIT), Zustand (MIT), and build/test tools retain their upstream licenses. Electron's platform license/notices files are shipped by electron-builder.

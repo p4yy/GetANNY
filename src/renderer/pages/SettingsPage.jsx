@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   LuArrowDownToLine,
   LuFolderOpen,
@@ -78,6 +78,61 @@ function ScheduleTime({ value, label, disabled, onChange }) {
         if (match) onChange(Number(match[1]) * 60 + Number(match[2]));
       }}
     />
+  );
+}
+function VolumeControl({ value, disabled, onCommit, label }) {
+  const currentValue = Number(value ?? 50);
+  const [draft, setDraft] = useState(currentValue);
+  const dragging = useRef(false);
+  const committed = useRef(currentValue);
+  useEffect(() => {
+    if (!dragging.current) setDraft(currentValue);
+    committed.current = currentValue;
+  }, [currentValue]);
+  const commit = (nextValue = draft) => {
+    dragging.current = false;
+    if (nextValue !== committed.current) {
+      committed.current = nextValue;
+      onCommit(nextValue);
+    }
+  };
+  return (
+    <div className="volume-control">
+      <input
+        aria-label={label}
+        aria-valuetext={`${draft}%`}
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={draft}
+        disabled={disabled}
+        onPointerDown={() => {
+          dragging.current = true;
+        }}
+        onChange={(event) => setDraft(Number(event.target.value))}
+        onPointerUp={(event) => commit(Number(event.currentTarget.value))}
+        onPointerCancel={(event) => commit(Number(event.currentTarget.value))}
+        onKeyUp={(event) => {
+          if (
+            [
+              "ArrowLeft",
+              "ArrowRight",
+              "ArrowUp",
+              "ArrowDown",
+              "Home",
+              "End",
+              "PageUp",
+              "PageDown",
+            ].includes(event.key)
+          ) {
+            commit(Number(event.currentTarget.value));
+          }
+        }}
+        onBlur={(event) => commit(Number(event.currentTarget.value))}
+      />
+      <output>{draft}%</output>
+    </div>
   );
 }
 function SettingRow({ title, description, children, disabled = false }) {
@@ -485,17 +540,11 @@ export default function SettingsPage({ capabilities, version }) {
               title={t("settings.completionSound.volume")}
               description={t("settings.completionSound.volumeDescription")}
             >
-              <input
-                aria-label={t("settings.completionSound.volume")}
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value={settings.completionSoundVolume ?? 50}
+              <VolumeControl
+                label={t("settings.completionSound.volume")}
+                value={settings.completionSoundVolume}
                 disabled={!!saving}
-                onChange={(event) =>
-                  persist("completionSoundVolume", Number(event.target.value))
-                }
+                onCommit={(value) => persist("completionSoundVolume", value)}
               />
             </SettingRow>
             <SettingRow

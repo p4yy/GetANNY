@@ -189,11 +189,22 @@ function StatusBar({ version }) {
     () => useDownloadStore.getState().downloads,
   );
   useEffect(() => {
-    const timer = setInterval(
-      () => setDownloads(useDownloadStore.getState().downloads),
-      1000,
-    );
-    return () => clearInterval(timer);
+    let timer;
+    const refresh = () => setDownloads(useDownloadStore.getState().downloads);
+    const updateVisibility = () => {
+      clearInterval(timer);
+      timer = undefined;
+      if (document.visibilityState === "visible") {
+        refresh();
+        timer = setInterval(refresh, 1000);
+      }
+    };
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", updateVisibility);
+    };
   }, []);
   const transferring = downloads.filter(active);
   const completed = downloads.filter(
@@ -698,7 +709,7 @@ export default function App() {
               {(visited.has("browser") || tab === "browser") && (
                 <div className="page-slot" hidden={tab !== "browser"}>
                   <ErrorBoundary>
-                    <BrowserPage />
+                    <BrowserPage active={tab === "browser"} />
                   </ErrorBoundary>
                 </div>
               )}

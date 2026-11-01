@@ -126,6 +126,7 @@ function main() {
     ["docs/RELEASE_STATUS.md", "RELEASE_STATUS.md"],
     ["docs/CHANGELOG.md", "CHANGELOG.md"],
     ["docs/THIRD_PARTY.md", "THIRD_PARTY.md"],
+    ["docs/PACKAGED_RUNTIME_STATUS.md", "PACKAGED_RUNTIME_STATUS.md"],
     ["LICENSE", "LICENSE"],
   ];
   for (const [from, to] of docs)

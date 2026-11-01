@@ -1,3 +1,25 @@
+# GetANNY 2.2.2 — Cairo Arabic typography, lighter tray idle, and smoother controls
+
+This build bundles the Cairo font for Arabic, makes completion-volume dragging smooth, releases the hidden renderer when the app closes to tray, and reduces hidden-page polling. Download, pause/resume, file integrity, browser bridge, and tray wake behavior were covered by local automated tests. The Windows binaries are unsigned in this environment; this file records local build status and does not claim GitHub or installed-consumer certification.
+
+## Performance and tray behavior
+
+- Closing the window with **Close to tray** enabled destroys the renderer process while retaining the download manager and authenticated browser bridge. The app recreates its window when the tray is opened or the bridge receives a browser request.
+- Status-bar and browser-integration polling stop while the relevant renderer is hidden.
+- Large-file pause/resume verification now inspects the private transfer workspace, proving the visible byte count matches durable segment data.
+
+## Arabic typography and sound controls
+
+- Cairo variable font is bundled in the app and used for Arabic UI text. The SIL Open Font License is included in the renderer package.
+- Completion-sound volume now updates during a drag and persists once when the pointer is released. Pointer and keyboard behavior are covered by UI integration tests.
+
+## Verification
+
+- 107 local regression tests passed; 13 packaging and tray checks passed; local browser UI integration passed; a 3.22 GB transfer passed pause, restart, resume and SHA-256 verification.
+- The local Windows EXE, MSI and portable packages were built. Installed-consumer testing, GPU utilization measurement, code signing, and GitHub Actions were not performed.
+
+---
+
 # GetANNY 2.2.1 — Interface polish and reliable torrent drop
 
 Version 2.2.1 refines empty library states and transfer status hierarchy, fixes dragging `.torrent` files from Windows Explorer into the app, and bundles browser extensions in the Windows app packages. The Browser integration page can prepare the selected browser and open its extension manager from one **Install extension** action. Once the user completes the browser's required installation step, GetANNY recognizes the extension handshake and verifies the connection automatically. Manual browser extension ZIPs remain in the release bundle as a fallback.

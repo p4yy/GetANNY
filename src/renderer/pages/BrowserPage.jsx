@@ -34,7 +34,7 @@ const browserIcons = {
   edge: FaEdge,
   helium: LuGlobe,
 };
-export default function BrowserPage() {
+export default function BrowserPage({ active = true }) {
   const { t } = useI18n();
   const settings = useSettingsStore((state) => state.settings),
     save = useSettingsStore((state) => state.save);
@@ -56,6 +56,7 @@ export default function BrowserPage() {
     }
   }, []);
   useEffect(() => {
+    if (!active || document.visibilityState !== "visible") return;
     refresh();
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") refresh();
@@ -65,7 +66,7 @@ export default function BrowserPage() {
       clearInterval(timer);
       cleanup();
     };
-  }, [refresh]);
+  }, [active, refresh]);
   const browser = info?.browsers.find((item) => item.id === selected);
   const Icon = browserIcons[selected] || LuGlobe;
   const run = async (action) => {
@@ -86,9 +87,7 @@ export default function BrowserPage() {
       const result = await api.invoke("browser:prepare", selected);
       setPrepared(result);
       await save("preferredBrowser", selected);
-      useUIStore
-        .getState()
-        .notify(t("browser.prepareNotice"));
+      useUIStore.getState().notify(t("browser.prepareNotice"));
     });
   const installInBrowser = () =>
     run(async () => {
@@ -96,17 +95,14 @@ export default function BrowserPage() {
       setPrepared(result);
       await save("preferredBrowser", selected);
       await api.invoke("browser:open-extensions", selected);
-      useUIStore.getState().notify(
-        t("browser.installNextStep", { path: result.path }),
-      );
+      useUIStore
+        .getState()
+        .notify(t("browser.installNextStep", { path: result.path }));
     });
   const copy = (text) =>
     navigator.clipboard.writeText(text).then(
       () => useUIStore.getState().notify(t("browser.copied")),
-      () =>
-        useUIStore
-          .getState()
-          .notify(t("browser.clipboardDenied"), "error"),
+      () => useUIStore.getState().notify(t("browser.clipboardDenied"), "error"),
     );
   const packagePath =
     prepared?.browserId === selected
@@ -116,10 +112,7 @@ export default function BrowserPage() {
         : null;
   return (
     <div className="page browser-page">
-      <PageHeader
-        eyebrow={t("browser.eyebrow")}
-        title={t("browser.title")}
-      >
+      <PageHeader eyebrow={t("browser.eyebrow")} title={t("browser.title")}>
         <span
           className={`bridge-status-pill ${
             info?.websocket.error
@@ -151,9 +144,7 @@ export default function BrowserPage() {
                       ? t("browser.offline")
                       : t("browser.checking")}
           </strong>
-          <span className="mono">
-            127.0.0.1:{info?.websocket.port ?? "—"}
-          </span>
+          <span className="mono">127.0.0.1:{info?.websocket.port ?? "—"}</span>
         </span>
         <Button
           icon={LuRefreshCw}
@@ -262,10 +253,7 @@ export default function BrowserPage() {
               );
             })
           ) : (
-            <div
-              className="skeleton-stack"
-              aria-label={t("browser.detecting")}
-            >
+            <div className="skeleton-stack" aria-label={t("browser.detecting")}>
               {[1, 2, 3, 4, 5, 6, 7].map((key) => (
                 <div className="skeleton" key={key} />
               ))}
@@ -356,7 +344,7 @@ export default function BrowserPage() {
               {browser?.connected ? <LuCheck /> : "2"}
             </span>
             <div className="step-content">
-            <h3>{t("browser.step2Title")}</h3>
+              <h3>{t("browser.step2Title")}</h3>
               {selected === "firefox" ? (
                 <p>{t("browser.firefoxText")}</p>
               ) : (

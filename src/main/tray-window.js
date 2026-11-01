@@ -18,8 +18,18 @@ function shouldRevealOnActivation(hiddenToTray) {
   return !hiddenToTray;
 }
 
+function shouldKeepBackgroundProcess(hiddenToTray, trayAvailable) {
+  return hiddenToTray && trayAvailable;
+}
+
+function shouldReleaseTrayWindow(clipboardMonitoring) {
+  return !clipboardMonitoring;
+}
+
 module.exports = {
   showTrayWindow,
   toggleTrayWindow,
   shouldRevealOnActivation,
+  shouldKeepBackgroundProcess,
+  shouldReleaseTrayWindow,
 };

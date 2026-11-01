@@ -1,6 +1,6 @@
 const { Tray, Menu, nativeImage } = require("electron");
 const { showTrayWindow, toggleTrayWindow } = require("./tray-window");
-function createTray({ mainWindow, app, iconPath }) {
+function createTray({ mainWindow, app, iconPath, onShow, onToggle }) {
   const icon = nativeImage.createFromPath(iconPath);
   if (icon.isEmpty()) return null;
   const tray = new Tray(icon);
@@ -9,7 +9,7 @@ function createTray({ mainWindow, app, iconPath }) {
     Menu.buildFromTemplate([
       {
         label: "Show GetANNY",
-        click: () => showTrayWindow(mainWindow()),
+        click: () => (onShow ? onShow() : showTrayWindow(mainWindow())),
       },
       { type: "separator" },
       {
@@ -21,7 +21,9 @@ function createTray({ mainWindow, app, iconPath }) {
       },
     ]),
   );
-  tray.on("click", () => toggleTrayWindow(mainWindow()));
+  tray.on("click", () =>
+    onToggle ? onToggle() : toggleTrayWindow(mainWindow()),
+  );
   return tray;
 }
 module.exports = { createTray };

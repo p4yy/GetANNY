@@ -87,12 +87,15 @@ const { waitFor } = require("../tests/helpers");
     );
     await s.manager.pause(id);
     const paused = { ...s.manager.requireItem(id) };
-    const files = (await fs.readdir(paused.savePath)).filter((name) =>
+    // Resumable chunks are intentionally kept in the private transfer-temp
+    // workspace so the destination never contains partial files.
+    const workPath = path.join(options.userDataPath, "transfer-temp", id);
+    const files = (await fs.readdir(workPath)).filter((name) =>
       name.startsWith(`.getanny-${id}.part-`),
     );
     const partBytes = await Promise.all(
       files.map(
-        async (file) => (await fs.stat(path.join(paused.savePath, file))).size,
+        async (file) => (await fs.stat(path.join(workPath, file))).size,
       ),
     );
     const physicalPartial = partBytes.reduce((a, b) => a + b, 0);

@@ -13,7 +13,11 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const { setupIpcHandlers } = require("./ipc-handlers");
 const { createTray } = require("./tray");
-const { shouldRevealOnActivation } = require("./tray-window");
+const {
+  shouldKeepBackgroundProcess,
+  shouldReleaseTrayWindow,
+  shouldRevealOnActivation,
+} = require("./tray-window");
 const { createMenu } = require("./menu");
 const { Logger } = require("./utils/logger");
 const { validateUrl } = require("./engine/utils");
@@ -24,9 +28,11 @@ const {
   markDesktopExited,
 } = require("./browser-integration/DesktopExitMarker");
 const log = new Logger("Main");
+const traySelfTest = process.argv.includes("--tray-self-test");
 let win,
   services,
   tray,
+  windowCreating,
   exiting = false,
   hiddenToTray = false,
   shutdownFinished = false;
@@ -42,15 +48,33 @@ function send(channel, data) {
   if (win && !win.isDestroyed()) win.webContents.send(channel, data);
 }
 function showWindow() {
-  if (win) {
-    hiddenToTray = false;
-    if (win.isMinimized()) win.restore();
-    win.show();
-    win.focus();
+  hiddenToTray = false;
+  if (!win || win.isDestroyed()) {
+    if (services && !windowCreating) {
+      windowCreating = createWindow({ forceShow: true })
+        .catch((error) => log.error("Window activation:", error))
+        .finally(() => {
+          windowCreating = null;
+        });
+    }
+    return;
   }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
 }
 
-async function createWindow() {
+function toggleWindow() {
+  if (!win || win.isDestroyed() || !win.isVisible()) {
+    showWindow();
+    return;
+  }
+  win.hide();
+  if (shouldReleaseTrayWindow(services.settings.get("clipboardMonitoring")))
+    win.destroy();
+}
+
+async function createWindow({ forceShow = false } = {}) {
   win = new BrowserWindow({
     width: 1320,
     height: 860,
@@ -111,10 +135,17 @@ async function createWindow() {
     hiddenToTray = false;
   });
   win.on("close", (event) => {
-    if (!exiting && services.settings.get("closeToTray") && tray && !selfTest) {
+    if (
+      !exiting &&
+      services.settings.get("closeToTray") &&
+      tray &&
+      (!selfTest || traySelfTest)
+    ) {
       event.preventDefault();
       hiddenToTray = true;
       win.hide();
+      if (shouldReleaseTrayWindow(services.settings.get("clipboardMonitoring")))
+        win.destroy();
     }
   });
   win.on("closed", () => {
@@ -126,6 +157,7 @@ async function createWindow() {
     );
   else await win.loadURL("http://127.0.0.1:5173");
   if (
+    forceShow ||
     !services.settings.get("startMinimized") ||
     selfTest ||
     process.argv.includes("--from-browser")
@@ -272,18 +304,27 @@ async function init() {
   });
   if (process.platform === "darwin") createMenu({ mainWindow: () => win });
   else Menu.setApplicationMenu(null);
-  await createWindow();
-  if (!selfTest) {
+  if (!selfTest || traySelfTest) {
     try {
       tray = createTray({
         mainWindow: () => win,
         app,
         iconPath: path.resolve(__dirname, "../../assets/tray-icon.png"),
+        onShow: showWindow,
+        onToggle: toggleWindow,
       });
     } catch (error) {
       log.warn("System tray unavailable:", error.message);
     }
   }
+  if (
+    services.settings.get("startMinimized") &&
+    tray &&
+    !process.argv.includes("--from-browser") &&
+    !selfTest
+  )
+    hiddenToTray = true;
+  else await createWindow();
   if (selfTest) {
     const reportIndex = process.argv.indexOf("--report");
     const report = process.argv[reportIndex + 1];
@@ -295,6 +336,116 @@ async function init() {
         binPath,
         userDataPath,
       });
+      if (traySelfTest) {
+        const delay = (milliseconds) =>
+          new Promise((resolve) => setTimeout(resolve, milliseconds));
+        await services.settings.set("closeToTray", true);
+        const closedAt = Date.now();
+        win.close();
+        const closeDeadline = Date.now() + 5000;
+        while (win && Date.now() < closeDeadline) await delay(25);
+        if (win) throw new Error("Window did not release to the tray.");
+        if (!tray || !services.wsServer.status().running || services.closing)
+          throw new Error("Tray services did not remain available.");
+        const released = app.getAppMetrics();
+        if (released.some((metric) => metric.type === "Tab"))
+          throw new Error("Renderer process remained after the tray close.");
+        const beforeIdle = process.cpuUsage();
+        await delay(10000);
+        const cpu = process.cpuUsage(beforeIdle);
+        const metrics = app.getAppMetrics().map((metric) => ({
+          type: metric.type,
+          pid: metric.pid,
+          workingSetBytes: metric.memory?.workingSetSize ?? null,
+          privateBytes: metric.memory?.privateBytes ?? null,
+          cpuPercent: metric.cpu?.percentCPUUsage ?? null,
+        }));
+        const workingSetBytes = metrics.reduce(
+          (sum, metric) => sum + (metric.workingSetBytes || 0),
+          0,
+        );
+        const bridge = services.wsServer.status();
+        const WebSocket = require("ws");
+        const client = new WebSocket(`ws://127.0.0.1:${bridge.port}`);
+        const receive = (type) =>
+          new Promise((resolve, reject) => {
+            const timer = setTimeout(
+              () => reject(new Error(`Timed out waiting for ${type}.`)),
+              5000,
+            );
+            const listener = (raw) => {
+              const message = JSON.parse(raw.toString());
+              if (message.type !== type) return;
+              clearTimeout(timer);
+              client.off("message", listener);
+              resolve(message);
+            };
+            client.on("message", listener);
+          });
+        await new Promise((resolve, reject) => {
+          client.once("open", resolve);
+          client.once("error", reject);
+        });
+        const authenticated = receive("authenticated");
+        client.send(
+          JSON.stringify({
+            type: "authenticate",
+            token: services.identity.token,
+            transport: "native",
+          }),
+        );
+        await authenticated;
+        const hello = receive("hello-result");
+        client.send(
+          JSON.stringify({
+            type: "hello",
+            browserId: "chromium",
+            extensionId: require("./browser-integration/catalog").CHROMIUM_ID,
+            version: "tray-self-test",
+          }),
+        );
+        await hello;
+        const requestId = `tray-self-test-${Date.now()}`;
+        const wakeStarted = Date.now();
+        const wake = receive("download-result");
+        client.send(
+          JSON.stringify({
+            type: "download",
+            requestId,
+            kind: "media",
+            url: "https://example.invalid/tray-self-test",
+            transferId: requestId,
+          }),
+        );
+        const wakeResult = await wake;
+        const wakeDeadline = Date.now() + 10000;
+        while (
+          (!win || win.isDestroyed() || !win.isVisible()) &&
+          Date.now() < wakeDeadline
+        )
+          await delay(25);
+        client.close();
+        if (!win || win.isDestroyed() || !win.isVisible())
+          throw new Error("Browser request did not restore the app window.");
+        if (wakeResult.action !== "analyze")
+          throw new Error("Browser bridge did not accept the wake request.");
+        await services.ackBrowserRequest(wakeResult.pendingId);
+        result.trayLifecycle = {
+          passed: true,
+          closeToTrayMs: Date.now() - closedAt,
+          browserWakeMs: Date.now() - wakeStarted,
+          idleCpuMicrosOver10Seconds: cpu.user + cpu.system,
+          idleMetrics: metrics,
+          reportedWorkingSetMB:
+            Math.round((workingSetBytes / (1024 * 1024)) * 100) / 100,
+          rendererReleased: true,
+          bridgeStayedAvailable: true,
+          browserRequestWokeWindow: true,
+          gpuUtilization: "Electron does not expose GPU utilization counters",
+        };
+        result.trayLifecycle.under50MB =
+          result.trayLifecycle.reportedWorkingSetMB <= 50;
+      }
       await fs.mkdir(path.dirname(path.resolve(report)), { recursive: true });
       await fs.writeFile(report, JSON.stringify(result, null, 2));
       await services.close();
@@ -382,6 +533,7 @@ else {
       });
   });
   app.on("window-all-closed", () => {
+    if (shouldKeepBackgroundProcess(hiddenToTray, !!tray)) return;
     if (process.platform !== "darwin") app.quit();
   });
   app.on("activate", () => {

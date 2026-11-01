@@ -368,6 +368,7 @@ test("disconnect during metadata gathering cannot start a second desktop copy", 
     entered = resolve;
   });
   const f = fixture({
+    includeSiteCookies: true,
     cookies: () => {
       entered();
       return new Promise((resolve) => {

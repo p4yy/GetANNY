@@ -3,6 +3,35 @@ const path = require("node:path");
 module.exports = async (context) => {
   if (context.electronPlatformName !== "win32") return;
   const resources = path.join(context.appOutDir, "resources");
+  const asar = require("@electron/asar");
+  for (const file of [path.join("dist-renderer", "fonts", "OFL-Cairo.txt")]) {
+    try {
+      await asar.extractFile(path.join(resources, "app.asar"), file);
+    } catch {
+      throw new Error(`Packaged resource missing from app.asar: ${file}`);
+    }
+  }
+  const rendererContents = await asar.extractFile(
+    path.join(resources, "app.asar"),
+    path.join("dist-renderer", "index.html"),
+  );
+  const cssFile = rendererContents
+    .toString("utf8")
+    .match(/assets\/index-[^"']+\.css/);
+  if (!cssFile) throw new Error("Packaged renderer stylesheet is missing");
+  const cssContents = await asar.extractFile(
+    path.join(resources, "app.asar"),
+    path.join("dist-renderer", cssFile[0].replaceAll("/", path.sep)),
+  );
+  const fontName = cssContents
+    .toString("utf8")
+    .match(/Cairo-Variable-[^"')]+\.ttf/);
+  if (!fontName)
+    throw new Error("Packaged Cairo font reference is missing from renderer");
+  await asar.extractFile(
+    path.join(resources, "app.asar"),
+    path.join("dist-renderer", "assets", fontName[0]),
+  );
   for (const file of [
     "bin/yt-dlp.exe",
     "bin/ffmpeg.exe",

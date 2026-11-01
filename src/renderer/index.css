@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Cairo";
+  src: url("./assets/fonts/Cairo-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+}
+
 :root {
   font-family:
     "Segoe UI Variable Text",
@@ -34,6 +42,9 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+html[lang="ar"] body {
+  font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -5152,6 +5163,32 @@ html.theme-transition *::after {
   width: 120px;
   max-width: 100%;
   min-width: 0;
+}
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(220px, 42vw);
+}
+.volume-control input[type="range"] {
+  flex: 1;
+  width: auto;
+  min-width: 80px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transition: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+  touch-action: none;
+}
+.volume-control output {
+  width: 34px;
+  color: var(--secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 .number-control input {
   width: 100%;

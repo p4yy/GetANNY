@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.2 — Cairo, tray idle, and responsive audio control
+
+- Bundled the Cairo variable font and OFL license; Arabic UI now uses Cairo without requiring a system font install.
+- Closing to tray releases the UI renderer while preserving browser and download services; browser bridge requests recreate and show the window.
+- Hidden status and browser pages stop polling. Completion volume changes persist on release rather than during every drag event.
+- Corrected large-transfer verification to inspect the private partial workspace; validated a 3.22 GB pause, backend restart, resume and hash check.
+
 ## 2.2.1 — Library polish, bundled browser setup, and reliable torrent drop
 
 - Refined empty library pages with page-specific copy, less inactive table chrome and one clear primary action.

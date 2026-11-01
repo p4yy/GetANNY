@@ -10,6 +10,7 @@ module.exports = async (context) => {
     "node_modules/ws/index.js",
     "node_modules/ws/package.json",
     "dist-renderer/index.html",
+    "dist-renderer/fonts/OFL-Cairo.txt",
     "dist-extension/chromium/manifest.json",
     "dist-extension/firefox/manifest.json",
   ];
@@ -31,6 +32,11 @@ module.exports = async (context) => {
         `Required packaged resource missing: ${file}. Run npm run prepare:tools and build the renderer/extensions first.`,
       );
     });
+  const rendererFiles = await fs.readdir(
+    path.join(root, "dist-renderer", "assets"),
+  );
+  if (!rendererFiles.some((file) => /^Cairo-Variable-.*\.ttf$/i.test(file)))
+    throw new Error("Required packaged resource missing: bundled Cairo font");
   if (platform === "win32") {
     const { createHash } = require("node:crypto");
     const tools = require("./tools-manifest.json");
