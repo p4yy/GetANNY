@@ -1,9 +1,10 @@
-# GetANNY 2.2.2 local build status
+# GetANNY 2.2.4 release status
 
-- Local renderer, extension and Windows EXE/MSI/portable builds completed; Cairo font and OFL license were verified inside the generated app archive.
-- Local automated tests passed: 107 main tests, 13 packaging/tray tests, UI integration and a 3.22 GB transfer-integrity test.
-- The packaged GUI could not launch in this environment: Windows reported “Illegal System DLL Relocation” (0x80000003); the stock Electron 45.1.0 executable failed the same way. Packaged tray-close behavior and installed-consumer browser integration remain unverified. See `PACKAGED_RUNTIME_STATUS.md`.
-- GitHub Actions were not run at the owner's request. Windows binaries are unsigned; GPU utilization was not measured.
+- Application binaries were built from source commit `16d694b7fabcd593c76b959009a3e6895d768bab`; this release includes a documentation-only follow-up.
+- Local renderer and Windows x64 EXE, MSI and portable packages built successfully. All eight browser-extension ZIPs were generated.
+- GitHub Actions run 41358016389 was cancelled at the owner's request. This release has not passed the Windows/browser verification workflow and is not test-certified.
+- Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
+- Packaged runtime, torrent drag-and-drop and browser-extension handshakes were not manually retested for this build.
 
 ---
 
