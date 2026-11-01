@@ -71,6 +71,18 @@ function main() {
     path.join(dist, "GetANNY Portable.exe"),
     path.join(stage, "Portable", `GetANNY-${version}-Portable.exe`),
   );
+  const releaseSetupExe = copy(
+    setupExe,
+    path.join(assets, `GetANNY-${version}-Setup.exe`),
+  );
+  const releaseSetupMsi = copy(
+    setupMsi,
+    path.join(assets, `GetANNY-${version}-Setup.msi`),
+  );
+  const releasePortable = copy(
+    portable,
+    path.join(assets, `GetANNY-${version}-Portable.exe`),
+  );
 
   const extensions = fs
     .readdirSync(assets)
@@ -180,9 +192,9 @@ function main() {
   );
 
   const releaseAssets = [
-    setupExe,
-    setupMsi,
-    portable,
+    releaseSetupExe,
+    releaseSetupMsi,
+    releasePortable,
     zipPath,
     ...extensions.map((name) => path.join(assets, name)),
   ].sort();
