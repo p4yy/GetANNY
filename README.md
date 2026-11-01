@@ -47,7 +47,39 @@ Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releas
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
-> Version 2.2.0 adds app-wide drag and drop, optional clipboard capture, playlist downloads, virtualized long lists, an optional completion chime, and opt-in browser cookie handoff. See the [release verification status](docs/RELEASE_STATUS.md).
+## What's new in 2.2.0
+
+### Capture downloads from anywhere
+
+- Drop a direct HTTP or HTTPS link anywhere in the app to open **New download** with the link filled in.
+- Drop a recognized media page to open **Media Studio**, or drop a magnet link or `.torrent` file/link to open the torrent flow.
+- Use **Paste from clipboard** in an empty library view to route a copied link, magnet link or `.torrent` path.
+- Optional clipboard monitoring is off by default. When enabled, GetANNY checks once per second and shows a five-second prompt when it finds a supported link; you choose whether to capture it.
+
+### Queue playlists from Media Studio
+
+- Load supported playlists and channels and review up to 1,000 entries in a virtualized list.
+- Select, clear or invert the selection, choose an MP4 quality target, then queue the selected videos as individual library downloads.
+- Items without a matching MP4 format are skipped and reported. Availability and formats depend on the source site; the single-video workflow remains available.
+
+### Optional browser cookie handoff
+
+- The browser extension's **Include site cookies** option is off by default. When enabled for a direct file handoff, it requests cookies matching that link's URL; it does not read or send the browser's entire cookie store.
+- The desktop app keeps the received session headers in memory for that transfer and excludes them from saved download records and application logs. Redirects to another origin drop those headers. After an interrupted transfer, GetANNY asks you to refresh the handoff in your browser.
+- This feature does not provide a guarantee of physically overwriting every temporary copy held by the JavaScript runtime. Browser and site support still apply.
+
+### A smoother library and clearer transfer status
+
+- Download lists switch to windowed rendering for larger libraries, and playlist results are virtualized. This keeps the interface from mounting every row at once.
+- The footer refreshes transfer status once per second and shows download speed, active transfers and queued work. Torrent upload speed appears when available; clicking the status opens **Active** downloads.
+- Major workspace panels have error boundaries so a panel error can be contained without taking down the whole app.
+
+### Optional completion sound
+
+- A soft bundled chime can play when a download completes. It is enabled by default, with a volume control and preview button in **Settings → Application**.
+- Playback is throttled to one chime within two seconds, and audio errors are ignored so an unavailable sound device does not interrupt downloads.
+
+The release retains the existing themes, languages and **Ctrl+N** shortcut. See the [release notes](docs/RELEASE_NOTES.md) for implementation details and the [release verification status](docs/RELEASE_STATUS.md) for build and test limitations.
 
 ## What GetANNY does
 
@@ -69,24 +101,22 @@ Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releas
 
 Website support depends on the source site, authentication, region and changes to that site's delivery system. GetANNY does not bypass DRM or guarantee that every website can be downloaded.
 
+### Torrent downloads
+- Add magnet links, local `.torrent` files or supported HTTP/HTTPS `.torrent` links.
+- Track torrent progress in the same library as other downloads. Saved pieces are checked before a resumed transfer continues.
+
 ### Browser integration
 GetANNY can work with:
-- Google Chrome and Chromium
-- Microsoft Edge
-- Brave
-- Firefox
-- Vivaldi
-- Opera
-- Helium
+- Google Chrome, Chromium, Microsoft Edge, Brave, Firefox, Vivaldi, Opera and Helium.
 
-The browser add-on can hand supported downloads to the desktop app and provides media actions where available. Setup is guided from inside GetANNY. **Extensions are not silently installed or enabled**; you must approve browser installation and permissions yourself.
+The matching browser extension can hand supported downloads to the desktop app and provides media actions where available. Setup is guided from inside GetANNY. **Extensions are not silently installed or enabled**; you must approve browser installation and permissions yourself.
 
 ### Preferences and workspace
-- Dark, light and alternative colour themes.
-- Download limits, connection settings and concurrent jobs.
-- Notifications, tray behaviour and startup preferences.
-- Scheduled download start windows.
-- Reduced-motion options and adjustable workspace density.
+- 12 curated themes, with a choice to follow the system's light or dark appearance.
+- English, Arabic, French and Spanish interface languages; Arabic uses a right-to-left layout.
+- Download folder, simultaneous-download limit, per-file connections, speed limits and a daily start schedule.
+- Startup and tray behavior, completion notifications and optional completion sound.
+- Reduced-motion and compact-list preferences, plus **Ctrl+N** to start a new download.
 
 ## Getting started
 
