@@ -53,13 +53,13 @@ win:
   icon: assets/icon.ico
   executableName: GetANNY
   requestedExecutionLevel: asInvoker
+publish:
+  - provider: github
+    owner: WHITE8IRDD
+    repo: GetANNY
+    releaseType: release
 nsis:
   artifactName: "GetANNY Setup.${ext}"
-  publish:
-    - provider: github
-      owner: p4yy
-      repo: GetANNY
-      releaseType: release
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -107,4 +107,3 @@ npmRebuild: false
 asarUnpack:
   - "node_modules/better-sqlite3/prebuilds/win32-x64.node"
   - "node_modules/node-datachannel/build/Release/node_datachannel.node"
-publish: null

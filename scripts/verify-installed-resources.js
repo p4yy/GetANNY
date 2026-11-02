@@ -3,6 +3,25 @@ const path = require("node:path");
 module.exports = async (context) => {
   if (context.electronPlatformName !== "win32") return;
   const resources = path.join(context.appOutDir, "resources");
+  let updaterConfig;
+  try {
+    updaterConfig = await fs.readFile(
+      path.join(resources, "app-update.yml"),
+      "utf8",
+    );
+  } catch (error) {
+    // MSI-only and portable-only builds do not produce updater metadata.
+    // When NSIS is among the requested targets, electron-builder adds it and
+    // the generated owner/repository must match the public release feed.
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (
+    updaterConfig &&
+    (!/^provider:\s*github\s*$/m.test(updaterConfig) ||
+      !/^owner:\s*WHITE8IRDD\s*$/m.test(updaterConfig) ||
+      !/^repo:\s*GetANNY\s*$/m.test(updaterConfig))
+  )
+    throw new Error("Packaged updater configuration does not point to the public GetANNY release feed");
   const asar = require("@electron/asar");
   for (const file of [path.join("dist-renderer", "fonts", "OFL-Cairo.txt")]) {
     try {

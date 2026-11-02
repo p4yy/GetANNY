@@ -31,19 +31,19 @@ GetANNY brings everyday downloads into one desktop workspace. Manage file transf
 
 ## Download GetANNY
 
-<sub>Current release: **2.2.4** · Windows 10/11 · 64-bit</sub>
+<sub>Current release: **2.2.5** · Windows 10/11 · 64-bit</sub>
 
-**[Open the official GetANNY 2.2.4 release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.4)**
+**[Open the official GetANNY 2.2.5 release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.5)**
 
 Choose one Windows package:
 
 | Package | Best for |
 | --- | --- |
-| [Setup (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.4/GetANNY-2.2.4-Setup.exe) | Recommended for most users |
-| [Windows Installer (.msi)](https://github.com/p4yy/GetANNY/releases/download/v2.2.4/GetANNY-2.2.4-Setup.msi) | Managed or scripted Windows installation |
-| [Portable (.exe)](https://github.com/p4yy/GetANNY/releases/download/v2.2.4/GetANNY-2.2.4-Portable.exe) | Running from a writable folder without a standard install |
+| [Setup (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.exe) | Recommended for most users |
+| [Windows Installer (.msi)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Setup.msi) | Managed or scripted Windows installation |
+| [Portable (.exe)](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Portable.exe) | Running from a writable folder without a standard install |
 
-Also available: [complete Windows bundle](https://github.com/p4yy/GetANNY/releases/download/v2.2.4/GetANNY-2.2.4-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/p4yy/GetANNY/releases/download/v2.2.4/SHA256SUMS.txt).
+Also available: [complete Windows bundle](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/GetANNY-2.2.5-Windows-Bundle.zip) · [SHA-256 checksums](https://github.com/WHITE8IRDD/GetANNY/releases/download/v2.2.5/SHA256SUMS.txt).
 
 **Important:** Use only one installer format. The current release binaries are unsigned. Windows may show a SmartScreen warning; review the release notes and verify the downloaded file against the published SHA-256 checksums before running it.
 
@@ -59,7 +59,7 @@ Media and torrent availability depends on the source and network. GetANNY does n
 
 ## Getting started
 
-1. Download one of the Windows packages from the [official release page](https://github.com/p4yy/GetANNY/releases/tag/v2.2.4).
+1. Download one of the Windows packages from the [official release page](https://github.com/WHITE8IRDD/GetANNY/releases/tag/v2.2.5).
 2. Install GetANNY, or run the portable build from a writable folder.
 3. Open GetANNY and choose your download folder and preferences.
 4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.

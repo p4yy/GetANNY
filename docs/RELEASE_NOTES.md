@@ -1,3 +1,11 @@
+# GetANNY 2.2.5 — Updater configuration fix
+
+The Windows Setup EXE now includes the GitHub feed configuration required by the in-app updater and points to the current GetANNY repository. The packaged resource check fails the build if this configuration is missing or incorrect. MSI and portable installations remain outside the GitHub updater channel.
+
+This patch release also includes the 2.2.4 responsiveness and large-list improvements.
+
+---
+
 # GetANNY 2.2.4 — Updates and smoother large libraries
 
 The installed Windows Setup EXE can now check GitHub Releases for a newer GetANNY version. GetANNY asks before downloading and asks the user to restart to install. MSI, portable, Microsoft Store, and browser-extension distribution remain on their separate update paths.

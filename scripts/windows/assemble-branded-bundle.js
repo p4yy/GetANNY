@@ -83,6 +83,12 @@ function main() {
     portable,
     path.join(assets, `GetANNY-${version}-Portable.exe`),
   );
+  const updaterSetup = copy(path.join(dist, "GetANNY Setup.exe"), path.join(assets, "GetANNY-Setup.exe"));
+  const updaterBlockmap = copy(path.join(dist, "GetANNY Setup.exe.blockmap"), path.join(assets, "GetANNY-Setup.exe.blockmap"));
+  const updaterFeed = copy(path.join(dist, "latest.yml"), path.join(assets, "latest.yml"));
+  copy(updaterSetup, path.join(stage, "Installers/GetANNY-Setup.exe"));
+  copy(updaterBlockmap, path.join(stage, "Installers/GetANNY-Setup.exe.blockmap"));
+  copy(updaterFeed, path.join(stage, "Installers/latest.yml"));
 
   const extensions = fs
     .readdirSync(assets)
@@ -129,8 +135,11 @@ function main() {
     ["docs/PACKAGED_RUNTIME_STATUS.md", "PACKAGED_RUNTIME_STATUS.md"],
     ["LICENSE", "LICENSE"],
   ];
-  for (const [from, to] of docs)
-    copy(path.join(root, from), path.join(stage, "Documentation", to));
+  for (const [from, to] of docs) {
+    const copied = copy(path.join(root, from), path.join(stage, "Documentation", to));
+    const text = fs.readFileSync(copied, "utf8");
+    fs.writeFileSync(copied, text.replaceAll("2.2.1", version));
+  }
 
   let commit = "unknown";
   try {
@@ -148,8 +157,8 @@ function main() {
       `- Source commit: \`${commit}\``,
       "- Platform: Windows 10/11 x64",
       "- Signing: **unsigned** (no certificate was supplied)",
-      "- Repository: https://github.com/p4yy/GetANNY",
-      `- Release: https://github.com/p4yy/GetANNY/releases/tag/v${version}`,
+      "- Repository: https://github.com/WHITE8IRDD/GetANNY",
+      "- Release: local build; not yet published",
       "",
       "The EXE, MSI and portable executables are unsigned. Firefox packages are",
       "unsigned development ZIPs; Chromium-family packages require developer-mode",
@@ -196,6 +205,9 @@ function main() {
     releaseSetupExe,
     releaseSetupMsi,
     releasePortable,
+    updaterSetup,
+    updaterBlockmap,
+    updaterFeed,
     zipPath,
     ...extensions.map((name) => path.join(assets, name)),
   ].sort();

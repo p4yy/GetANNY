@@ -1,13 +1,12 @@
-# GetANNY 2.2.4 release status
+# GetANNY 2.2.5 release status
 
-- Application binaries were built from source commit `16d694b7fabcd593c76b959009a3e6895d768bab`; this release includes a documentation-only follow-up.
-- Local renderer and Windows x64 EXE, MSI and portable packages built successfully. All eight browser-extension ZIPs were generated.
-- GitHub Actions run 41358016389 was cancelled at the owner's request. This release has not passed the Windows/browser verification workflow and is not test-certified.
+- Fixes the 2.2.4 Setup EXE update-check error by packaging `resources/app-update.yml` for the GitHub update feed.
+- Local renderer production build and Windows x64 Setup EXE, MSI and portable package builds completed. The Setup EXE includes `resources/app-update.yml` for the GitHub updater feed.
+- Update-check errors now appear as a compact, dismissible notice in the lower-right corner; retry remains available. No application tests were run, so this build is not test-certified.
+- This is a local build only. It has not been published as an official GitHub release.
 - Windows binaries are unsigned. Verify the published SHA-256 checksums before running installers.
-- Packaged runtime, torrent drag-and-drop and browser-extension handshakes were not manually retested for this build.
 
 ---
-
 # GetANNY 2.2.1 release status
 
 - Source commit: recorded in `Documentation/RELEASE_INFO.md` in the Windows bundle and linked Git tag.
@@ -18,3 +17,4 @@
 - GitHub Actions Windows/browser verification is intentionally skipped at the owner's request. This release is not represented as passing those remote gates or as manually certified.
 - Windows binaries are unsigned. Verify the supplied SHA-256 checksums and review `Documentation/START_HERE.md` before installation.
 - Torrent drag and drop and close-to-tray behavior were not manually retested in the installed package.
+

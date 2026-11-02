@@ -315,6 +315,7 @@ export default function App() {
     }),
     [maximized, setMaximized] = useState(false);
   const [update, setUpdate] = useState({ status: "idle" });
+  const [updateErrorDismissed, setUpdateErrorDismissed] = useState(false);
   const tab = useUIStore((state) => state.activeTab),
     addModal = useUIStore((state) => state.addModal),
     setAddModal = useUIStore((state) => state.setAddModal),
@@ -342,7 +343,9 @@ export default function App() {
       useDownloadStore.getState().setDownloads(data.downloads);
       useSettingsStore.getState().setSettings(data.settings);
       setBridge(data.bridge);
-      setUpdate(data.update || { status: "idle" });
+      const initialUpdate = data.update || { status: "idle" };
+      setUpdate(initialUpdate);
+      setUpdateErrorDismissed(false);
       setBoot(data);
       for (const request of data.pendingRequests)
         useUIStore.getState().addRequest(request);
@@ -366,7 +369,10 @@ export default function App() {
     const cleanup = api.on("window:state", (value) =>
       setMaximized(!!value.maximized),
     );
-    const stopUpdates = api.on("update:status", setUpdate);
+    const stopUpdates = api.on("update:status", (nextUpdate) => {
+      setUpdate(nextUpdate);
+      if (nextUpdate.status !== "error") setUpdateErrorDismissed(false);
+    });
     return () => {
       cleanup();
       stopUpdates();
@@ -667,7 +673,7 @@ export default function App() {
             />
             <main className="main-content" id="main-content">
               {boot.capabilities.updates &&
-                !["idle", "current", "unavailable"].includes(update.status) && (
+                !["idle", "current", "unavailable", "error"].includes(update.status) && (
                   <div className="update-banner" role="status">
                     <div>
                       <strong>
@@ -681,9 +687,7 @@ export default function App() {
                               ? t("updates.downloaded", {
                                   version: update.version,
                                 })
-                              : update.status === "error"
-                                ? t("updates.error")
-                                : t("updates.checking")}
+                          : t("updates.checking")}
                       </strong>
                       <span>{t("updates.githubChannel")}</span>
                     </div>
@@ -703,13 +707,25 @@ export default function App() {
                         {t("updates.restartButton")}
                       </Button>
                     )}
-                    {update.status === "error" && (
-                      <Button onClick={() => updateAction("check")}>
-                        {t("updates.retryButton")}
-                      </Button>
-                    )}
                   </div>
                 )}
+              {boot.capabilities.updates && update.status === "error" && !updateErrorDismissed && (
+                <aside className="update-error-toast" role="status">
+                  <div className="update-error-copy">
+                    <strong>{t("updates.error")}</strong>
+                    <span>{t("updates.githubChannel")}</span>
+                  </div>
+                  <Button onClick={() => updateAction("check")}>
+                    {t("updates.retryButton")}
+                  </Button>
+                  <IconButton
+                    label={t("common.closeDialog")}
+                    onClick={() => setUpdateErrorDismissed(true)}
+                  >
+                    <LuX />
+                  </IconButton>
+                </aside>
+              )}
               {!api.desktop && (
                 <div className="preview-strip">
                   <LuMonitor />
