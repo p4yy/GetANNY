@@ -87,7 +87,7 @@ appx:
   applicationId: GetANNY
   identityName: AcevAppsCo.GetANNYMediaDownloader
   publisher: "CN=44221EAF-7759-44DD-9DA8-F00E45DF7108"
-  publisherDisplayName: "Acev Apps Co."
+  publisherDisplayName: "Acev Dev Co."
   displayName: "GetANNY Download Manager"
   backgroundColor: "#101216"
   languages: [en-GB]
