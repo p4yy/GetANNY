@@ -403,30 +403,15 @@ export default function BrowserPage({ active = true }) {
               )}
               <div className="step-actions">
                 {selected === "firefox" ? (
-                  <>
-                    <Button
-                      variant="primary"
-                      icon={FaFirefoxBrowser}
-                      busy={busy}
-                      disabled={!api.desktop}
-                      onClick={openFirefoxAddon}
-                    >
-                      {t("browser.installFromStore")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      icon={LuExternalLink}
-                      busy={busy}
-                      disabled={
-                        !api.desktop ||
-                        !settings.browserIntegrationEnabled ||
-                        !browser?.installed
-                      }
-                      onClick={installInBrowser}
-                    >
-                      {t("browser.installTemporary")}
-                    </Button>
-                  </>
+                  <Button
+                    variant="primary"
+                    icon={FaFirefoxBrowser}
+                    busy={busy}
+                    disabled={!api.desktop}
+                    onClick={openFirefoxAddon}
+                  >
+                    {t("browser.installFromStore")}
+                  </Button>
                 ) : (
                   <Button
                     variant="primary"
@@ -441,7 +426,7 @@ export default function BrowserPage({ active = true }) {
                   >
                     {t("browser.installExtension")}
                   </Button>
-                )}
+                )}}
                 {api.desktop && !browser?.installed && (
                   <Button
                     variant="ghost"
