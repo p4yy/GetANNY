@@ -46,7 +46,7 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
   <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
 </p>
 
-<p align="center"><sub>A recorded preview of the download library, media studio, browser setup and settings.</sub></p>
+<p align="center"><sub>Animated preview of the real Windows app. Full HD walkthroughs are linked below.</sub></p>
 
 ## Support GetANNY Download Manager
 
@@ -64,11 +64,27 @@ Download the current Windows installer from the [GitHub Releases page](https://g
 
 ## Screenshots
 
-Product screenshots will be added after current captures are prepared. The planned image list and placement instructions are in [`docs/media/README.md`](docs/media/README.md).
+The browser integration screenshots below show the real extension and desktop connection flow. See [`docs/media/README.md`](docs/media/README.md) for the complete media inventory and instructions for adding more captures.
 
-## Future demonstration
+<details>
+<summary>View browser integration screenshots</summary>
 
-A current demonstration recording will be added here when one is available. No placeholder image or video is shown.
+![GetANNY browser extension details](docs/media/screenshots/browser-extension-details.png)
+
+![GetANNY browser assistant popup connected to the desktop app](docs/media/screenshots/browser-extension-popup.png)
+
+![GetANNY secure browser pairing screen](docs/media/screenshots/browser-connection-pairing.png)
+
+![GetANNY browser extension in the toolbar](docs/media/screenshots/browser-extension-toolbar.png)
+
+</details>
+
+## Video walkthroughs
+
+Open either H.264 MP4 for HD playback:
+
+- [Install GetANNY on Windows](docs/media/demonstration/installation.mp4)
+- [GetANNY in action](docs/media/demonstration/getanny-in-action.mp4)
 
 ## Features
 

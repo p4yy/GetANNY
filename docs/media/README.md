@@ -1,23 +1,33 @@
-# Media assets
+# GetANNY media
 
-This folder is reserved for genuine GetANNY Download Manager screenshots and a future demonstration. Add only captures or recordings of the real application; do not add mockups presented as product screenshots.
+This folder contains genuine captures of GetANNY Download Manager and the two supplied walkthroughs. Keep screenshots and recordings inside the named subfolders below. Use only recordings and screenshots of the real app; never substitute mockups or generated product imagery.
 
 ## Screenshots
 
-Place reviewed PNG screenshots in `docs/media/screenshots/` using these filenames:
+Current screenshots are in `screenshots/`:
 
-- `welcome.png` — first-run welcome and setup.
-- `downloads.png` — the download manager with representative items.
-- `media-studio.png` — detected media and format selection.
-- `browser-setup.png` — browser connection status and setup.
-- `settings.png` — settings and theme selection.
+- `browser-extension-details.png` — extension details and user controlled browser permissions. The original capture was cropped above the local profile path.
+- `browser-extension-popup.png` — the connected extension popup and send to desktop action.
+- `browser-connection-pairing.png` — the connection and pairing panel.
+- `browser-extension-toolbar.png` — the extension entry in the browser toolbar.
 
-Capture the current Windows application at a readable desktop size. Remove personal paths, account names, URLs, and download data before committing. Keep the original aspect ratio and avoid adding text or badges over the UI.
+For future product captures, use these names in `screenshots/`:
 
-## Future demonstration
+- `downloads.png` — the main download library.
+- `media-studio.png` — media formats or preview controls.
+- `themes.png` — theme gallery.
+- `browser-setup.png` — desktop browser connection status.
+- `settings.png` — app settings.
 
-Place an actual application recording at `docs/media/demonstration/getanny-overview.mp4` (or a compact GIF when that is more accessible). Show the current app flow, keep captions accurate, and check that no personal information is visible.
+Capture the current Windows application at a readable size. Before committing, remove or cover personal paths, usernames, private URLs, download history and credentials. Preserve the UI's original appearance; do not add promotional text or change what the app displays.
 
-## Updating the main README
+### Updating the main README
 
-After adding real files, edit the **Screenshots** section in the root `README.md`. Add one relative Markdown image per available screenshot, for example `![Downloads view](docs/media/screenshots/downloads.png)`, with a concise, accurate alt description. Add a demonstration link or embed only after the recording exists. Do not add image links before their files are committed; do not leave empty image elements. Keep this list and the README aligned with files that are actually present.
+After adding a screenshot, confirm the file exists and update the **Screenshots** section in the root `README.md`. Use a concise, accurate alt description and a relative path, for example `![Download library](docs/media/screenshots/downloads.png)`. Keep multiple images inside the existing collapsible gallery so the README remains easy to scan on mobile. Never add image links before the corresponding files are committed.
+
+## Demonstration videos
+
+- `demonstration/installation.mp4` — Windows installation walkthrough (H.264, 720p, 30 fps).
+- `demonstration/getanny-in-action.mp4` — GetANNY product walkthrough (H.264, 720p, 30 fps).
+
+The MP4s are directly linked from the README for browser playback. GitHub does not render an MP4 player directly inside a repository README, so the README uses the animated product preview for inline playback and provides links to the high quality recordings.
