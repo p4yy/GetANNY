@@ -81,7 +81,7 @@ The browser integration screenshots below show the real extension and desktop co
 
 ## Video walkthroughs
 
-Open either H.264 MP4 for HD playback:
+Download either H.264 MP4 for the full walkthrough. The animated preview above plays inline in the README.
 
 - [Install GetANNY on Windows](docs/media/demonstration/installation.mp4)
 - [GetANNY in action](docs/media/demonstration/getanny-in-action.mp4)
