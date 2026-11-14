@@ -44,7 +44,7 @@ $measured.Add(('- Packaged tray idle 10s: **{0} CPU microseconds; {1} MiB workin
 $measured.Add('')
 $measured.Add('The real NSIS EXE was installed, reinstalled, self-tested, and uninstalled. Shortcuts, user-data retention, completed output and registration cleanup were checked.')
 $measured.Add('Browser extension tests were intentionally skipped at owner request. They are not part of this EXE verification.')
-$measured.Add('Unsigned owner-test build only; not a public release or live cloud-provider certification.')
+$measured.Add('Unsigned Windows Setup package; Authenticode signing is not provided. The published evidence describes the exact checks performed and does not certify live cloud-provider compatibility.')
 foreach ($signature in $overall.signatures) {
   $measured.Add(('- Authenticode {0}: **{1}**.' -f $signature.file,$signature.status))
 }

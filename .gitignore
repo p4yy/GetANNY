@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-renderer/
 dist-extension/
+.vite/
 !release-assets/
 release-assets/*
 !release-assets/ThirdPartySource/

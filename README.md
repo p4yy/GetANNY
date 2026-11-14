@@ -10,7 +10,7 @@
 <p align="center"><strong>A focused Windows download manager for files, media and browser downloads.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/p4yy/GetANNY-Download-Manager/release.yml?branch=main&style=flat-square&label=Windows%20build%2C%20tests%20%26%20installer" alt="Windows build, tests and installer verification"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/p4yy/GetANNY-Download-Manager/release.yml?branch=main&style=flat-square&label=Windows%20build%2C%20tests%2C%20installer%20%26%20secret%20scan" alt="Windows build, tests, installer verification, and secret scan"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version" alt="Latest release version"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release" alt="Latest release date"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/downloads/p4yy/GetANNY-Download-Manager/total?style=flat-square&label=downloads" alt="Total GitHub release downloads"></a>
@@ -46,7 +46,7 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
   <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
 </p>
 
-<p align="center"><sub>The download library, media studio, browser setup and settings.</sub></p>
+<p align="center"><sub>A recorded preview of the download library, media studio, browser setup and settings.</sub></p>
 
 ## Download GetANNY Download Manager
 
@@ -67,13 +67,13 @@ A current demonstration recording will be added here when one is available. No p
 - **Media Studio:** inspect supported media pages, choose available formats, download provided subtitles or thumbnails, and select a time range for video segments.
 - **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs. Torrents with more than two files open a picker for choosing files before download; the Torrents page keeps an Add torrent action available.
 - **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through an authenticated direct loopback bridge. Browser installation and permissions always require your approval; Native Messaging is retained only for secure bootstrap/cold start.
-- **A configurable workspace:** 12 themes, four interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
+- **A configurable workspace:** 12 themes, seven interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
 
-Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and [release status](docs/RELEASE_STATUS.md) for verification details.
+Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and the [latest Actions run](https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml) for current build and verification status.
 
 ## Getting started
 
-1. Download and extract the [Windows bundle](https://github.com/p4yy/GetANNY-Download-Manager/releases/download/v2.4.7/GetANNY-2.4.7-Windows-Bundle.zip).
+1. Download the Windows Setup EXE from the [latest GitHub release](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest).
 2. Install GetANNY, or run the portable build from a writable folder.
 3. Open GetANNY and choose your download folder and preferences.
 4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.
@@ -87,7 +87,7 @@ Download history and preferences are stored locally. Browser integration uses a 
 
 ## For developers
 
-GetANNY is a Windows-first Electron application built with React, Vite and SQLite.
+GetANNY Download Manager is a Windows-first Electron application built with React, Vite and SQLite.
 
 **Requirements**
 
@@ -113,7 +113,7 @@ npm run build:renderer
 npm run build:win
 ```
 
-See the project documentation for [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), [Windows packaging](docs/INSTALL_WINDOWS.md), [browser integration](docs/BROWSERS.md), [v2 investigation and design](docs/BROWSER_INTEGRATION_V2.md), and [release notes](docs/RELEASE_NOTES.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for a fresh-checkout Windows build, the [release process](docs/RELEASING.md), [changelog](CHANGELOG.md), [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), [Windows packaging](docs/INSTALL_WINDOWS.md), [browser integration](docs/BROWSERS.md), and [release notes](docs/RELEASE_NOTES.md).
 
 ## License
 
