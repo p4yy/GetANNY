@@ -31,6 +31,7 @@ import {
 import useUIStore from "../stores/useUIStore";
 import useSettingsStore from "../stores/useSettingsStore";
 import { useI18n } from "../i18n/useI18n";
+const firefoxAddonUrl = "https://addons.mozilla.org/fr/firefox/addon/getanny-downlaod-manager/";
 const browserIcons = {
   chrome: FaChrome,
   chromium: FaChrome,
@@ -109,6 +110,8 @@ export default function BrowserPage({ active = true }) {
         .getState()
         .notify(t("browser.installNextStep", { path: result.path }));
     });
+  const openFirefoxAddon = () =>
+    run(() => api.invoke("app:open-external", firefoxAddonUrl));
   const copy = (text) =>
     navigator.clipboard.writeText(text).then(
       () => useUIStore.getState().notify(t("browser.copied")),
@@ -399,19 +402,46 @@ export default function BrowserPage({ active = true }) {
                 </p>
               )}
               <div className="step-actions">
-                <Button
-                  variant="primary"
-                  icon={LuExternalLink}
-                  busy={busy}
-                  disabled={
-                    !api.desktop ||
-                    !settings.browserIntegrationEnabled ||
-                    !browser?.installed
-                  }
-                  onClick={installInBrowser}
-                >
-                  {t("browser.installExtension")}
-                </Button>
+                {selected === "firefox" ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      icon={FaFirefoxBrowser}
+                      busy={busy}
+                      disabled={!api.desktop}
+                      onClick={openFirefoxAddon}
+                    >
+                      {t("browser.installFromStore")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      icon={LuExternalLink}
+                      busy={busy}
+                      disabled={
+                        !api.desktop ||
+                        !settings.browserIntegrationEnabled ||
+                        !browser?.installed
+                      }
+                      onClick={installInBrowser}
+                    >
+                      {t("browser.installTemporary")}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="primary"
+                    icon={LuExternalLink}
+                    busy={busy}
+                    disabled={
+                      !api.desktop ||
+                      !settings.browserIntegrationEnabled ||
+                      !browser?.installed
+                    }
+                    onClick={installInBrowser}
+                  >
+                    {t("browser.installExtension")}
+                  </Button>
+                )}
                 {api.desktop && !browser?.installed && (
                   <Button
                     variant="ghost"
