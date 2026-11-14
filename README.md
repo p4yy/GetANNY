@@ -59,7 +59,7 @@
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
-  <a href="#why-getanny">Why GetANNY</a>
+  <a href="#getanny-vs-idm">Comparison</a>
   &nbsp;·&nbsp;
   <a href="#screenshots">Screenshots</a>
   &nbsp;·&nbsp;
@@ -72,15 +72,15 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
 
 ## Download
 
-Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.
-
-## Why GetANNY
+Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.## GetANNY vs IDM
 
 <p align="center">
-  <img src="docs/media/getanny-vs-idm.svg" alt="Hand-drawn feature map comparing GetANNY and selected Internet Download Manager capabilities" width="100%">
+  <img src="docs/media/getanny-vs-idm.svg" alt="Hand-drawn feature comparison of GetANNY and IDM" width="100%">
 </p>
 
-Acev Dev Co’s hands-on pick is GetANNY: faster in our testing, cleaner to use, with Media Studio, torrent support and authenticated browser handoff together in one workspace. Speed varies by source, server and connection. IDM entries show selected capabilities from its [official feature list](https://www.internetdownloadmanager.com/features2.html); the graphic makes no measured speed comparison.
+Acev Apps Co’s pick: GetANNY—faster in our testing and cleaner to use. IDM entries show selected capabilities from its [official feature list](https://www.internetdownloadmanager.com/features2.html).
+
+
 
 ## Screenshots
 
@@ -142,6 +142,10 @@ Acev Dev Co’s hands-on pick is GetANNY: faster in our testing, cleaner to use,
 
 Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and the [latest Actions run](https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml) for current build and verification status.
 
+## About GetANNY
+
+GetANNY is an independently developed Windows app published by Acev Apps Co. Its download library, Media Studio, torrent workflow and browser bridge are implemented for this project. It also uses separately licensed tools and libraries for specialist functions; see [third-party notices](docs/THIRD_PARTY.md).
+
 ## Getting started
 
 1. Download the Windows Setup EXE from the [latest GitHub release](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest).
@@ -197,4 +201,4 @@ If you find the app useful, you can support its development here:
 
 ## License
 
-GetANNY is released under the [Apache License 2.0](LICENSE). Third-party tools and bundled components retain their respective licenses; see [third-party notices](docs/THIRD_PARTY.md).
+GetANNY’s project code is licensed under the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) lists Acev Apps Co as publisher; third-party components retain their own licenses, listed in [third-party notices](docs/THIRD_PARTY.md).

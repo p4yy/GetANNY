@@ -1,91 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1120" role="img" aria-labelledby="title desc">
-<title id="title">GetANNY feature map: more than file downloads</title>
-<desc id="desc">A chalkboard-style feature map led by GetANNY. It shows selected GetANNY and Internet Download Manager capabilities without claiming measured speed results.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 1020" role="img" aria-labelledby="title desc">
+<title id="title">GetANNY and IDM feature comparison</title>
+<desc id="desc">Hand-drawn chalkboard comparison of selected GetANNY and Internet Download Manager features.</desc>
 <defs>
-  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#09131b"/><stop offset="1" stop-color="#111c25"/></linearGradient>
-  <pattern id="dust" width="83" height="67" patternUnits="userSpaceOnUse">
-    <circle cx="8" cy="12" r="1.2" fill="#d8e5eb" opacity=".12"/><circle cx="46" cy="39" r="1" fill="#d8e5eb" opacity=".09"/><circle cx="72" cy="8" r=".8" fill="#d8e5eb" opacity=".10"/>
+  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b141b"/><stop offset="1" stop-color="#101b23"/></linearGradient>
+  <pattern id="chalkdust" width="71" height="59" patternUnits="userSpaceOnUse">
+    <circle cx="7" cy="11" r="1" fill="#e5edf0" opacity=".11"/><circle cx="45" cy="38" r="1.2" fill="#e5edf0" opacity=".10"/><circle cx="63" cy="7" r=".8" fill="#e5edf0" opacity=".08"/>
   </pattern>
 </defs>
-<rect width="1500" height="1120" rx="20" fill="url(#board)"/>
-<rect width="1500" height="1120" rx="20" fill="url(#dust)"/>
+<rect width="1320" height="1020" rx="14" fill="url(#board)"/>
+<rect width="1320" height="1020" rx="14" fill="url(#chalkdust)"/>
 <g font-family="Segoe Print, Comic Sans MS, cursive">
-  <path d="M48 40 C480 34 1015 45 1452 38" fill="none" stroke="#d7e3e8" stroke-opacity=".48" stroke-width="2"/>
-  <text x="75" y="144" fill="#f1f6f8" font-size="84" font-weight="700" letter-spacing="1">GetANNY</text>
-  <path d="M83 166 C200 172 344 166 480 170" fill="none" stroke="#36c1ff" stroke-width="5" stroke-linecap="round"/>
-  <path d="M88 174 C206 179 344 174 474 177" fill="none" stroke="#36c1ff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
-  <text x="80" y="218" fill="#59ccff" font-size="30" font-weight="700" letter-spacing="2">MORE THAN FILE DOWNLOADS.</text>
-  <text x="82" y="254" fill="#d6e1e6" font-size="20">Media Studio · Torrents · Browser Assistant · A workspace you can make yours</text>
-
-  <g transform="translate(1105 67)">
-    <path d="M8 64 A74 74 0 0 1 151 55" fill="none" stroke="#49c6fa" stroke-width="5" stroke-linecap="round"/>
-    <path d="M20 66 A62 62 0 0 1 144 58" fill="none" stroke="#49c6fa" stroke-opacity=".45" stroke-width="2"/>
-    <path d="M82 72 L130 33" stroke="#f3a33b" stroke-width="5" stroke-linecap="round"/>
-    <circle cx="82" cy="72" r="8" fill="#f3a33b"/>
-    <path d="M28 95 L19 103 M145 99 L153 107 M80 4 V-7" stroke="#dce5e9" stroke-width="2" stroke-linecap="round"/>
-    <text x="170" y="51" fill="#f6ad49" font-size="19" font-weight="700" letter-spacing="1">ACEV DEV CO’S PICK</text>
-    <text x="170" y="83" fill="#dbe4e8" font-size="18">Faster in our hands-on testing.</text>
-    <text x="170" y="111" fill="#dbe4e8" font-size="18">Cleaner for everyday downloads.</text>
+  <path d="M38 35 C408 30 887 42 1282 34" fill="none" stroke="#e7edf0" stroke-opacity=".40" stroke-width="2"/>
+  <text x="62" y="137" fill="#f4f6f7" font-size="82" font-weight="700">GetANNY</text>
+  <path d="M72 155 C184 161 322 151 435 158" fill="none" stroke="#47c9ff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M78 163 C198 166 322 159 428 165" fill="none" stroke="#47c9ff" stroke-opacity=".48" stroke-width="2" stroke-linecap="round"/>
+  <text x="68" y="205" fill="#76d8ff" font-size="22" font-weight="700" letter-spacing="2">FILES · MEDIA · TORRENTS · BROWSER</text>
+  <g transform="translate(1140 81)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 42v45h95V42" stroke="#dbe5e9" stroke-width="4"/>
+    <path d="M47 2v57m-22-22 22 23 22-23" stroke="#42caff" stroke-width="5"/>
+    <path d="M18 98h58" stroke="#e9eef0" stroke-width="3"/>
   </g>
 
-  <path d="M50 282 C416 277 1004 286 1450 280" fill="none" stroke="#d7e3e8" stroke-opacity=".44" stroke-width="2"/>
-  <text x="76" y="326" fill="#f0f5f7" font-size="23" font-weight="700" letter-spacing="2">FEATURE MAP</text>
-  <text x="505" y="326" fill="#51caff" font-size="38" font-weight="700" letter-spacing="1">GETANNY</text>
-  <path d="M500 339 C659 333 888 340 1052 334" fill="none" stroke="#36c1ff" stroke-width="4" stroke-linecap="round"/>
-  <text x="1138" y="326" fill="#c4d0d6" font-size="31" font-weight="700">IDM</text>
-  <path d="M1137 338 C1226 336 1332 341 1424 336" fill="none" stroke="#f2a13a" stroke-width="3" stroke-linecap="round"/>
-  <text x="1140" y="361" fill="#aebdc5" font-size="15">INTERNET DOWNLOAD MANAGER</text>
+  <path d="M42 238 C418 233 902 243 1278 236" fill="none" stroke="#dce5e9" stroke-opacity=".45" stroke-width="2"/>
+  <text x="68" y="284" fill="#d8e2e6" font-size="18" font-weight="700" letter-spacing="1.5">WORKFLOW</text>
+  <text x="401" y="284" fill="#55ceff" font-size="38" font-weight="700" letter-spacing="1">GETANNY</text>
+  <path d="M397 298 C548 293 774 300 954 294" fill="none" stroke="#39bff3" stroke-width="4" stroke-linecap="round"/>
+  <text x="1012" y="284" fill="#f0a947" font-size="31" font-weight="700">IDM</text>
+  <path d="M1009 297 C1085 292 1174 300 1265 295" fill="none" stroke="#f0a947" stroke-width="3" stroke-linecap="round"/>
 
-  <path d="M486 350 C650 345 890 353 1064 348 L1062 906 C865 902 673 910 486 904Z" fill="#0d2a38" fill-opacity=".52" stroke="#32b8ec" stroke-opacity=".42" stroke-width="2"/>
-  <path d="M60 374 C430 368 1028 377 1444 371" fill="none" stroke="#d9e3e8" stroke-opacity=".48" stroke-width="2"/>
-  <text x="79" y="412" fill="#dfe7eb" font-size="22" font-weight="700">FILE TRANSFERS</text>
-  <path d="M510 399 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="412" fill="#e3f5fb" font-size="21">Multi-connection · pause · resume · retry</text>
-  <circle cx="1146" cy="405" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="412" fill="#d4dcdf" font-size="19">Segmentation · resume · recovery</text>
+  <path d="M43 319 C353 315 930 322 1278 317" fill="none" stroke="#dce5e9" stroke-opacity=".48" stroke-width="2"/>
+  <text x="68" y="360" fill="#eef2f4" font-size="18" font-weight="700">FILE TRANSFERS</text>
+  <path d="M374 347 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="360" fill="#e8f7fc" font-size="18">Multi-connection · pause · resume · retry</text>
+  <circle cx="1005" cy="352" r="4" fill="#f0a947"/>
+  <text x="1021" y="359" fill="#e0e5e7" font-size="16">Segmentation · resume</text>
 
-  <path d="M64 462 C424 466 1023 457 1440 463" fill="none" stroke="#cdd9de" stroke-opacity=".25" stroke-width="2" stroke-dasharray="5 7"/>
-  <text x="79" y="502" fill="#dfe7eb" font-size="22" font-weight="700">MEDIA STUDIO</text>
-  <path d="M510 489 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="494" fill="#e3f5fb" font-size="20">Formats · thumbnails · subtitles</text>
-  <text x="553" y="520" fill="#c4d7df" font-size="18">and video segments</text>
-  <circle cx="1146" cy="493" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="500" fill="#d4dcdf" font-size="19">Video panel · site grabber</text>
+  <path d="M47 400 C380 405 926 397 1274 402" fill="none" stroke="#dce5e9" stroke-opacity=".26" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="68" y="443" fill="#eef2f4" font-size="18" font-weight="700">MEDIA STUDIO</text>
+  <path d="M374 430 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="437" fill="#e8f7fc" font-size="18">Formats · thumbnails · subtitles · segments</text>
+  <circle cx="1005" cy="424" r="4" fill="#f0a947"/>
+  <text x="1021" y="431" fill="#e0e5e7" font-size="16">Video panel · Grabber</text>
 
-  <path d="M64 550 C420 545 1029 555 1440 549" fill="none" stroke="#cdd9de" stroke-opacity=".25" stroke-width="2" stroke-dasharray="5 7"/>
-  <text x="79" y="590" fill="#dfe7eb" font-size="22" font-weight="700">TORRENTS</text>
-  <path d="M510 577 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="590" fill="#e3f5fb" font-size="21">Magnet links + .torrent files</text>
-  <circle cx="1146" cy="581" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="588" fill="#d4dcdf" font-size="18">No torrent feature listed*</text>
+  <path d="M47 483 C380 478 926 487 1274 481" fill="none" stroke="#dce5e9" stroke-opacity=".26" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="68" y="526" fill="#eef2f4" font-size="18" font-weight="700">TORRENTS</text>
+  <path d="M374 513 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="526" fill="#e8f7fc" font-size="18">Magnet links + .torrent files</text>
+  <circle cx="1005" cy="507" r="4" fill="#f0a947"/>
+  <text x="1021" y="514" fill="#e0e5e7" font-size="16">Not listed</text>
 
-  <path d="M64 638 C420 643 1029 633 1440 640" fill="none" stroke="#cdd9de" stroke-opacity=".25" stroke-width="2" stroke-dasharray="5 7"/>
-  <text x="79" y="678" fill="#dfe7eb" font-size="22" font-weight="700">BROWSER</text>
-  <path d="M510 665 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="678" fill="#e3f5fb" font-size="21">Authenticated local handoff</text>
-  <circle cx="1146" cy="669" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="676" fill="#d4dcdf" font-size="19">Browser integration + capture</text>
+  <path d="M47 566 C380 571 926 562 1274 568" fill="none" stroke="#dce5e9" stroke-opacity=".26" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="68" y="609" fill="#eef2f4" font-size="18" font-weight="700">BROWSER</text>
+  <path d="M374 596 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="609" fill="#e8f7fc" font-size="18">Authenticated local handoff</text>
+  <circle cx="1005" cy="590" r="4" fill="#f0a947"/>
+  <text x="1021" y="597" fill="#e0e5e7" font-size="16">Browser integration</text>
 
-  <path d="M64 726 C420 721 1029 730 1440 725" fill="none" stroke="#cdd9de" stroke-opacity=".25" stroke-width="2" stroke-dasharray="5 7"/>
-  <text x="79" y="766" fill="#dfe7eb" font-size="22" font-weight="700">WORKSPACE</text>
-  <path d="M510 753 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="766" fill="#e3f5fb" font-size="21">12 themes · 7 languages · settings</text>
-  <circle cx="1146" cy="757" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="764" fill="#d4dcdf" font-size="19">Custom UI · many languages</text>
+  <path d="M47 649 C380 644 926 653 1274 648" fill="none" stroke="#dce5e9" stroke-opacity=".26" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="68" y="692" fill="#eef2f4" font-size="18" font-weight="700">WORKSPACE</text>
+  <path d="M374 679 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="692" fill="#e8f7fc" font-size="18">12 themes · 7 languages · settings</text>
+  <circle cx="1005" cy="673" r="4" fill="#f0a947"/>
+  <text x="1021" y="680" fill="#e0e5e7" font-size="16">Custom UI · multilingual</text>
 
-  <path d="M64 814 C420 820 1029 809 1440 816" fill="none" stroke="#cdd9de" stroke-opacity=".25" stroke-width="2" stroke-dasharray="5 7"/>
-  <text x="79" y="854" fill="#dfe7eb" font-size="22" font-weight="700">CONTROL</text>
-  <path d="M510 841 l10 10 19-22" fill="none" stroke="#56d1ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="553" y="854" fill="#e3f5fb" font-size="21">Scheduling · speed limits · retries</text>
-  <circle cx="1146" cy="845" r="5" fill="#f2aa4f"/>
-  <text x="1167" y="852" fill="#d4dcdf" font-size="19">Queues · scheduler · download limits</text>
+  <path d="M47 732 C380 737 926 728 1274 734" fill="none" stroke="#dce5e9" stroke-opacity=".26" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="68" y="775" fill="#eef2f4" font-size="18" font-weight="700">CONTROL</text>
+  <path d="M374 762 l9 9 17-19" fill="none" stroke="#57d3ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="415" y="775" fill="#e8f7fc" font-size="18">Scheduling · speed limits · retries</text>
+  <circle cx="1005" cy="756" r="4" fill="#f0a947"/>
+  <text x="1021" y="763" fill="#e0e5e7" font-size="16">Queues · scheduling · limits</text>
 
-  <path d="M64 902 C420 897 1029 906 1440 900" fill="none" stroke="#d9e3e8" stroke-opacity=".48" stroke-width="2"/>
-  <text x="80" y="936" fill="#aebdc5" font-size="15">* IDM’s official features page does not list torrent downloads. IDM capabilities shown here are selected highlights.</text>
-
-  <path d="M50 969 C470 962 1012 974 1450 968" fill="none" stroke="#f0a33e" stroke-width="3" stroke-linecap="round"/>
-  <text x="76" y="1018" fill="#f5b14c" font-size="18" font-weight="700" letter-spacing="2">ACEV DEV CO’S HANDS-ON PICK</text>
-  <text x="76" y="1067" fill="#f4f7f8" font-size="32" font-weight="700">GetANNY — faster in our testing, cleaner for everyday downloads.</text>
-  <text x="78" y="1098" fill="#aebdc5" font-size="15">Publisher’s hands-on impression; speed varies with source, server and connection. No speed ratio is claimed.</text>
+  <path d="M43 817 C353 812 930 821 1278 816" fill="none" stroke="#dce5e9" stroke-opacity=".45" stroke-width="2"/>
+  <path d="M49 875 C390 869 940 880 1274 873" fill="none" stroke="#edaa4e" stroke-width="3" stroke-linecap="round"/>
+  <text x="68" y="922" fill="#f1b45d" font-size="17" font-weight="700" letter-spacing="2">ACEV APPS CO’S PICK</text>
+  <text x="68" y="972" fill="#f5f7f8" font-size="30" font-weight="700">GetANNY — faster in our testing. Cleaner to use.</text>
 </g>
 </svg>

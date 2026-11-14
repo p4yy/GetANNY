@@ -31,6 +31,5 @@ The main README links the published YouTube videos and downloadable MP4 copies.
 
 ## Product comparison graphic
 
-- `getanny-vs-idm.svg` — chalkboard-style feature map. GetANNY receives the main visual focus; IDM entries summarize selected features from its official list.
-- Keep performance claims attributed to Acev Dev Co’s hands-on testing. Do not add speed ratios or scores without a documented, repeatable cross-product benchmark.
-
+- `getanny-vs-idm.svg` — compact chalkboard feature comparison, sized to fit the README column.
+- IDM feature descriptions are selected from its official feature list; publisher preference is attributed to Acev Apps Co.
