@@ -11,103 +11,123 @@
 
 <p align="center">
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest">Download for Windows</a>
-  ·
-  <a href="https://youtu.be/lzJW8I6n3Yw">Watch the installation video</a>
-  ·
-  <a href="https://youtu.be/jrJ0kYSQAlk">Watch GetANNY in action</a>
-  ·
-  <a href="docs/INSTALL_WINDOWS.md">Installation guide</a>
+  &nbsp;·&nbsp;
+  <a href="https://youtu.be/lzJW8I6n3Yw">Installation video</a>
+  &nbsp;·&nbsp;
+  <a href="https://youtu.be/jrJ0kYSQAlk">Product walkthrough</a>
+  &nbsp;·&nbsp;
+  <a href="docs/INSTALL_WINDOWS.md">Windows install guide</a>
 </p>
+
+<table align="center">
+  <tr>
+    <td align="center" width="50%"><strong>File downloads</strong><br><sub>Multi-connection transfers, pause, resume and retry</sub></td>
+    <td align="center" width="50%"><strong>Media Studio</strong><br><sub>Formats, thumbnails, subtitles and video segments</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><strong>Browser integration</strong><br><sub>Send supported links over an authenticated local connection</sub></td>
+    <td align="center" width="50%"><strong>Torrent support</strong><br><sub>Add magnet links and .torrent files</sub></td>
+  </tr>
+</table>
 
 <p align="center">
-  <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
+  <img src="assets/demo/getanny-showcase.gif" alt="GetANNY Download Manager showing downloads, Media Studio, browser integration and settings" width="900">
 </p>
 
-<p align="center"><sub>Animated preview of the real Windows app · HD walkthroughs linked above</sub></p>
+<p align="center"><sub>Preview of the Windows app · Full walkthroughs below</sub></p>
 
 <p align="center">
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml/badge.svg?branch=main&event=push" alt="Windows build, tests, installer verification, and secret scan"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version&cacheSeconds=300" alt="Latest release version"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release&cacheSeconds=300" alt="Latest release date"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/downloads/p4yy/GetANNY-Download-Manager/total?style=flat-square&label=downloads&cacheSeconds=300" alt="Total GitHub release downloads"></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Supported platform: Windows">
 </p>
 <p align="center">
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/blob/main/LICENSE"><img src="https://img.shields.io/github/license/p4yy/GetANNY-Download-Manager?style=flat-square&cacheSeconds=300" alt="License"></a>
-  <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Supported platform: Windows">
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/stargazers"><img src="https://img.shields.io/github/stars/p4yy/GetANNY-Download-Manager?style=flat-square&label=stars&cacheSeconds=300" alt="GitHub stars"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/forks"><img src="https://img.shields.io/github/forks/p4yy/GetANNY-Download-Manager?style=flat-square&label=forks&cacheSeconds=300" alt="GitHub forks"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/issues"><img src="https://img.shields.io/github/issues/p4yy/GetANNY-Download-Manager?style=flat-square&label=open%20issues&cacheSeconds=300" alt="Open GitHub issues"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/issues"><img src="https://img.shields.io/github/issues/p4yy/GetANNY-Download-Manager?style=flat-square&label=open%20issues&cacheSeconds=300" alt="Open GitHub issues"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/commits/main"><img src="https://img.shields.io/github/last-commit/p4yy/GetANNY-Download-Manager/main?style=flat-square&label=last%20commit&cacheSeconds=300" alt="Last commit"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager"><img src="https://img.shields.io/github/repo-size/p4yy/GetANNY-Download-Manager?style=flat-square&label=repository%20size&cacheSeconds=300" alt="Repository size"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/graphs/contributors"><img src="https://img.shields.io/github/contributors/p4yy/GetANNY-Download-Manager?style=flat-square&label=contributors&cacheSeconds=300" alt="Contributors"></a>
 </p>
 
-GetANNY Download Manager brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media, keep a searchable download history, and optionally connect your browser to GetANNY.
-
-## Support GetANNY Download Manager
-
-If you find the app useful, you can support its development here:
-
 <p align="center">
-  <a href="https://www.paypal.com/paypalme/aceevisuals"><img src="https://img.shields.io/badge/PayPal-Support-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Support GetANNY Download Manager on PayPal"></a>
-  <a href="https://ko-fi.com/acevisualsco"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support GetANNY Download Manager on Ko-fi"></a>
+  <a href="#download">Download</a>
+  &nbsp;·&nbsp;
+  <a href="#features">Features</a>
+  &nbsp;·&nbsp;
+  <a href="#screenshots">Screenshots</a>
+  &nbsp;·&nbsp;
+  <a href="#videos">Videos</a>
+  &nbsp;·&nbsp;
+  <a href="#for-developers">Developers</a>
 </p>
 
-## Download GetANNY Download Manager
+GetANNY Download Manager brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media and keep a searchable download history, with optional browser integration.
 
-Download the current Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases).
+## Download
 
+Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.
 
 ## Screenshots
 
 <details>
-<summary>View browser extension screenshots</summary>
+<summary>View product and browser screenshots</summary>
 
-The browser extension and desktop connection flow. Select an image to open it at full size.
+### Desktop app
 
 <table>
   <tr>
-    <td align="center" width="50%">
-      <a href="docs/media/screenshots/browser-extension-details.png"><img src="docs/media/screenshots/browser-extension-details.png" width="320" alt="GetANNY Browser Assistant extension details and permissions"></a><br>
-      <sub><strong>Extension details</strong><br>Permissions and browser settings</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="docs/media/screenshots/browser-extension-popup.png"><img src="docs/media/screenshots/browser-extension-popup.png" width="320" alt="GetANNY Browser Assistant popup connected to the desktop manager"></a><br>
-      <sub><strong>Browser assistant</strong><br>Send a supported file or media page to GetANNY</sub>
-    </td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/downloads.png"><img src="docs/media/screenshots/downloads.png" width="360" alt="GetANNY downloads library"></a><br><sub><strong>Downloads</strong><br>Download library and transfer status</sub></td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/themes.png"><img src="docs/media/screenshots/themes.png" width="360" alt="GetANNY theme gallery"></a><br><sub><strong>Themes</strong><br>Browse and select the app appearance</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%">
-      <a href="docs/media/screenshots/browser-connection-pairing.png"><img src="docs/media/screenshots/browser-connection-pairing.png" width="320" alt="GetANNY browser connection and pairing controls"></a><br>
-      <sub><strong>Connection &amp; pairing</strong><br>Browser selection and connection controls</sub>
-    </td>
-    <td align="center" width="50%">
-      <a href="docs/media/screenshots/browser-extension-toolbar.png"><img src="docs/media/screenshots/browser-extension-toolbar.png" width="320" alt="GetANNY Browser Assistant extension shown in the browser toolbar"></a><br>
-      <sub><strong>Toolbar</strong><br>GetANNY Browser Assistant in the browser</sub>
-    </td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/media-studio.png"><img src="docs/media/screenshots/media-studio.png" width="360" alt="GetANNY Media Studio"></a><br><sub><strong>Media Studio</strong><br>Inspect supported media pages</sub></td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/settings.png"><img src="docs/media/screenshots/settings.png" width="360" alt="GetANNY settings"></a><br><sub><strong>Settings</strong><br>Configure transfers and the workspace</sub></td>
+  </tr>
+</table>
+
+### Browser integration
+
+<table>
+  <tr>
+    <td align="center" width="50%"><a href="docs/media/screenshots/browser-extension-details.png"><img src="docs/media/screenshots/browser-extension-details.png" width="320" alt="GetANNY Browser Assistant extension details and permissions"></a><br><sub><strong>Extension details</strong><br>Permissions and browser settings</sub></td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/browser-extension-popup.png"><img src="docs/media/screenshots/browser-extension-popup.png" width="320" alt="GetANNY Browser Assistant popup connected to the desktop manager"></a><br><sub><strong>Browser assistant</strong><br>Send a supported file or media page to GetANNY</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><a href="docs/media/screenshots/browser-connection-pairing.png"><img src="docs/media/screenshots/browser-connection-pairing.png" width="320" alt="GetANNY browser connection and pairing controls"></a><br><sub><strong>Connection &amp; pairing</strong><br>Browser selection and connection controls</sub></td>
+    <td align="center" width="50%"><a href="docs/media/screenshots/browser-extension-toolbar.png"><img src="docs/media/screenshots/browser-extension-toolbar.png" width="320" alt="GetANNY Browser Assistant extension shown in the browser toolbar"></a><br><sub><strong>Toolbar</strong><br>GetANNY Browser Assistant in the browser</sub></td>
   </tr>
 </table>
 
 </details>
 
-## Watch GetANNY
+## Videos
 
-[![GetANNY Download Manager in Action: Media Studio, Thumbnails, Subtitles & Bulk Downloads](https://img.youtube.com/vi/jrJ0kYSQAlk/maxresdefault.jpg)](https://youtu.be/jrJ0kYSQAlk)
-
-**GetANNY in Action** · Media Studio, thumbnails, subtitles and bulk downloads. [Watch on YouTube](https://youtu.be/jrJ0kYSQAlk) · [Download MP4](docs/media/demonstration/getanny-in-action.mp4)
-
-[![GetANNY Download Manager: Full Installation & Browser Integration Guide](https://img.youtube.com/vi/lzJW8I6n3Yw/maxresdefault.jpg)](https://youtu.be/lzJW8I6n3Yw)
-
-**Installation & browser integration** · [Watch on YouTube](https://youtu.be/lzJW8I6n3Yw) · [Download MP4](docs/media/demonstration/installation.mp4)
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/lzJW8I6n3Yw"><img src="https://img.youtube.com/vi/lzJW8I6n3Yw/maxresdefault.jpg" width="420" alt="Watch the GetANNY installation and browser integration guide"></a><br>
+      <strong>Install GetANNY</strong><br><sub>Windows installation and browser integration</sub><br>
+      <a href="docs/media/demonstration/installation.mp4">Download MP4</a>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/jrJ0kYSQAlk"><img src="https://img.youtube.com/vi/jrJ0kYSQAlk/maxresdefault.jpg" width="420" alt="Watch GetANNY in action"></a><br>
+      <strong>GetANNY in action</strong><br><sub>Media Studio and supported media workflows</sub><br>
+      <a href="docs/media/demonstration/getanny-in-action.mp4">Download MP4</a>
+    </td>
+  </tr>
+</table>
 
 ## Features
 
 - **File transfers:** HTTP and HTTPS downloads with progress, speed, pause, resume, retry and a searchable local history.
 - **Media Studio:** inspect supported media pages, choose available formats, download provided subtitles or thumbnails, and select a time range for video segments.
-- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs. Torrents with more than two files open a picker for choosing files before download; the Torrents page keeps an Add torrent action available.
-- **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through an authenticated direct loopback bridge. Browser installation and permissions always require your approval; Native Messaging is retained only for secure bootstrap/cold start.
+- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs. Transfers depend on available peers and seeders.
+- **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through an authenticated direct loopback bridge. Browser installation and permissions always require your approval.
 - **A configurable workspace:** 12 themes, seven interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
 
 Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and the [latest Actions run](https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml) for current build and verification status.
@@ -124,7 +144,7 @@ See the [Windows installation guide](docs/INSTALL_WINDOWS.md) and [browser setup
 
 ## Privacy and security
 
-Download history and preferences are stored locally. Browser integration uses a browser-scoped authenticated loopback bridge; websites and unauthorized local clients are rejected. Generic extension ZIPs contain no embedded secret, and extension installation/permissions require your approval. Downloaded files are not run automatically. For details, see [Architecture and security contracts](docs/ARCHITECTURE.md) or report a vulnerability using [SECURITY.md](SECURITY.md).
+Download history and preferences are stored locally. Browser integration uses a browser-scoped authenticated loopback bridge; websites and unauthorized local clients are rejected. Generic extension ZIPs contain no embedded secret, and extension installation and permissions require your approval. Downloaded files are not run automatically. For details, see [Architecture and security contracts](docs/ARCHITECTURE.md) or report a vulnerability using [SECURITY.md](SECURITY.md).
 
 ## For developers
 
@@ -155,6 +175,15 @@ npm run build:win
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for a fresh-checkout Windows build, the [release process](docs/RELEASING.md), [changelog](CHANGELOG.md), [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), [Windows packaging](docs/INSTALL_WINDOWS.md), [browser integration](docs/BROWSERS.md), and [release notes](docs/RELEASE_NOTES.md).
+
+## Support GetANNY Download Manager
+
+If you find the app useful, you can support its development here:
+
+<p align="center">
+  <a href="https://www.paypal.com/paypalme/aceevisuals"><img src="https://img.shields.io/badge/PayPal-Support-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Support GetANNY Download Manager on PayPal"></a>
+  <a href="https://ko-fi.com/acevisualsco"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi" alt="Support GetANNY Download Manager on Ko-fi"></a>
+</p>
 
 ## License
 
