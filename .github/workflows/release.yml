@@ -1,0 +1,235 @@
+name: Windows Setup EXE tests (approval required before other packages)
+on:
+  push:
+    # Every Arena task has a unique fixed branch. Match the namespace instead
+    # of retaining stale one-off branch names, so candidate PRs get the same
+    # Windows installer/browser evidence as main.
+    branches: [main, next-version, "arena/**"]
+    paths-ignore: ["**/*.md"]
+  # Build candidate pull requests on Windows as well as branch pushes.
+  # This allows installed-EXE verification to be associated with the review.
+  pull_request:
+    branches: [next-version]
+    paths-ignore: ["**/*.md"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Reserved for after explicit user test approval; publishing disabled for now
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  # Isolate each commit so an unresponsive older job cannot block verification
+  # of a fix. Repeated runs of the same commit still cancel each other.
+  group: >-
+    ${{ contains(github.event.head_commit.message, 'GetANNY-Publish-Existing:') && format('getanny-publication-only-{0}', github.sha) || format('getanny-windows-{0}-{1}', github.ref, github.sha) }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    # Existing-build publication has its own narrow provenance/digest job.
+    # Product changes and normal pushes still run every original verification gate.
+    if: >-
+      ${{ !contains(github.event.head_commit.message, 'GetANNY-Publish-Existing:') && !contains(github.event.head_commit.message, 'GetANNY-Publish-NoTests:') }}
+    name: Build, install, exercise and uninstall NSIS Setup EXE
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate Windows PowerShell harness syntax
+        shell: pwsh
+        run: |
+          Get-ChildItem scripts/windows -Filter '*.ps1' | ForEach-Object {
+            $tokens=$null; $errors=$null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Restore locked N-API native payloads
+        id: node-natives
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            node_modules/better-sqlite3/prebuilds/win32-x64.node
+            node_modules/node-datachannel/build/Release/*
+          key: napi-windows-x64-native-${{ hashFiles('package-lock.json') }}
+      - name: Prepare native dependency when not cached
+        if: steps.node-natives.outputs.cache-hit != 'true'
+        run: |
+          npm rebuild node-datachannel
+      - name: Cache verified N-API payloads
+        if: steps.node-natives.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            node_modules/better-sqlite3/prebuilds/win32-x64.node
+            node_modules/node-datachannel/build/Release/*
+          key: napi-windows-x64-native-${{ hashFiles('package-lock.json') }}
+      - name: Fetch pinned, checksum-verified tools and compile Windows native host
+        run: npm run prepare:tools
+      - name: Verify official brand DPI assets and installer artwork
+        run: npm run verify:branding
+      - name: Bundle extension resources required by the installer (no browser testing)
+        run: npm run build-extension
+      - name: Audit seven-language completeness and interpolation parity
+        run: npm run audit:locales -- --strict
+      - name: Test desktop app core (browser extension tests excluded)
+        shell: pwsh
+        run: |
+          New-Item test-results/windows -ItemType Directory -Force | Out-Null
+          $core = @(Get-ChildItem tests -Filter '*.test.js' -File |
+            Where-Object { $_.BaseName -notmatch '(?i)(browser|extension|interceptor|social-links|windows-harness|ai-blob-handoff|evidence|packaging|release-publication)' } |
+            ForEach-Object FullName)
+          $main = @(Get-ChildItem src/main -Recurse -Filter '*.test.js' -File |
+            Where-Object { $_.FullName -notmatch '[\\/]browser-integration[\\/]' } |
+            ForEach-Object FullName)
+          $targets = @($core) + @($main)
+          if ($targets.Count -lt 10) { throw 'Desktop test selection is unexpectedly small.' }
+          & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/backend-junit.xml @targets 2>&1 | Tee-Object test-results/windows/backend-tests.log
+          exit $LASTEXITCODE
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: Build renderer
+        run: npm run build:renderer
+      - name: Build NSIS Setup EXE
+        shell: pwsh
+        run: |
+          npx electron-builder --win nsis --x64 --publish never 2>&1 | Tee-Object test-results/windows/build.log
+          exit $LASTEXITCODE
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      - name: Preserve built installers independently of later verification
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'GetANNY-test-build'
+          New-Item $destination -ItemType Directory -Force | Out-Null
+          Copy-Item 'dist/GetANNY Setup.exe' $destination
+          Copy-Item 'docs/INSTALL_WINDOWS.md' $destination
+          @(
+            'UNSIGNED DEVELOPMENT TEST BUILD — NOT A VERIFIED FINAL RELEASE',
+            'Source: ${{ github.sha }}',
+            'Verification: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+            'Packaging succeeded. Installed-app and uninstall checks may still be running or fail.',
+            'Browser extension tests are intentionally skipped at owner request.',
+            'Consult EXE-only verification evidence before considering this installer verified.'
+          ) | Set-Content (Join-Path $destination 'BUILD_STATUS.txt')
+          Get-ChildItem $destination -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object { ('{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(),$_.Name) } | Set-Content (Join-Path $destination 'SHA256SUMS.txt')
+      - name: Downloadable development installers (not certification)
+        id: built-installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: GetANNY-unsigned-test-build
+          path: ${{ runner.temp }}/GetANNY-test-build/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Record the actual test-build download link
+        shell: pwsh
+        run: |
+          'Test-build artifact (not final verification): ${{ steps.built-installers.outputs.artifact-url }}' | Add-Content $env:GITHUB_STEP_SUMMARY
+      # User decision on 2026-11-13: build NSIS Setup EXE ONLY.
+      # Do not build AppX/MSIX, portable executables or distribute an official
+      # release until the user has tested this installer and approved it.
+      - name: Install, exercise, reinstall and uninstall NSIS Setup EXE
+        shell: pwsh
+        run: |
+          ./scripts/windows/test-installers.ps1 *>&1 | Tee-Object test-results/windows/installed-tests.log
+      - name: Report actual failures through check annotations
+        if: failure()
+        shell: pwsh
+        run: |
+          # Check annotations stay readable through GitHub's API even when a
+          # development sandbox cannot reach the external Actions log host.
+          function Annotate([string] $title, [string] $text, [string] $level='error') {
+            $text = [regex]::Replace($text,'[ \t]+',' ')
+            if ($text.Length -gt 3800) { $text = $text.Substring($text.Length - 3800) }
+            $text = $text.Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::$level title=$title::$text"
+          }
+          if (Test-Path test-results/windows/backend-junit.xml) {
+            [xml]$junit = Get-Content test-results/windows/backend-junit.xml -Raw
+            $junit.SelectNodes('//failure') | ForEach-Object { Annotate 'Backend test failure' $_.InnerText }
+          }
+          Get-ChildItem test-results/windows -Recurse -File -Filter '*.json' -ErrorAction SilentlyContinue | ForEach-Object {
+            $report = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            if ($report.checks) { $report.checks | Where-Object passed -eq $false | ForEach-Object { Annotate $_.name $_.error } }
+            elseif ($report.passed -eq $false) { Annotate $_.Name ($report | ConvertTo-Json -Depth 12) }
+          }
+          Get-ChildItem test-results/windows -File -Filter '*.log' -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'backend-tests.log' -and ($_.Name -ne 'native-launcher.log' -or (Select-String -Path $_.FullName -Pattern 'not ok|ERR!|Error:' -Quiet)) } | ForEach-Object { Annotate "Diagnostic log $($_.Name)" ((Get-Content $_.FullName -Tail 35) -join "`n") 'notice' }
+      - name: Summarize measured evidence without publishing user secrets
+        if: always()
+        run: node scripts/report-windows-evidence.js
+      - name: Retain executable test reports and installation logs even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-evidence
+          path: test-results/windows/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Assemble release assets and checksums
+        shell: pwsh
+        run: |
+          ./scripts/windows/assemble-release.ps1
+      - name: Retain tested distributables
+        uses: actions/upload-artifact@v7
+        with:
+          name: GetANNY-tested-windows-release
+          path: release-assets/
+          retention-days: 30
+      - name: Publish explicitly requested official release (not a claim of manual certification)
+        # A trusted push can explicitly opt in when the repository integration
+        # lacks Actions dispatch permission. Neither route skips a single gate.
+        # Disabled until the owner has tested the EXE and explicitly approved.
+        if: ${{ false }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm.cmd run audit:locales -- --strict
+          if ($LASTEXITCODE -ne 0) { throw "Cannot publish: seven-language parity is incomplete." }
+          $version = node -p "require('./package.json').version"
+          $tag = "v$version"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Never silently replace an existing release." }
+          $notesFile = Join-Path $env:RUNNER_TEMP 'GetANNY-release-notes.md'
+          @(
+            (Get-Content docs/RELEASE_NOTES.md -Raw),
+            '',
+            (Get-Content release-assets/MEASURED_RESULTS.md -Raw),
+            '',
+            '## Build and verification',
+            'Source commit: `${{ github.sha }}`.',
+            'Windows verification: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+            '',
+            '## SHA-256',
+            '```text',
+            (Get-Content release-assets/SHA256SUMS.txt -Raw),
+            '```'
+          ) -join "`n" | Set-Content $notesFile
+          # Never expose a partially uploaded release if GitHub or the network
+          # fails mid-transfer. Leave a draft for investigation instead.
+          gh release create $tag --draft --target '${{ github.sha }}' --title "GetANNY $version · Official Windows release" --notes-file $notesFile
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub draft creation failed.' }
+          $labeledAssets = Get-ChildItem release-assets -File | ForEach-Object { "$($_.FullName)#$($_.Name)" }
+          gh release upload $tag @labeledAssets
+          if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed; release remains a draft.' }
+          $releaseFile = Join-Path $env:RUNNER_TEMP 'GetANNY-draft.json'
+          $releaseJson = gh api "repos/${{ github.repository }}/releases?per_page=100"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect draft; release remains a draft.' }
+          $matching = @($releaseJson | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
+          if ($matching.Count -ne 1) { throw 'Expected exactly one matching draft release.' }
+          $matching[0] | ConvertTo-Json -Depth 30 | Set-Content $releaseFile
+          node scripts/verify-release-assets.js $releaseFile release-assets $tag '${{ github.sha }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Asset verification failed; release remains a draft.' }
+          gh release edit $tag --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Draft promotion failed; inspect the release state.' }
+          $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$tag" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $ref.object.sha -ne '${{ github.sha }}') { throw 'Published tag verification failed.' }

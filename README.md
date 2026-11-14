@@ -1,0 +1,120 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-horizontal-white.png">
+    <img src="assets/brand/lockup-horizontal-black.png" alt="GetANNY Download Manager" width="420">
+  </picture>
+</p>
+
+<h1 align="center">GetANNY Download Manager</h1>
+
+<p align="center"><strong>A focused Windows download manager for files, media and browser downloads.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/p4yy/GetANNY-Download-Manager/release.yml?branch=main&style=flat-square&label=Windows%20build%2C%20tests%20%26%20installer" alt="Windows build, tests and installer verification"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version" alt="Latest release version"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release" alt="Latest release date"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/downloads/p4yy/GetANNY-Download-Manager/total?style=flat-square&label=downloads" alt="Total GitHub release downloads"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/blob/main/LICENSE"><img src="https://img.shields.io/github/license/p4yy/GetANNY-Download-Manager?style=flat-square" alt="License"></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Supported platform: Windows">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/stargazers"><img src="https://img.shields.io/github/stars/p4yy/GetANNY-Download-Manager?style=flat-square&label=stars" alt="GitHub stars"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/forks"><img src="https://img.shields.io/github/forks/p4yy/GetANNY-Download-Manager?style=flat-square&label=forks" alt="GitHub forks"></a>
+</p>
+<p align="center">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/issues"><img src="https://img.shields.io/github/issues/p4yy/GetANNY-Download-Manager?style=flat-square&label=open%20issues" alt="Open GitHub issues"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/commits/main"><img src="https://img.shields.io/github/last-commit/p4yy/GetANNY-Download-Manager/main?style=flat-square&label=last%20commit" alt="Last commit"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager"><img src="https://img.shields.io/github/repo-size/p4yy/GetANNY-Download-Manager?style=flat-square&label=repository%20size" alt="Repository size"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/graphs/contributors"><img src="https://img.shields.io/github/contributors/p4yy/GetANNY-Download-Manager?style=flat-square&label=contributors" alt="Contributors"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest">Download for Windows</a>
+  ·
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases">All releases</a>
+  ·
+  <a href="docs/INSTALL_WINDOWS.md">Installation guide</a>
+  ·
+  <a href="docs/BROWSERS.md">Browser setup</a>
+</p>
+
+GetANNY Download Manager brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media, keep a searchable download history, and optionally connect your browser to GetANNY.
+
+## See GetANNY in action
+
+<p align="center">
+  <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
+</p>
+
+<p align="center"><sub>The download library, media studio, browser setup and settings.</sub></p>
+
+## Download GetANNY Download Manager
+
+Download the current Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases).
+
+
+## Screenshots
+
+Product screenshots will be added after current captures are prepared. The planned image list and placement instructions are in [`docs/media/README.md`](docs/media/README.md).
+
+## Future demonstration
+
+A current demonstration recording will be added here when one is available. No placeholder image or video is shown.
+
+## Features
+
+- **File transfers:** HTTP and HTTPS downloads with progress, speed, pause, resume, retry and a searchable local history.
+- **Media Studio:** inspect supported media pages, choose available formats, download provided subtitles or thumbnails, and select a time range for video segments.
+- **Torrents:** add magnet links, local `.torrent` files or supported `.torrent` URLs. Torrents with more than two files open a picker for choosing files before download; the Torrents page keeps an Add torrent action available.
+- **Browser handoff:** send supported downloads from Chrome, Chromium, Edge, Brave, Firefox, Vivaldi, Opera or Helium through an authenticated direct loopback bridge. Browser installation and permissions always require your approval; Native Messaging is retained only for secure bootstrap/cold start.
+- **A configurable workspace:** 12 themes, four interface languages (including Arabic RTL), download scheduling, speed limits and tray options.
+
+Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and [release status](docs/RELEASE_STATUS.md) for verification details.
+
+## Getting started
+
+1. Download and extract the [Windows bundle](https://github.com/p4yy/GetANNY-Download-Manager/releases/download/v2.4.7/GetANNY-2.4.7-Windows-Bundle.zip).
+2. Install GetANNY, or run the portable build from a writable folder.
+3. Open GetANNY and choose your download folder and preferences.
+4. To use browser integration, open the in-app browser setup guide and follow the instructions for your browser.
+5. Add a direct file URL or use a supported browser action to send a download to GetANNY.
+
+See the [Windows installation guide](docs/INSTALL_WINDOWS.md) and [browser setup and troubleshooting guide](docs/BROWSERS.md) for details.
+
+## Privacy and security
+
+Download history and preferences are stored locally. Browser integration uses a browser-scoped authenticated loopback bridge; websites and unauthorized local clients are rejected. Generic extension ZIPs contain no embedded secret, and extension installation/permissions require your approval. Downloaded files are not run automatically. For details, see [Architecture and security contracts](docs/ARCHITECTURE.md) or report a vulnerability using [SECURITY.md](SECURITY.md).
+
+## For developers
+
+GetANNY is a Windows-first Electron application built with React, Vite and SQLite.
+
+**Requirements**
+
+- Node.js 22.22 or newer
+- npm
+- Windows build tools for native modules and Windows packaging
+
+**Run locally**
+
+```sh
+npm ci
+npm run prepare:tools
+npm run build-extension
+npm run dev
+```
+
+**Run tests and build**
+
+```sh
+npm test
+npm audit --audit-level=high
+npm run build:renderer
+npm run build:win
+```
+
+See the project documentation for [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), [Windows packaging](docs/INSTALL_WINDOWS.md), [browser integration](docs/BROWSERS.md), [v2 investigation and design](docs/BROWSER_INTEGRATION_V2.md), and [release notes](docs/RELEASE_NOTES.md).
+
+## License
+
+GetANNY is released under the [Apache License 2.0](LICENSE). Third-party tools and bundled components retain their respective licenses; see [third-party notices](docs/THIRD_PARTY.md).

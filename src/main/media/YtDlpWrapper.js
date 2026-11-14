@@ -1,0 +1,455 @@
+const { spawn } = require("node:child_process");
+const { StringDecoder } = require("node:string_decoder");
+const path = require("node:path");
+const fs = require("node:fs/promises");
+const { validateUrl } = require("../engine/utils");
+const { canonicalTikTokPost } = require("./TikTokPreview");
+const {
+  normalizeFormats,
+  normalizeThumbnails,
+  normalizeSubtitles,
+} = require("./formats");
+
+class YtDlpWrapper {
+  constructor({ binPath, executable, spawnProcess = spawn } = {}) {
+    this.binPath = binPath || "";
+    this.executableOverride = executable;
+    this.spawnProcess = spawnProcess;
+  }
+  executable() {
+    return (
+      this.executableOverride ||
+      path.join(
+        this.binPath,
+        process.platform === "win32"
+          ? "yt-dlp.exe"
+          : process.platform === "darwin"
+            ? "yt-dlp_macos"
+            : "yt-dlp",
+      )
+    );
+  }
+  async availability() {
+    const name = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+    const [ytdlp, ffmpeg] = await Promise.all([
+      fs.access(this.executable()).then(
+        () => true,
+        () => false,
+      ),
+      fs.access(path.join(this.binPath, name)).then(
+        () => true,
+        () => false,
+      ),
+    ]);
+    return { ytdlp, ffmpeg };
+  }
+  run(args, { onProgress = () => {}, onFile = () => {}, onLine, signal, timeoutMs = 0 } = {}) {
+    return new Promise((resolve, reject) => {
+      const child = this.spawnProcess(this.executable(), args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        detached: process.platform !== "win32",
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      });
+      let stdout = "",
+        stderr = "",
+        buffer = "",
+        killed = false,
+        killTimer,
+        metadataFailed = false,
+        metadataTimer,
+        timedOut = false;
+      const maxRecord = onLine ? 2_000_000 : 25_000_000;
+      const decoder = new StringDecoder("utf8");
+      const abort = () => {
+        killed = true;
+        if (!child.pid) return;
+        if (process.platform === "win32") {
+          const treeKiller = spawn(
+            "taskkill",
+            ["/pid", String(child.pid), "/T", "/F"],
+            {
+              windowsHide: true,
+              stdio: "ignore",
+            },
+          );
+          treeKiller.on("error", () => child.kill());
+          treeKiller.on("close", (code) => {
+            if (code !== 0) child.kill();
+          });
+          // Do not let a failed or blocked taskkill leave the transfer running
+          // until it finishes naturally. The tree kill above gets first chance
+          // to stop FFmpeg children; this closes yt-dlp promptly as fallback.
+          killTimer = setTimeout(() => child.kill(), 500);
+        } else {
+          try {
+            process.kill(-child.pid, "SIGTERM");
+          } catch {
+            child.kill();
+          }
+          killTimer = setTimeout(() => {
+            try {
+              process.kill(-child.pid, "SIGKILL");
+            } catch {
+              child.kill();
+            }
+          }, 3000);
+        }
+        killTimer.unref?.();
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        metadataTimer = setTimeout(() => {
+          timedOut = true;
+          abort();
+        }, timeoutMs);
+        metadataTimer.unref?.();
+      }
+      const line = (value) => {
+        if (metadataFailed) return;
+        if (value.startsWith("GETANNY_PROGRESS:")) {
+          try {
+            onProgress(JSON.parse(value.slice("GETANNY_PROGRESS:".length)));
+          } catch {
+            /* unrelated tool output */
+          }
+        } else if (value.startsWith("GETANNY_FILE:")) {
+          try {
+            onFile(JSON.parse(value.slice("GETANNY_FILE:".length)));
+          } catch {
+            /* invalid output rejected by final verification */
+          }
+        } else if (onLine && value) {
+          try {
+            onLine(value);
+          } catch (cause) {
+            metadataFailed = true;
+            child.kill();
+            reject(
+              new Error("yt-dlp returned invalid playlist metadata.", {
+                cause,
+              }),
+            );
+          }
+        } else if (!onLine) stdout += value + "\n";
+        if (stdout.length > 25_000_000) {
+          child.kill();
+          reject(
+            new Error("Media metadata exceeds the supported response size."),
+          );
+        }
+      };
+      child.stdout.on("data", (chunk) => {
+        buffer += Buffer.isBuffer(chunk) ? decoder.write(chunk) : String(chunk);
+        let end;
+        while ((end = buffer.indexOf("\n")) >= 0 && end <= maxRecord) {
+          line(buffer.slice(0, end).trim());
+          buffer = buffer.slice(end + 1);
+        }
+        if (buffer.length > maxRecord) {
+          metadataFailed = true;
+          child.kill();
+          reject(
+            new Error("A media metadata record exceeds the supported size."),
+          );
+        }
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr = (stderr + chunk.toString()).slice(-12000);
+      });
+      child.once("error", (error) => {
+        clearTimeout(metadataTimer);
+        signal?.removeEventListener("abort", abort);
+        reject(
+          new Error(
+            error.code === "ENOENT"
+              ? "yt-dlp is missing. Run npm run prepare:tools or reinstall the complete application."
+              : `Could not start yt-dlp: ${error.message}`,
+          ),
+        );
+      });
+      child.once("close", (code) => {
+        clearTimeout(killTimer);
+        clearTimeout(metadataTimer);
+        signal?.removeEventListener("abort", abort);
+        buffer += decoder.end();
+        if (buffer.trim()) line(buffer.trim());
+        if (timedOut)
+          reject(new Error("Media analysis timed out. Please try again."));
+        else if (killed || signal?.aborted)
+          reject(new Error("Media operation stopped."));
+        else if (code === 0) resolve(stdout.trim());
+        else
+          reject(
+            new Error(
+              stderr.trim() || `yt-dlp stopped with exit code ${code}.`,
+            ),
+          );
+      });
+    });
+  }
+  async getInfo(url, { signal } = {}) {
+    const validated = validateUrl(url);
+    const tiktokPost = canonicalTikTokPost(validated);
+    const out = await this.run(
+      [
+        "--ignore-config",
+        "--js-runtimes",
+        `node:${process.execPath}`,
+        "--dump-single-json",
+        "--no-warnings",
+        "--no-playlist",
+        "--socket-timeout",
+        tiktokPost ? "15" : "30",
+        // TikTok watch-page URLs are canonicalized, independent of the Explore
+        // page. A TikTok referrer helps when its public CDN checks navigation
+        // context; no browser cookies are collected or forwarded.
+        ...(tiktokPost
+          ? ["--add-header", "Referer: https://www.tiktok.com/"]
+          : []),
+        "--",
+        tiktokPost || validated,
+      ],
+      { signal, timeoutMs: tiktokPost ? 45_000 : 90_000 },
+    );
+    try {
+      return JSON.parse(out);
+    } catch {
+      throw new Error("yt-dlp returned invalid media metadata.");
+    }
+  }
+  async getFormats(url, options) {
+    const info = await this.getInfo(url, options);
+    return {
+      title: info.title || "Untitled media",
+      url: info.webpage_url || url,
+      thumbnail: info.thumbnail || null,
+      duration:
+        Number.isFinite(Number(info.duration)) && Number(info.duration) > 0
+          ? Number(info.duration)
+          : null,
+      live:
+        info.is_live === true ||
+        ["is_live", "is_upcoming"].includes(info.live_status),
+      extractor: info.extractor_key || info.extractor || null,
+      description: typeof info.description === "string" ? info.description : "",
+      tags: Array.isArray(info.tags)
+        ? info.tags.filter((tag) => typeof tag === "string" && tag.trim())
+        : [],
+      thumbnails: normalizeThumbnails(info),
+      subtitles: normalizeSubtitles(info),
+      formats: normalizeFormats(info),
+    };
+  }
+  async getPlaylist(url, { onEntry = () => {}, signal } = {}) {
+    url = validateUrl(url);
+    const entries = [];
+    const seen = new Set();
+    let title;
+    await this.run(
+      [
+        "--ignore-config",
+        "--js-runtimes",
+        `node:${process.execPath}`,
+        "--flat-playlist",
+        "--lazy-playlist",
+        "--ignore-errors",
+        "--dump-json",
+        "--socket-timeout",
+        "30",
+        "--",
+        url,
+      ],
+      {
+        signal,
+        onLine(line) {
+          const entry = JSON.parse(line);
+          title ||= entry.playlist_title || entry.playlist;
+          let address = entry.webpage_url || entry.original_url || entry.url;
+          if (
+            !/^https?:\/\//i.test(String(address || "")) &&
+            entry.id &&
+            (/youtube/i.test(
+              String(entry.ie_key || entry.extractor_key || ""),
+            ) ||
+              /(?:^|\.)(?:youtube\.com|youtu\.be)$/i.test(
+                new URL(url).hostname,
+              ))
+          ) {
+            address = `https://www.youtube.com/watch?v=${encodeURIComponent(entry.id)}`;
+          }
+          try {
+            address = validateUrl(address);
+          } catch {
+            return;
+          }
+          if (seen.has(address)) return;
+          seen.add(address);
+          entries.push({
+            url: address,
+            title: String(entry.title || entry.id || "Untitled media").slice(
+              0,
+              300,
+            ),
+            duration: Number(entry.duration) || null,
+          });
+          onEntry(entries.length);
+        },
+      },
+    );
+    if (!entries.length)
+      throw new Error("No downloadable playlist entries were found.");
+    return { title: String(title || "Playlist").slice(0, 300), entries };
+  }
+  async downloadSubtitles({
+    url,
+    language,
+    automatic = false,
+    format = "vtt",
+    sourceFormats = [],
+    outputTemplate,
+    timeout = 30,
+    signal,
+  }) {
+    if (!/^[a-z0-9][a-z0-9-]{0,40}$/i.test(language))
+      throw new Error("Choose an available subtitle language.");
+    if (!["srt", "vtt"].includes(format))
+      throw new Error("Subtitles can be downloaded as SRT or VTT.");
+    await fs.mkdir(path.dirname(outputTemplate), { recursive: true });
+    const tools = await this.availability();
+    const direct = sourceFormats.includes(format);
+    if (!direct && !tools.ffmpeg)
+      throw new Error(
+        `This caption is not directly available as ${format.toUpperCase()}. FFmpeg is required for subtitle conversion.`,
+      );
+    const args = [
+      "--ignore-config",
+      "--js-runtimes",
+      `node:${process.execPath}`,
+      "--no-playlist",
+      "--skip-download",
+      automatic ? "--write-auto-subs" : "--write-subs",
+      "--sub-langs",
+      language,
+      "--sub-format",
+      direct ? format : "vtt/srv3/ttml/srv2/srv1/json3/best",
+      "--no-overwrites",
+      "--no-mtime",
+      "--windows-filenames",
+      "--socket-timeout",
+      String(timeout),
+      "--retries",
+      "2",
+      "-o",
+      outputTemplate,
+    ];
+    if (!direct) args.push("--convert-subs", format);
+    if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);
+    args.push("--", validateUrl(url));
+    await this.run(args, { signal });
+    const folder = path.dirname(outputTemplate);
+    const stem = path.basename(outputTemplate).replace(/\.%\(ext\)s$/, "");
+    const candidates = (await fs.readdir(folder)).filter(
+      (name) =>
+        name.startsWith(`${stem}.`) &&
+        name.endsWith(`.${format}`) &&
+        !name.includes(".part"),
+    );
+    const stats = await Promise.all(
+      candidates.map(async (name) => ({
+        name,
+        stat: await fs.stat(path.join(folder, name)).catch(() => null),
+      })),
+    );
+    const file = stats
+      .filter((entry) => entry.stat?.isFile() && entry.stat.size > 0)
+      .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs)[0];
+    if (!file)
+      throw new Error(
+        "yt-dlp did not produce the requested subtitle file. The caption may no longer be available.",
+      );
+    return path.join(folder, file.name);
+  }
+  async download({
+    url,
+    formatId,
+    mergeAudio,
+    audioFormatId,
+    outputTemplate,
+    speedLimit,
+    segment,
+    section,
+    live = false,
+    timeout = 30,
+    onProgress,
+    onFile,
+    signal,
+  }) {
+    if (!/^[\w.-]+$/.test(formatId))
+      throw new Error("Choose an available media format.");
+    if (audioFormatId && !/^[\w.-]+$/.test(audioFormatId))
+      throw new Error("Invalid audio format.");
+    const tools = await this.availability();
+    if (mergeAudio && !tools.ffmpeg)
+      throw new Error(
+        "This video format needs FFmpeg to include audio. Reinstall the complete application, or choose a format that already includes sound.",
+      );
+    if (segment && !tools.ffmpeg)
+      throw new Error(
+        "FFmpeg is required to download a selected video segment. Reinstall the complete application to restore it.",
+      );
+    await fs.mkdir(path.dirname(outputTemplate), { recursive: true });
+    const args = [
+      "--ignore-config",
+      "--js-runtimes",
+      `node:${process.execPath}`,
+      "--no-playlist",
+      "--newline",
+      "--no-color",
+      "--progress",
+      "--continue",
+      "--no-overwrites",
+      "--no-mtime",
+      "--windows-filenames",
+      "--socket-timeout",
+      String(timeout),
+      "--retries",
+      "2",
+      "--fragment-retries",
+      "2",
+      ...(!live ? ["--abort-on-unavailable-fragments"] : []),
+      "--progress-template",
+      "download:GETANNY_PROGRESS:%(progress)j",
+      "--print",
+      "after_move:GETANNY_FILE:%(filepath)j",
+      "--no-simulate",
+      "-o",
+      outputTemplate,
+      "-f",
+      mergeAudio ? `${formatId}+${audioFormatId || "bestaudio"}` : formatId,
+    ];
+    if (section) {
+      const { start, end } = section;
+      if (
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        start < 0 ||
+        end <= start
+      )
+        throw new Error(
+          "Choose a valid video segment with a positive duration.",
+        );
+      args.push(
+        "--download-sections",
+        "*" + start.toFixed(3) + "-" + end.toFixed(3),
+      );
+      args.push("--force-keyframes-at-cuts");
+    }
+    if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);
+    if (speedLimit > 0) args.push("--limit-rate", String(speedLimit));
+    args.push("--", validateUrl(url));
+    return this.run(args, { onProgress, onFile, signal });
+  }
+}
+module.exports = { YtDlpWrapper };

@@ -1,0 +1,42 @@
+{
+  "global": {
+    "help": "F1",
+    "new": "Mod+n",
+    "settings": "Mod+,",
+    "search": "Mod+f",
+    "active": "Mod+Shift+a"
+  },
+  "preview": {
+    "back": "ArrowLeft",
+    "forward": "ArrowRight",
+    "start": "i",
+    "end": "o",
+    "play": "Space"
+  },
+  "downloadsPanel": {
+    "rowUp": "ArrowUp",
+    "rowDown": "ArrowDown",
+    "rowFirst": "Home",
+    "rowLast": "End",
+    "selectPrevious": "Shift+ArrowUp",
+    "selectNext": "Shift+ArrowDown",
+    "selectToFirst": "Shift+Home",
+    "selectToLast": "Shift+End",
+    "toggleRow": "Mod+Space",
+    "allRows": "Mod+a"
+  },
+  "timeline": {
+    "earlier": "ArrowLeft",
+    "later": "ArrowRight",
+    "earlierAlternate": "ArrowDown",
+    "laterAlternate": "ArrowUp",
+    "earlierTen": "Shift+ArrowLeft",
+    "laterTen": "Shift+ArrowRight",
+    "earlierTenAlternate": "Shift+ArrowDown",
+    "laterTenAlternate": "Shift+ArrowUp",
+    "earlierThirty": "PageDown",
+    "laterThirty": "PageUp",
+    "timelineStart": "Home",
+    "timelineEnd": "End"
+  }
+}

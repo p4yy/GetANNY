@@ -1,0 +1,9 @@
+[
+  { "code": "en", "label": "EN", "name": "English", "english": "English", "dir": "ltr" },
+  { "code": "ar", "label": "AR", "name": "العربية", "english": "Arabic", "dir": "rtl" },
+  { "code": "fr", "label": "FR", "name": "Français", "english": "French", "dir": "ltr" },
+  { "code": "es", "label": "ES", "name": "Español", "english": "Spanish", "dir": "ltr" },
+  { "code": "de", "label": "DE", "name": "Deutsch", "english": "German", "dir": "ltr" },
+  { "code": "pt", "label": "PT", "name": "Português", "english": "Portuguese", "dir": "ltr" },
+  { "code": "ja", "label": "JA", "name": "日本語", "english": "Japanese", "dir": "ltr" }
+]

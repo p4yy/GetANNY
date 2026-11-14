@@ -1,0 +1,114 @@
+appId: com.getanny.app
+productName: GetANNY Download Manager
+copyright: Copyright © 2026 GetANNY Download Manager contributors
+directories:
+  output: dist
+  buildResources: assets
+files:
+  - src/main/**/*
+  - src/extension/social-links.js
+  - "!src/main/**/*.test.js"
+  - src/shared/**/*
+  - package.json
+  - dist-renderer/**/*
+  - assets/icon.png
+  - assets/tray-icon.png
+  # Keep build-machine paths and optional native accelerators out of releases.
+  - "!node_modules/better-sqlite3/build/**/*"
+  - "!node_modules/bufferutil/**/*"
+  - "!node_modules/utf-8-validate/**/*"
+  - LICENSE
+  - docs/THIRD_PARTY.md
+extraResources:
+  # Native CLI entrypoint must be a real file, not an ASAR virtual path.
+  - from: src/main/browser-integration/native-host.js
+    to: native-host/native-host.js
+  - from: src/main/browser-integration/DesktopExitMarker.js
+    to: native-host/DesktopExitMarker.js
+  - from: node_modules/ws/
+    to: native-host/node_modules/ws/
+    filter: ["package.json", "index.js", "lib/**/*.js"]
+  - from: bin/
+    to: bin/
+    filter:
+      [
+        "yt-dlp.exe",
+        "yt-dlp",
+        "yt-dlp_macos",
+        "ffmpeg*",
+        "ffprobe*",
+        "GetANNY.NativeHost.exe",
+        "FFmpeg-*.txt",
+      ]
+  - from: dist-extension/
+    to: extension/
+    filter: ["**/*"]
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: assets/icon.ico
+  executableName: GetANNY
+  requestedExecutionLevel: asInvoker
+publish:
+  - provider: github
+    owner: p4yy
+    repo: GetANNY-Download-Manager
+    releaseType: release
+nsis:
+  # scripts/windows/installer.nsh creates resources/getanny-github-updates for
+  # installed NSIS builds only, which enables the GitHub updater feed.
+  artifactName: "GetANNY Setup.${ext}"
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeader: assets/installerHeader.bmp
+  installerSidebar: assets/installerSidebar.bmp
+  uninstallerSidebar: assets/installerSidebar.bmp
+  include: scripts/windows/installer.nsh
+portable:
+  artifactName: "GetANNY Portable.${ext}"
+msi:
+  artifactName: "GetANNY Setup.${ext}"
+  oneClick: false
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: false
+  warningsAsErrors: true
+appx:
+  artifactName: "GetANNY Store.${ext}"
+  applicationId: GetANNY
+  identityName: AcevAppsCo.GetANNYMediaDownloader
+  publisher: "CN=44221EAF-7759-44DD-9DA8-F00E45DF7108"
+  publisherDisplayName: "Acev Apps Co."
+  displayName: "GetANNY Download Manager"
+  backgroundColor: "#101216"
+  languages: [en-GB]
+  capabilities: [runFullTrust]
+  addAutoLaunchExtension: false
+msiProjectCreated: scripts/windows/customize-msi.js
+beforePack: scripts/verify-package.js
+afterPack: scripts/verify-installed-resources.js
+linux:
+  target: [{ target: AppImage, arch: [x64] }]
+  icon: assets/icon.png
+  category: Network
+mac:
+  target: [{ target: dmg, arch: [x64, arm64] }]
+  icon: assets/icon.icns
+  category: public.app-category.utilities
+compression: maximum
+asar: true
+npmRebuild: false
+asarUnpack:
+  - "src/main/previews/ExtractInstallerIcon.ps1"
+  - "node_modules/better-sqlite3/prebuilds/win32-x64.node"
+  - "node_modules/node-datachannel/build/Release/node_datachannel.node"
+  - "node_modules/utp-native/**"
