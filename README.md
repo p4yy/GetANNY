@@ -10,6 +10,22 @@
 <p align="center"><strong>A focused Windows download manager for files, media and browser downloads.</strong></p>
 
 <p align="center">
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest">Download for Windows</a>
+  ·
+  <a href="https://youtu.be/lzJW8I6n3Yw">Watch the installation video</a>
+  ·
+  <a href="https://youtu.be/jrJ0kYSQAlk">Watch GetANNY in action</a>
+  ·
+  <a href="docs/INSTALL_WINDOWS.md">Installation guide</a>
+</p>
+
+<p align="center">
+  <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
+</p>
+
+<p align="center"><sub>Animated preview of the real Windows app · HD walkthroughs linked above</sub></p>
+
+<p align="center">
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml/badge.svg?branch=main&event=push" alt="Windows build, tests, installer verification, and secret scan"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version&cacheSeconds=300" alt="Latest release version"></a>
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release&cacheSeconds=300" alt="Latest release date"></a>
@@ -28,25 +44,7 @@
   <a href="https://github.com/p4yy/GetANNY-Download-Manager/graphs/contributors"><img src="https://img.shields.io/github/contributors/p4yy/GetANNY-Download-Manager?style=flat-square&label=contributors&cacheSeconds=300" alt="Contributors"></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest">Download for Windows</a>
-  ·
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases">All releases</a>
-  ·
-  <a href="docs/INSTALL_WINDOWS.md">Installation guide</a>
-  ·
-  <a href="docs/BROWSERS.md">Browser setup</a>
-</p>
-
 GetANNY Download Manager brings everyday downloads into one desktop workspace. Manage file transfers, inspect supported media, keep a searchable download history, and optionally connect your browser to GetANNY.
-
-## See GetANNY in action
-
-<p align="center">
-  <img src="assets/demo/getanny-showcase.gif" alt="Animated preview of GetANNY's download manager, media studio, browser integration and settings" width="900">
-</p>
-
-<p align="center"><sub>Animated preview of the real Windows app. Full HD walkthroughs are linked below.</sub></p>
 
 ## Support GetANNY Download Manager
 
@@ -64,27 +62,33 @@ Download the current Windows installer from the [GitHub Releases page](https://g
 
 ## Screenshots
 
-The browser integration screenshots below show the real extension and desktop connection flow. See [`docs/media/README.md`](docs/media/README.md) for the complete media inventory and instructions for adding more captures.
+The extension screenshots show its browser controls and connection to the desktop app. Each image uses the same canvas size; the original local profile path has been cropped from the details capture.
 
-<details>
-<summary>View browser integration screenshots</summary>
+![Extension details and permissions](docs/media/screenshots/browser-extension-details.png)
 
-![GetANNY browser extension details](docs/media/screenshots/browser-extension-details.png)
+**Extension details** · Permissions and browser settings.
 
-![GetANNY browser assistant popup connected to the desktop app](docs/media/screenshots/browser-extension-popup.png)
+![Browser assistant popup connected to GetANNY](docs/media/screenshots/browser-extension-popup.png)
 
-![GetANNY secure browser pairing screen](docs/media/screenshots/browser-connection-pairing.png)
+**Browser assistant** · Send a supported file or media page to GetANNY.
+
+![Browser connection and pairing panel](docs/media/screenshots/browser-connection-pairing.png)
+
+**Connection & pairing** · Browser selection and connection controls.
 
 ![GetANNY browser extension in the toolbar](docs/media/screenshots/browser-extension-toolbar.png)
 
-</details>
+**Toolbar** · GetANNY Browser Assistant in the browser.
 
-## Video walkthroughs
+## Watch GetANNY
 
-Download either H.264 MP4 for the full walkthrough. The animated preview above plays inline in the README.
+[![GetANNY Download Manager in Action: Media Studio, Thumbnails, Subtitles & Bulk Downloads](https://img.youtube.com/vi/jrJ0kYSQAlk/maxresdefault.jpg)](https://youtu.be/jrJ0kYSQAlk)
 
-- [Install GetANNY on Windows](docs/media/demonstration/installation.mp4)
-- [GetANNY in action](docs/media/demonstration/getanny-in-action.mp4)
+**GetANNY in Action** · Media Studio, thumbnails, subtitles and bulk downloads. [Watch on YouTube](https://youtu.be/jrJ0kYSQAlk) · [Download MP4](docs/media/demonstration/getanny-in-action.mp4)
+
+[![GetANNY Download Manager: Full Installation & Browser Integration Guide](https://img.youtube.com/vi/lzJW8I6n3Yw/maxresdefault.jpg)](https://youtu.be/lzJW8I6n3Yw)
+
+**Installation & browser integration** · [Watch on YouTube](https://youtu.be/lzJW8I6n3Yw) · [Download MP4](docs/media/demonstration/installation.mp4)
 
 ## Features
 

@@ -30,4 +30,4 @@ After adding a screenshot, confirm the file exists and update the **Screenshots*
 - `demonstration/installation.mp4` — Windows installation walkthrough (H.264, 720p, 30 fps).
 - `demonstration/getanny-in-action.mp4` — GetANNY product walkthrough (H.264, 720p, 30 fps).
 
-The MP4s are linked from the README as downloadable files. GitHub does not render MP4 video inline in a repository README; the animated product preview above is the inline playback, and the MP4s provide the full walkthroughs.
+The README shows clickable YouTube thumbnails for the published walkthroughs and links to the local MP4 copies. The animated product preview at the top plays inline; the MP4 links provide downloadable copies.
