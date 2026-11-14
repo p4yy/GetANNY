@@ -10,22 +10,22 @@
 <p align="center"><strong>A focused Windows download manager for files, media and browser downloads.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/p4yy/GetANNY-Download-Manager/release.yml?branch=main&style=flat-square&label=Windows%20build%2C%20tests%2C%20installer%20%26%20secret%20scan" alt="Windows build, tests, installer verification, and secret scan"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version" alt="Latest release version"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release" alt="Latest release date"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/downloads/p4yy/GetANNY-Download-Manager/total?style=flat-square&label=downloads" alt="Total GitHub release downloads"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml"><img src="https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml/badge.svg?branch=main&event=push" alt="Windows build, tests, installer verification, and secret scan"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases/latest"><img src="https://img.shields.io/github/v/release/p4yy/GetANNY-Download-Manager?style=flat-square&label=version&cacheSeconds=300" alt="Latest release version"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/release-date/p4yy/GetANNY-Download-Manager?style=flat-square&label=latest%20release&cacheSeconds=300" alt="Latest release date"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/releases"><img src="https://img.shields.io/github/downloads/p4yy/GetANNY-Download-Manager/total?style=flat-square&label=downloads&cacheSeconds=300" alt="Total GitHub release downloads"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/blob/main/LICENSE"><img src="https://img.shields.io/github/license/p4yy/GetANNY-Download-Manager?style=flat-square" alt="License"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/blob/main/LICENSE"><img src="https://img.shields.io/github/license/p4yy/GetANNY-Download-Manager?style=flat-square&cacheSeconds=300" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Supported platform: Windows">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/stargazers"><img src="https://img.shields.io/github/stars/p4yy/GetANNY-Download-Manager?style=flat-square&label=stars" alt="GitHub stars"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/forks"><img src="https://img.shields.io/github/forks/p4yy/GetANNY-Download-Manager?style=flat-square&label=forks" alt="GitHub forks"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/stargazers"><img src="https://img.shields.io/github/stars/p4yy/GetANNY-Download-Manager?style=flat-square&label=stars&cacheSeconds=300" alt="GitHub stars"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/forks"><img src="https://img.shields.io/github/forks/p4yy/GetANNY-Download-Manager?style=flat-square&label=forks&cacheSeconds=300" alt="GitHub forks"></a>
 </p>
 <p align="center">
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/issues"><img src="https://img.shields.io/github/issues/p4yy/GetANNY-Download-Manager?style=flat-square&label=open%20issues" alt="Open GitHub issues"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/commits/main"><img src="https://img.shields.io/github/last-commit/p4yy/GetANNY-Download-Manager/main?style=flat-square&label=last%20commit" alt="Last commit"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager"><img src="https://img.shields.io/github/repo-size/p4yy/GetANNY-Download-Manager?style=flat-square&label=repository%20size" alt="Repository size"></a>
-  <a href="https://github.com/p4yy/GetANNY-Download-Manager/graphs/contributors"><img src="https://img.shields.io/github/contributors/p4yy/GetANNY-Download-Manager?style=flat-square&label=contributors" alt="Contributors"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/issues"><img src="https://img.shields.io/github/issues/p4yy/GetANNY-Download-Manager?style=flat-square&label=open%20issues&cacheSeconds=300" alt="Open GitHub issues"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/commits/main"><img src="https://img.shields.io/github/last-commit/p4yy/GetANNY-Download-Manager/main?style=flat-square&label=last%20commit&cacheSeconds=300" alt="Last commit"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager"><img src="https://img.shields.io/github/repo-size/p4yy/GetANNY-Download-Manager?style=flat-square&label=repository%20size&cacheSeconds=300" alt="Repository size"></a>
+  <a href="https://github.com/p4yy/GetANNY-Download-Manager/graphs/contributors"><img src="https://img.shields.io/github/contributors/p4yy/GetANNY-Download-Manager?style=flat-square&label=contributors&cacheSeconds=300" alt="Contributors"></a>
 </p>
 
 <p align="center">
@@ -47,6 +47,15 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
 </p>
 
 <p align="center"><sub>A recorded preview of the download library, media studio, browser setup and settings.</sub></p>
+
+## Support GetANNY Download Manager
+
+If you find the app useful, you can support its development here:
+
+<p align="center">
+  <a href="https://www.paypal.com/paypalme/aceevisuals"><img src="https://img.shields.io/badge/PayPal-Support-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Support GetANNY Download Manager on PayPal"></a>
+  <a href="https://ko-fi.com/acevisualsco"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support GetANNY Download Manager on Ko-fi"></a>
+</p>
 
 ## Download GetANNY Download Manager
 
