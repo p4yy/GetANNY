@@ -77,10 +77,10 @@ Get the latest Windows installer from the [GitHub Releases page](https://github.
 ## Why GetANNY
 
 <p align="center">
-  <img src="docs/media/getanny-vs-idm.svg" alt="GetANNY: a modern download workspace for files, media, torrents and browser downloads" width="100%">
+  <img src="docs/media/getanny-vs-idm.svg" alt="Hand-drawn feature map comparing GetANNY and selected Internet Download Manager capabilities" width="100%">
 </p>
 
-GetANNY brings multi-connection file transfers, Media Studio, torrent support and an authenticated Browser Assistant into one configurable Windows workspace. Acev Dev Co’s hands-on pick: GetANNY felt faster in our testing and cleaner for everyday downloads. Speed varies by source, server and connection. IDM examples in the graphic are selected highlights from its [official features page](https://www.internetdownloadmanager.com/features2.html).
+Acev Dev Co’s hands-on pick is GetANNY: faster in our testing, cleaner to use, with Media Studio, torrent support and authenticated browser handoff together in one workspace. Speed varies by source, server and connection. IDM entries show selected capabilities from its [official feature list](https://www.internetdownloadmanager.com/features2.html); the graphic makes no measured speed comparison.
 
 ## Screenshots
 

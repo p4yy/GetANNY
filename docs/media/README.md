@@ -31,6 +31,6 @@ The main README links the published YouTube videos and downloadable MP4 copies.
 
 ## Product comparison graphic
 
-- `getanny-vs-idm.svg` — GetANNY-first product graphic highlighting its file, media, torrent, browser and customization workflows, with selected IDM capabilities for context.
-- Keep performance statements attributed to Acev Dev Co’s hands-on experience. Add numeric comparisons only when the products, versions, hardware, sources, connection, repetitions and measurement method are documented.
+- `getanny-vs-idm.svg` — chalkboard-style feature map. GetANNY receives the main visual focus; IDM entries summarize selected features from its official list.
+- Keep performance claims attributed to Acev Dev Co’s hands-on testing. Do not add speed ratios or scores without a documented, repeatable cross-product benchmark.
 
