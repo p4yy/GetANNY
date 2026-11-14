@@ -72,7 +72,9 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
 
 ## Download
 
-Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.## GetANNY vs IDM
+Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.
+
+## GetANNY vs IDM
 
 <p align="center">
   <img src="docs/media/getanny-vs-idm.svg" alt="Hand-drawn feature comparison of GetANNY and IDM" width="100%">
