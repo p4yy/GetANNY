@@ -62,23 +62,30 @@ Download the current Windows installer from the [GitHub Releases page](https://g
 
 ## Screenshots
 
-The extension screenshots show its browser controls and connection to the desktop app. Each image uses the same canvas size; the original local profile path has been cropped from the details capture.
+The browser extension and desktop connection flow, shown as a compact gallery. Select an image to open it at full size.
 
-![Extension details and permissions](docs/media/screenshots/browser-extension-details.png)
-
-**Extension details** · Permissions and browser settings.
-
-![Browser assistant popup connected to GetANNY](docs/media/screenshots/browser-extension-popup.png)
-
-**Browser assistant** · Send a supported file or media page to GetANNY.
-
-![Browser connection and pairing panel](docs/media/screenshots/browser-connection-pairing.png)
-
-**Connection & pairing** · Browser selection and connection controls.
-
-![GetANNY browser extension in the toolbar](docs/media/screenshots/browser-extension-toolbar.png)
-
-**Toolbar** · GetANNY Browser Assistant in the browser.
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/media/screenshots/browser-extension-details.png"><img src="docs/media/screenshots/browser-extension-details.png" width="320" alt="GetANNY Browser Assistant extension details and permissions"></a><br>
+      <sub><strong>Extension details</strong><br>Permissions and browser settings</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/media/screenshots/browser-extension-popup.png"><img src="docs/media/screenshots/browser-extension-popup.png" width="320" alt="GetANNY Browser Assistant popup connected to the desktop manager"></a><br>
+      <sub><strong>Browser assistant</strong><br>Send a supported file or media page to GetANNY</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/media/screenshots/browser-connection-pairing.png"><img src="docs/media/screenshots/browser-connection-pairing.png" width="320" alt="GetANNY browser connection and pairing controls"></a><br>
+      <sub><strong>Connection &amp; pairing</strong><br>Browser selection and connection controls</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/media/screenshots/browser-extension-toolbar.png"><img src="docs/media/screenshots/browser-extension-toolbar.png" width="320" alt="GetANNY Browser Assistant extension shown in the browser toolbar"></a><br>
+      <sub><strong>Toolbar</strong><br>GetANNY Browser Assistant in the browser</sub>
+    </td>
+  </tr>
+</table>
 
 ## Watch GetANNY
 
