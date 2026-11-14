@@ -71,9 +71,11 @@ Hosted Windows CI may leave Chrome unverified when its native picker cannot be s
 
 Use the Firefox package only. The fixed Gecko ID is `getanny@getanny.app`; permissions include `nativeMessaging` and the manifest uses Firefox background scripts / `browser_action` rather than a Chromium service worker / `action`.
 
-Development install: **about:debugging → This Firefox → Load Temporary Add-on → manifest.json**. It is temporary until Firefox restarts. The supplied ZIP is **not a signed XPI**. Regular Firefox permanent installation requires signing through Mozilla; no AMO account credentials, signature, store listing, or silent installation bypass was provided. Signing and the permanent-install workflow remain a release gate. Developer/Nightly special policies are not forced on users.
+Regular installation: choose **Install from Firefox Add-ons** in GetANNY's **Browser integration** page, or install from the [GetANNY Firefox Add-ons listing](https://addons.mozilla.org/fr/firefox/addon/getanny-downlaod-manager/). Then complete Firefox setup in GetANNY and confirm that the extension connects.
 
-Updates: reload the temporary add-on, or obtain a newly Mozilla-signed package through an authorized signing/store release process when one exists. Do not rename an unsigned ZIP to XPI and call it production signed.
+Development install: **about:debugging → This Firefox → Load Temporary Add-on → manifest.json**. This bundled development install is temporary and Firefox removes it when Firefox restarts. The supplied ZIP is **not a signed XPI**; use the Firefox Add-ons listing for a regular install.
+
+Updates: Firefox manages updates for add-ons installed from Firefox Add-ons. For a temporary development install, reload the add-on after replacing its files. Do not rename an unsigned ZIP to XPI and call it production signed.
 
 ## Direct bridge, native bootstrap and recovery
 
