@@ -144,9 +144,9 @@ Acev Apps Co’s pick: GetANNY—faster in our testing and cleaner to use. IDM e
 
 Media and torrent availability depends on the source and network. GetANNY does not bypass DRM or site access restrictions. See [release notes](docs/RELEASE_NOTES.md) for version-specific changes and the [latest Actions run](https://github.com/p4yy/GetANNY-Download-Manager/actions/workflows/release.yml) for current build and verification status.
 
-## About GetANNY
+## Original codebase
 
-GetANNY is an independently developed Windows app published by Acev Apps Co. Its download library, Media Studio, torrent workflow and browser bridge are implemented for this project. It also uses separately licensed tools and libraries for specialist functions; see [third-party notices](docs/THIRD_PARTY.md).
+Acev Apps Co developed GetANNY as its own Windows application. The interface and download, media, torrent and browser workflows were written for GetANNY without reverse-engineering an existing download manager. Third-party tools and libraries are listed in [third-party notices](docs/THIRD_PARTY.md).
 
 ## Getting started
 
@@ -204,3 +204,10 @@ If you find the app useful, you can support its development here:
 ## License
 
 GetANNY’s project code is licensed under the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) lists Acev Apps Co as publisher; third-party components retain their own licenses, listed in [third-party notices](docs/THIRD_PARTY.md).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/acev-apps-co-wordmark-white.png">
+    <img src="assets/brand/acev-apps-co-wordmark-dark.png" alt="Acev Apps Co" width="150">
+  </picture>
+</p>
