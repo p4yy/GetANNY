@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1020" role="img" aria-labelledby="title desc">
+<title id="title">GetANNY and Internet Download Manager feature comparison</title>
+<desc id="desc">A chalkboard-style side-by-side comparison of download manager features, followed by Acev Dev Co's attributed hands-on preference for GetANNY.</desc>
+<defs>
+  <linearGradient id="board" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08131c"/><stop offset="1" stop-color="#101d27"/></linearGradient>
+  <linearGradient id="blue" x1="0" x2="1"><stop stop-color="#0ca8ef"/><stop offset="1" stop-color="#45c8ff"/></linearGradient>
+  <linearGradient id="orange" x1="0" x2="1"><stop stop-color="#ff8a21"/><stop offset="1" stop-color="#ffb044"/></linearGradient>
+  <filter id="chalk" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="8" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.3"/></filter>
+</defs>
+<rect width="1400" height="1020" rx="26" fill="url(#board)"/>
+<path d="M30 34H1370V986H30Z" fill="none" stroke="#b7c6cf" stroke-opacity=".36" stroke-width="3"/>
+<g fill="#d8e6ed" opacity=".25">
+  <circle cx="104" cy="92" r="2"/><circle cx="1265" cy="74" r="2"/><circle cx="1320" cy="915" r="2"/>
+  <circle cx="57" cy="833" r="2"/><circle cx="456" cy="52" r="1.6"/><circle cx="932" cy="960" r="1.6"/>
+</g>
+<text x="700" y="93" fill="#78d9ff" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" letter-spacing="5" text-anchor="middle">DOWNLOAD MANAGER · FEATURE SNAPSHOT</text>
+<text x="700" y="158" fill="#f4f7f8" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800" text-anchor="middle">GETANNY  vs  INTERNET DOWNLOAD MANAGER</text>
+<path d="M286 181H1114" stroke="#d6e4ea" stroke-opacity=".45" stroke-width="2"/>
+<g filter="url(#chalk)">
+  <rect x="54" y="212" width="636" height="594" rx="18" fill="#0c1923" stroke="#83d8ff" stroke-opacity=".82" stroke-width="3"/>
+  <rect x="710" y="212" width="636" height="594" rx="18" fill="#0c1923" stroke="#ffb04a" stroke-opacity=".82" stroke-width="3"/>
+</g>
+<path d="M77 291H667M733 291H1323" stroke="#d4e2e8" stroke-opacity=".25" stroke-width="2"/>
+<text x="88" y="263" fill="#47c5ff" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="800">GETANNY</text>
+<text x="744" y="263" fill="#ffb04a" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="800">INTERNET DOWNLOAD MANAGER</text>
+<text x="88" y="285" fill="#adc2ce" font-family="Arial, Helvetica, sans-serif" font-size="16" letter-spacing="2">WINDOWS DOWNLOAD MANAGER</text>
+<text x="744" y="285" fill="#adc2ce" font-family="Arial, Helvetica, sans-serif" font-size="16" letter-spacing="2">WINDOWS DOWNLOAD MANAGER</text>
+<g font-family="Arial, Helvetica, sans-serif">
+  <g>
+    <circle cx="104" cy="338" r="18" fill="#12384b" stroke="#37baff" stroke-width="2"/><text x="104" y="345" fill="#b9edff" font-size="17" font-weight="700" text-anchor="middle">01</text>
+    <text x="139" y="337" fill="#f3f7f9" font-size="24" font-weight="700">Multi-connection transfers</text><text x="139" y="367" fill="#c2d0d7" font-size="18">HTTP/S downloads with pause, resume and retry</text>
+    <circle cx="760" cy="338" r="18" fill="#3b2917" stroke="#ff9d36" stroke-width="2"/><text x="760" y="345" fill="#ffe0b8" font-size="17" font-weight="700" text-anchor="middle">01</text>
+    <text x="795" y="337" fill="#f3f7f9" font-size="24" font-weight="700">Dynamic segmentation</text><text x="795" y="367" fill="#c2d0d7" font-size="18">Splits downloads into dynamically sized segments</text>
+  </g>
+  <path d="M88 390H656M744 390H1312" stroke="#c6d4dc" stroke-opacity=".14"/>
+  <g>
+    <circle cx="104" cy="437" r="18" fill="#12384b" stroke="#37baff" stroke-width="2"/><text x="104" y="444" fill="#b9edff" font-size="17" font-weight="700" text-anchor="middle">02</text>
+    <text x="139" y="436" fill="#f3f7f9" font-size="24" font-weight="700">Media Studio</text><text x="139" y="466" fill="#c2d0d7" font-size="18">Formats, thumbnails, subtitles and video segments</text>
+    <circle cx="760" cy="437" r="18" fill="#3b2917" stroke="#ff9d36" stroke-width="2"/><text x="760" y="444" fill="#ffe0b8" font-size="17" font-weight="700" text-anchor="middle">02</text>
+    <text x="795" y="436" fill="#f3f7f9" font-size="24" font-weight="700">Resume and recovery</text><text x="795" y="466" fill="#c2d0d7" font-size="18">Resumes interrupted transfers after connection errors</text>
+  </g>
+  <path d="M88 489H656M744 489H1312" stroke="#c6d4dc" stroke-opacity=".14"/>
+  <g>
+    <circle cx="104" cy="536" r="18" fill="#12384b" stroke="#37baff" stroke-width="2"/><text x="104" y="543" fill="#b9edff" font-size="17" font-weight="700" text-anchor="middle">03</text>
+    <text x="139" y="535" fill="#f3f7f9" font-size="24" font-weight="700">Browser handoff</text><text x="139" y="565" fill="#c2d0d7" font-size="18">Authenticated local browser-to-app connection</text>
+    <circle cx="760" cy="536" r="18" fill="#3b2917" stroke="#ff9d36" stroke-width="2"/><text x="760" y="543" fill="#ffe0b8" font-size="17" font-weight="700" text-anchor="middle">03</text>
+    <text x="795" y="535" fill="#f3f7f9" font-size="24" font-weight="700">Browser integration</text><text x="795" y="565" fill="#c2d0d7" font-size="18">Captures downloads from supported browsers</text>
+  </g>
+  <path d="M88 588H656M744 588H1312" stroke="#c6d4dc" stroke-opacity=".14"/>
+  <g>
+    <circle cx="104" cy="635" r="18" fill="#12384b" stroke="#37baff" stroke-width="2"/><text x="104" y="642" fill="#b9edff" font-size="17" font-weight="700" text-anchor="middle">04</text>
+    <text x="139" y="634" fill="#f3f7f9" font-size="24" font-weight="700">Torrent support</text><text x="139" y="664" fill="#c2d0d7" font-size="18">Add magnet links and .torrent files</text>
+    <circle cx="760" cy="635" r="18" fill="#3b2917" stroke="#ff9d36" stroke-width="2"/><text x="760" y="642" fill="#ffe0b8" font-size="17" font-weight="700" text-anchor="middle">04</text>
+    <text x="795" y="634" fill="#f3f7f9" font-size="24" font-weight="700">Video downloads</text><text x="795" y="664" fill="#c2d0d7" font-size="18">Browser panel for supported media pages</text>
+  </g>
+  <path d="M88 687H656M744 687H1312" stroke="#c6d4dc" stroke-opacity=".14"/>
+  <g>
+    <circle cx="104" cy="734" r="18" fill="#12384b" stroke="#37baff" stroke-width="2"/><text x="104" y="741" fill="#b9edff" font-size="17" font-weight="700" text-anchor="middle">05</text>
+    <text x="139" y="733" fill="#f3f7f9" font-size="24" font-weight="700">Configurable workspace</text><text x="139" y="763" fill="#c2d0d7" font-size="18">12 themes, seven languages and scheduling</text>
+    <circle cx="760" cy="734" r="18" fill="#3b2917" stroke="#ff9d36" stroke-width="2"/><text x="760" y="741" fill="#ffe0b8" font-size="17" font-weight="700" text-anchor="middle">05</text>
+    <text x="795" y="733" fill="#f3f7f9" font-size="24" font-weight="700">Queues and scheduling</text><text x="795" y="763" fill="#c2d0d7" font-size="18">Organizes downloads and scheduled sessions</text>
+  </g>
+</g>
+<path d="M150 843H1250" stroke="#d8e4e8" stroke-opacity=".38" stroke-width="2"/>
+<path d="M150 839l26 4-26 4M1250 839l-26 4 26 4" fill="none" stroke="#d8e4e8" stroke-opacity=".55" stroke-width="2"/>
+<text x="700" y="888" fill="#5ccaff" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800" letter-spacing="2" text-anchor="middle">ACEV DEV CO’S HANDS-ON PICK: GETANNY</text>
+<text x="700" y="928" fill="#f1f5f7" font-family="Arial, Helvetica, sans-serif" font-size="22" text-anchor="middle">Faster in our hands-on testing. Cleaner for everyday downloads.</text>
+<text x="700" y="970" fill="#aebdc6" font-family="Arial, Helvetica, sans-serif" font-size="16" text-anchor="middle">Publisher assessment, not a published controlled benchmark. Speed varies by source, connection and setup.</text>
+</svg>

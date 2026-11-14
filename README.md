@@ -59,6 +59,8 @@
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
+  <a href="#comparison">Comparison</a>
+  &nbsp;·&nbsp;
   <a href="#screenshots">Screenshots</a>
   &nbsp;·&nbsp;
   <a href="#videos">Videos</a>
@@ -71,6 +73,14 @@ GetANNY Download Manager brings everyday downloads into one desktop workspace. M
 ## Download
 
 Get the latest Windows installer from the [GitHub Releases page](https://github.com/p4yy/GetANNY-Download-Manager/releases/latest). See the [Windows installation guide](docs/INSTALL_WINDOWS.md) before installing.
+
+## Comparison
+
+<p align="center">
+  <img src="docs/media/getanny-vs-idm.svg" alt="Feature comparison of GetANNY Download Manager and Internet Download Manager" width="100%">
+</p>
+
+Acev Dev Co’s hands-on pick is GetANNY: faster in our hands-on testing, with a cleaner everyday workflow. This is the publisher’s assessment, not a published controlled benchmark; transfer speed varies by source, connection and setup. IDM feature descriptions are summarized from its [official features page](https://www.internetdownloadmanager.com/features2.html).
 
 ## Screenshots
 

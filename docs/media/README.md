@@ -28,3 +28,9 @@ Use concise alt text that describes the screen. Before committing, check that sc
 - `demonstration/getanny-in-action.mp4` — GetANNY product walkthrough.
 
 The main README links the published YouTube videos and downloadable MP4 copies.
+
+## Feature comparison graphic
+
+- `getanny-vs-idm.svg` — chalkboard-style feature comparison of GetANNY and Internet Download Manager. It summarizes listed product capabilities; the publisher preference is attributed to Acev Dev Co and is not a controlled benchmark.
+- Keep numeric performance claims out unless the exact products, versions, hardware, source, connection, repetitions and measurement method are documented. Link IDM feature summaries to its official feature page.
+
