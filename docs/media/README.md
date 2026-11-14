@@ -29,8 +29,8 @@ Use concise alt text that describes the screen. Before committing, check that sc
 
 The main README links the published YouTube videos and downloadable MP4 copies.
 
-## Feature comparison graphic
+## Product comparison graphic
 
-- `getanny-vs-idm.svg` — chalkboard-style feature comparison of GetANNY and Internet Download Manager. It summarizes listed product capabilities; the publisher preference is attributed to Acev Dev Co and is not a controlled benchmark.
-- Keep numeric performance claims out unless the exact products, versions, hardware, source, connection, repetitions and measurement method are documented. Link IDM feature summaries to its official feature page.
+- `getanny-vs-idm.svg` — GetANNY-first product graphic highlighting its file, media, torrent, browser and customization workflows, with selected IDM capabilities for context.
+- Keep performance statements attributed to Acev Dev Co’s hands-on experience. Add numeric comparisons only when the products, versions, hardware, sources, connection, repetitions and measurement method are documented.
 
