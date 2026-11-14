@@ -1,33 +1,30 @@
 # GetANNY media
 
-This folder contains genuine captures of GetANNY Download Manager and the two supplied walkthroughs. Keep screenshots and recordings inside the named subfolders below. Use only recordings and screenshots of the real app; never substitute mockups or generated product imagery.
+This folder holds genuine GetANNY screenshots and the supplied walkthrough videos. Use captures from the real application; do not substitute mockups or generated product images.
 
-## Screenshots
+## Desktop screenshots
 
-Current screenshots are in `screenshots/`:
+- `screenshots/downloads.png` — main download library.
+- `screenshots/themes.png` — theme gallery.
+- `screenshots/media-studio.png` — Media Studio.
+- `screenshots/settings.png` — transfer settings.
 
-- `browser-extension-details.png` — extension details and user controlled browser permissions. The original capture was cropped above the local profile path.
-- `browser-extension-popup.png` — the connected extension popup and send to desktop action.
-- `browser-connection-pairing.png` — the connection and pairing panel.
-- `browser-extension-toolbar.png` — the extension entry in the browser toolbar.
+## Browser screenshots
 
-For future product captures, use these names in `screenshots/`:
+- `screenshots/browser-extension-details.png` — extension details and browser permissions.
+- `screenshots/browser-extension-popup.png` — Browser Assistant popup.
+- `screenshots/browser-connection-pairing.png` — pairing controls in the desktop app.
+- `screenshots/browser-extension-toolbar.png` — extension in the browser toolbar.
 
-- `downloads.png` — the main download library.
-- `media-studio.png` — media formats or preview controls.
-- `themes.png` — theme gallery.
-- `browser-setup.png` — desktop browser connection status.
-- `settings.png` — app settings.
+## Updating the README gallery
 
-Capture the current Windows application at a readable size. Before committing, remove or cover personal paths, usernames, private URLs, download history and credentials. Preserve the UI's original appearance; do not add promotional text or change what the app displays.
+The root README keeps screenshots in a collapsed gallery. Keep the gallery compact: desktop screenshots use the same thumbnail width in a two-column table, with short captions; browser extension screenshots use a matching table below them. Add an image link only after the corresponding file is present in this folder.
 
-### Updating the main README
-
-After adding a screenshot, confirm the file exists and update the **Screenshots** section in the root `README.md`. Use a concise, accurate alt description and a relative path, for example `![Download library](docs/media/screenshots/downloads.png)`. Keep multiple images inside the existing collapsible gallery so the README remains easy to scan on mobile. Never add image links before the corresponding files are committed.
+Use concise alt text that describes the screen. Before committing, check that screenshots do not expose personal paths, usernames, private URLs, download history or credentials. Preserve the real interface without adding promotional claims or altering displayed app content.
 
 ## Demonstration videos
 
-- `demonstration/installation.mp4` — Windows installation walkthrough (H.264, 720p, 30 fps).
-- `demonstration/getanny-in-action.mp4` — GetANNY product walkthrough (H.264, 720p, 30 fps).
+- `demonstration/installation.mp4` — Windows installation and browser integration walkthrough.
+- `demonstration/getanny-in-action.mp4` — GetANNY product walkthrough.
 
-The README shows clickable YouTube thumbnails for the published walkthroughs and links to the local MP4 copies. The animated product preview at the top plays inline; the MP4 links provide downloadable copies.
+The main README links the published YouTube videos and downloadable MP4 copies.
