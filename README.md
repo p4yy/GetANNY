@@ -62,7 +62,10 @@ Download the current Windows installer from the [GitHub Releases page](https://g
 
 ## Screenshots
 
-The browser extension and desktop connection flow, shown as a compact gallery. Select an image to open it at full size.
+<details>
+<summary>View browser extension screenshots</summary>
+
+The browser extension and desktop connection flow. Select an image to open it at full size.
 
 <table>
   <tr>
@@ -86,6 +89,8 @@ The browser extension and desktop connection flow, shown as a compact gallery. S
     </td>
   </tr>
 </table>
+
+</details>
 
 ## Watch GetANNY
 
