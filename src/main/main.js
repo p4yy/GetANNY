@@ -150,10 +150,15 @@ function releaseUnusedMediaOnTrayIdle() {
   // No renderer remains. Clear heavyweight analysis metadata only once
   // the last transfer is inactive, including after pause/completion.
   // Torrent seeding remains active and is never interrupted.
-  if (exiting || !hiddenToTray || !services ||
-      (win && !win.isDestroyed())) return;
-  const busy = services.manager.getAll().some((item) =>
-    ["connecting", "downloading", "processing", "seeding"].includes(item.status));
+  if (exiting || !hiddenToTray || !services || (win && !win.isDestroyed()))
+    return;
+  const busy = services.manager
+    .getAll()
+    .some((item) =>
+      ["connecting", "downloading", "processing", "seeding"].includes(
+        item.status,
+      ),
+    );
   if (!busy) services.mediaDetector.releaseIdleMetadata();
 }
 async function createWindow({ forceShow = false } = {}) {
@@ -359,38 +364,6 @@ async function init() {
     return;
   }
 
-  // Repair stale installer output on the first normal launch after an update
-  // or install-path change. This never installs/enables an extension or edits a
-  // browser profile; it refreshes only GetANNY-owned files and HKCU host keys.
-  if (
-    app.isPackaged &&
-    !selfTest &&
-    testDataIndex < 0 &&
-    !process.env.PORTABLE_EXECUTABLE_FILE
-  ) {
-    const {
-      setupBrowserIntegration,
-      browserIntegrationNeedsRepair,
-    } = require("./browser-integration/BrowserIntegrationSetup");
-    if (
-      await browserIntegrationNeedsRepair({
-        userDataPath,
-        version: app.getVersion(),
-        appPath: process.execPath,
-      })
-    )
-      await setupBrowserIntegration({
-        userDataPath,
-        extensionPath,
-        binPath,
-        appPath: process.execPath,
-        isPackaged: true,
-        version: app.getVersion(),
-      }).catch((error) =>
-        log.warn("Browser integration auto-repair:", error.message),
-      );
-  }
-
   const { createServices } = require("./services");
   services = await createServices({
     userDataPath,
@@ -530,6 +503,40 @@ async function init() {
   )
     hiddenToTray = true;
   else await createWindow();
+  // An install-path repair can inspect and rewrite several browser bridge
+  // files. Run it after the first window is up so a healthy app launch never
+  // waits behind optional integration maintenance.
+  if (
+    app.isPackaged &&
+    !selfTest &&
+    testDataIndex < 0 &&
+    !process.env.PORTABLE_EXECUTABLE_FILE
+  ) {
+    const {
+      setupBrowserIntegration,
+      browserIntegrationNeedsRepair,
+    } = require("./browser-integration/BrowserIntegrationSetup");
+    void browserIntegrationNeedsRepair({
+      userDataPath,
+      version: app.getVersion(),
+      appPath: process.execPath,
+    })
+      .then((needed) =>
+        needed
+          ? setupBrowserIntegration({
+              userDataPath,
+              extensionPath,
+              binPath,
+              appPath: process.execPath,
+              isPackaged: true,
+              version: app.getVersion(),
+            })
+          : null,
+      )
+      .catch((error) =>
+        log.warn("Browser integration auto-repair:", error.message),
+      );
+  }
   if (updater)
     setTimeout(
       () =>
@@ -578,7 +585,7 @@ async function init() {
         if (lingering.length)
           throw new Error(
             "Renderer process remained after tray close: " +
-            lingering.map((metric) => metric.pid).join(","),
+              lingering.map((metric) => metric.pid).join(","),
           );
         const beforeIdle = process.cpuUsage();
         await delay(10000);

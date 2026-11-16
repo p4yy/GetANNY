@@ -26,6 +26,9 @@
       <div id="status" class="connection" role="status">
         Checking desktop connection…
       </div>
+      <div class="engine-coming-soon">
+        <strong>𝘈𝘝® Engine</strong><span>Coming soon</span>
+      </div>
       <div class="section-heading">
         <h1>Send to your desktop</h1>
         <button id="tab" class="text-button">Use this page</button>
@@ -67,9 +70,8 @@
             >Include site cookies (Required for Cloud/Private files)</label
           >
           <p class="cookie-privacy" id="cookie-privacy">
-            Securely sends session cookies ONLY to your local GetANNY app so it
-            can authorize this download. Unfinished sessions can be retained
-            locally with operating-system encryption.
+            When enabled, matching site cookies go only to your local GetANNY
+            app to authorize downloads. Saved sessions are protected locally.
           </p>
         </div>
         <label class="cookie-switch" aria-label="Include site cookies">
@@ -89,7 +91,9 @@
         >
       </div>
       <p id="message" role="status"></p>
-      <button id="download-social" type="button" hidden>Download all media posts</button>
+      <button id="download-social" type="button" hidden>
+        Download all media posts
+      </button>
       <section id="detected-section" hidden>
         <h2>Detected on this page</h2>
         <div id="detected"></div>

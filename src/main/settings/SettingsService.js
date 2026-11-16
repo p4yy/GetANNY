@@ -8,6 +8,7 @@ class SettingsService {
     this.values = { ...this.defaults };
     // Discard invalid legacy values instead of breaking startup.
     const saved = repo.getAll();
+    if (Object.hasOwn(saved, "avEngineEnabled")) repo.delete("avEngineEnabled");
     for (let [key, value] of Object.entries(saved)) {
       if (key === "theme" && value === "dark") value = "graphite";
       try {
@@ -15,6 +16,13 @@ class SettingsService {
       } catch {
         /* unsupported legacy preference */
       }
+    }
+    // 122 was accidentally saved as the shipped simultaneous-download
+    // default. Correct that specific bad default while preserving other
+    // deliberately chosen concurrency values.
+    if (saved.maxConcurrentDownloads === 122) {
+      this.values.maxConcurrentDownloads = this.defaults.maxConcurrentDownloads;
+      repo.set("maxConcurrentDownloads", this.defaults.maxConcurrentDownloads);
     }
     // Preserve the old accessibility preference when upgrading existing users.
     if (saved.animationMode === undefined && saved.reduceMotion === true)

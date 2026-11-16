@@ -10,6 +10,7 @@ class MediaDetector {
     this.ytdlp = wrapper || new YtDlpWrapper({ binPath });
     this.sniffer = new StreamSniffer({ onMedia });
     this.analyses = new Map();
+    this.activeAnalyses = new Map();
     this.captures = new PlaybackCapture();
   }
   capture(data) {
@@ -34,7 +35,23 @@ class MediaDetector {
   }
   async getFormats(url, options) {
     url = validateUrl(url);
-    const result = await this.ytdlp.getFormats(url, options);
+    const requestId = options?.requestId;
+    const controller = requestId ? new AbortController() : null;
+    if (requestId) {
+      this.cancelAnalysis(requestId);
+      this.activeAnalyses.set(requestId, controller);
+    }
+    let result;
+    try {
+      result = await this.ytdlp.getFormats(url, {
+        ...options,
+        ...(controller ? { signal: controller.signal } : {}),
+      });
+      controller?.signal.throwIfAborted();
+    } finally {
+      if (requestId && this.activeAnalyses.get(requestId) === controller)
+        this.activeAnalyses.delete(requestId);
+    }
     const analysisId = randomUUID();
     for (const [key, value] of this.analyses)
       if (Date.now() - value.createdAt > 30 * 60 * 1000)
@@ -47,6 +64,14 @@ class MediaDetector {
     while (this.analyses.size > 20)
       this.analyses.delete(this.analyses.keys().next().value);
     return { ...result, analysisId, tools: await this.ytdlp.availability() };
+  }
+  cancelAnalysis(requestId) {
+    if (typeof requestId !== "string" || requestId.length > 64) return false;
+    const controller = this.activeAnalyses.get(requestId);
+    if (!controller) return false;
+    this.activeAnalyses.delete(requestId);
+    controller.abort();
+    return true;
   }
   async getPlaylist(url, options) {
     return this.ytdlp.getPlaylist(validateUrl(url), options);
@@ -98,6 +123,35 @@ class MediaDetector {
       : null;
     if (audioFormatId && !audio)
       throw new Error("Choose an available audio track.");
+    const estimateFormatSize = (value) => {
+      const known = Number(value?.filesize) || 0;
+      if (known > 0)
+        return { bytes: known, approximate: value.approximateSize === true };
+      const bitrate = Number(value?.bitrate) || 0;
+      const duration = Number(analysis.duration) || 0;
+      if (bitrate <= 0 || duration <= 0) return { bytes: 0, approximate: true };
+      const bytes = Math.round((bitrate * 1000 * duration) / 8);
+      return {
+        bytes: Number.isSafeInteger(bytes) && bytes > 0 ? bytes : 0,
+        approximate: true,
+      };
+    };
+    const formatEstimate = estimateFormatSize(format);
+    const audioEstimate = estimateFormatSize(audio);
+    let estimatedTotalSize = format.mergeAudio
+      ? audio && formatEstimate.bytes && audioEstimate.bytes
+        ? formatEstimate.bytes + audioEstimate.bytes
+        : 0
+      : formatEstimate.bytes;
+    if (estimatedTotalSize && validatedSegment && analysis.duration > 0)
+      estimatedTotalSize = Math.max(
+        1,
+        Math.round(
+          (estimatedTotalSize *
+            (validatedSegment.end - validatedSegment.start)) /
+            analysis.duration,
+        ),
+      );
     const mode = exportOptions.mode || "precise";
     const container = exportOptions.container || "mkv";
     const quality = exportOptions.quality || "high";
@@ -119,6 +173,12 @@ class MediaDetector {
         audioOnly: format.group === "audio",
         ext: format.ext,
         quality: format.quality,
+        estimatedTotalSize,
+        estimatedSizeApproximate:
+          formatEstimate.approximate ||
+          (format.mergeAudio && audioEstimate.approximate) ||
+          !!format.mergeAudio ||
+          !!validatedSegment,
         audioUnknown: format.audioUnknown,
         segment: validatedSegment,
         seekableSection:

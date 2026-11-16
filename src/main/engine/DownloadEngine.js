@@ -275,9 +275,19 @@ class DownloadEngine extends EventEmitter {
       });
       this.tickBytes = 0;
       this.lastTick = performance.now();
+      let lastDataTick = this.lastTick;
       ticker = setInterval(() => {
         const now = performance.now();
-        this.speed = (this.tickBytes * 1000) / Math.max(1, now - this.lastTick);
+        const sample =
+          (this.tickBytes * 1000) / Math.max(1, now - this.lastTick);
+        // Smooth short bursts from parallel ranges into a stable live rate so
+        // ETA does not jump on every 400 ms reporting tick.
+        if (this.tickBytes > 0) {
+          lastDataTick = now;
+          this.speed =
+            this.speed > 0 ? this.speed * 0.68 + sample * 0.32 : sample;
+        } else if (now - lastDataTick > 1800) this.speed = 0;
+        else this.speed *= 0.78;
         this.tickBytes = 0;
         this.lastTick = now;
         this.emit("progress", this.id, this.progress());

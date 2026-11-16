@@ -408,7 +408,12 @@ class WebSocketServer {
                 ? message.pageUrl
                 : undefined,
             title: String(message.title || "").slice(0, 240),
-            mimeType: boundedString(message.mimeType, 100, "Media response type"),
+            mimeType: boundedString(
+              message.mimeType,
+              100,
+              "Media response type",
+            ),
+            headers: cleanHeaders(message.headers),
             source: state.browserId,
             detectedAt: Date.now(),
           });

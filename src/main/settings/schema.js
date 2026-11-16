@@ -48,8 +48,8 @@ const BROWSERS = browsers.map(({ id }) => id);
 function defaults(downloadPath) {
   return {
     defaultDownloadPath: downloadPath,
-    maxConcurrentDownloads: 3,
-    maxConnectionsPerDownload: 8,
+    maxConcurrentDownloads: 12,
+    maxConnectionsPerDownload: 64,
     speedLimit: 0,
     adaptiveSpeedLimit: false,
     activeSpeedLimit: 1024 * 1024,
@@ -70,7 +70,7 @@ function defaults(downloadPath) {
     closeToTray: true,
     launchAtLogin: false,
     startMinimized: false,
-    theme: "evergreen",
+    theme: "contrast",
     language: "en",
     compactList: false,
     interfaceSize: "classic",
@@ -83,6 +83,7 @@ function defaults(downloadPath) {
     clipboardMonitoring: false,
     completionSound: true,
     completionSoundVolume: 50,
+    completionSoundStyle: "classic",
     preferredBrowser: "chrome",
     bringToFrontOnCapture: true,
     welcomeCompleted: false,
@@ -212,6 +213,9 @@ function validateSetting(key, value) {
   } else if (key === "animationMode") {
     if (!["standard", "expressive", "reduced", "disabled"].includes(value))
       throw new Error("Choose a supported animation mode.");
+  } else if (key === "completionSoundStyle") {
+    if (!["classic", "gentle", "bright", "double"].includes(value))
+      throw new Error("Choose a supported completion sound.");
   } else if (key === "preferredBrowser") {
     if (!BROWSERS.includes(value))
       throw new Error("Choose a supported browser.");

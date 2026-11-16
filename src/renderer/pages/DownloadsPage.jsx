@@ -9,6 +9,18 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaPinterestP,
+  FaRedditAlien,
+  FaTiktok,
+  FaTwitch,
+  FaVimeoV,
+  FaXTwitter,
+  FaYoutube,
+} from "react-icons/fa6";
+import {
   LuPlus,
   LuSearch,
   LuPause,
@@ -54,7 +66,10 @@ import { useI18n } from "../i18n/useI18n";
 import VirtualList from "../components/VirtualList";
 import { addRange } from "../utils/download-selection.mjs";
 import { useDownloadMarquee } from "../hooks/useDownloadMarquee";
-import { isCompletedTorrentFile, openCompletedTorrent } from "../utils/torrent-file-action.mjs";
+import {
+  isCompletedTorrentFile,
+  openCompletedTorrent,
+} from "../utils/torrent-file-action.mjs";
 const icons = {
   Archives: LuFileArchive,
   Documents: LuFileText,
@@ -63,6 +78,94 @@ const icons = {
   Applications: LuPackage,
   Images: LuImage,
 };
+const sourcePlatforms = [
+  {
+    name: "YouTube",
+    Icon: FaYoutube,
+    hosts: ["youtube.com", "youtu.be", "youtube-nocookie.com"],
+    color: "#ff4f5e",
+  },
+  { name: "TikTok", Icon: FaTiktok, hosts: ["tiktok.com"], color: "#d8e7e3" },
+  {
+    name: "Facebook",
+    Icon: FaFacebookF,
+    hosts: ["facebook.com", "fb.watch"],
+    color: "#6c9cff",
+  },
+  {
+    name: "Instagram",
+    Icon: FaInstagram,
+    hosts: ["instagram.com"],
+    color: "#e78fbd",
+  },
+  {
+    name: "X",
+    Icon: FaXTwitter,
+    hosts: ["x.com", "twitter.com"],
+    color: "#d8e7e3",
+  },
+  {
+    name: "Reddit",
+    Icon: FaRedditAlien,
+    hosts: ["reddit.com", "redd.it"],
+    color: "#ff8058",
+  },
+  { name: "Vimeo", Icon: FaVimeoV, hosts: ["vimeo.com"], color: "#72c5d8" },
+  { name: "Twitch", Icon: FaTwitch, hosts: ["twitch.tv"], color: "#ad91ff" },
+  {
+    name: "Pinterest",
+    Icon: FaPinterestP,
+    hosts: ["pinterest.com", "pin.it"],
+    color: "#ff6572",
+  },
+  {
+    name: "LinkedIn",
+    Icon: FaLinkedinIn,
+    hosts: ["linkedin.com"],
+    color: "#6ca8ff",
+  },
+];
+function SourcePlatformMark({ item }) {
+  if (item.kind === "torrent")
+    return (
+      <span
+        className="source-platform-mark torrent"
+        title="Torrent"
+        aria-label="Torrent download"
+      >
+        <LuMagnet aria-hidden="true" />
+      </span>
+    );
+  if (!(
+    item.kind === "media" ||
+    /\.(?:mp4|m4v|mov|mkv|webm|avi)(?:$|[?#])/i.test(item.filename || "")
+  ))
+    return null;
+  for (const source of [item.sourcePage, item.browserPage, item.url]) {
+    try {
+      const host = new URL(source).hostname.toLowerCase().replace(/^www\./, "");
+      const match = sourcePlatforms.find(({ hosts }) =>
+        hosts.some((domain) => host === domain || host.endsWith(`.${domain}`)),
+      );
+      if (match) {
+        const { Icon } = match;
+        return (
+          <span
+            className="source-platform-mark"
+            title={match.name}
+            aria-label={`${match.name} source`}
+            style={{ "--platform-mark-color": match.color }}
+          >
+            <Icon aria-hidden="true" />
+          </span>
+        );
+      }
+    } catch {
+      /* this source is not a page URL */
+    }
+  }
+  return null;
+}
 const titleKeys = {
   all: "downloads.all.title",
   active: "downloads.active.title",
@@ -163,7 +266,9 @@ function DownloadPreview({ item, Icon }) {
     "Documents",
     "Applications",
   ].includes(item.category);
-  const [url, setUrl] = useState(previewCache.get(item.id) || item.posterUrl || null);
+  const [url, setUrl] = useState(
+    previewCache.get(item.id) || item.posterUrl || null,
+  );
   useEffect(() => {
     if (item.posterUrl && !previewCache.has(item.id)) setUrl(item.posterUrl);
   }, [item.id, item.posterUrl]);
@@ -210,8 +315,17 @@ function DownloadPreview({ item, Icon }) {
       className={`file-icon ${item.category?.toLowerCase()} ${url ? "has-preview" : ""}`}
     >
       <Icon aria-hidden="true" />
-      {url && <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"
-        onError={(event) => { event.currentTarget.hidden = true; }} />}
+      {url && (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(event) => {
+            event.currentTarget.hidden = true;
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -270,8 +384,10 @@ function DownloadRow({
   const knownSize = item.totalSize > 0 || item.status === "completed";
   const pct =
     item.totalSize > 0
-      ? Math.min(item.kind === "torrent" && item.status === "downloading" ? 99.9 : 100,
-        (item.downloadedSize / item.totalSize) * 100)
+      ? Math.min(
+          item.kind === "torrent" && item.status === "downloading" ? 99.9 : 100,
+          (item.downloadedSize / item.totalSize) * 100,
+        )
       : item.status === "completed"
         ? 100
         : 0;
@@ -288,14 +404,18 @@ function DownloadRow({
     }
   };
   const torrentFileReady = isCompletedTorrentFile(item);
-  const originalPage = !item.privateSession && (
-    item.sourcePage || item.browserPage || (item.kind === "media" ? item.url : null)
-  );
+  const originalPage =
+    !item.privateSession &&
+    (item.sourcePage ||
+      item.browserPage ||
+      (item.kind === "media" ? item.url : null));
   const canOpenOriginalPage =
     typeof originalPage === "string" && /^https?:\/\//i.test(originalPage);
   const sendToTorrents = () => {
     if (!openCompletedTorrent(item, useUIStore.getState()))
-      useUIStore.getState().notify(t("downloads.torrentFileUnavailable"), "error");
+      useUIStore
+        .getState()
+        .notify(t("downloads.torrentFileUnavailable"), "error");
   };
   const openMenu = (event) => {
     const box = event.currentTarget.getBoundingClientRect();
@@ -303,11 +423,13 @@ function DownloadRow({
   };
   const actions = [
     ...(torrentFileReady
-      ? [{
-          label: t("downloads.action.sendToTorrents"),
-          icon: LuMagnet,
-          run: sendToTorrents,
-        }]
+      ? [
+          {
+            label: t("downloads.action.sendToTorrents"),
+            icon: LuMagnet,
+            run: sendToTorrents,
+          },
+        ]
       : []),
     ...(item.status === "completed"
       ? [
@@ -325,12 +447,16 @@ function DownloadRow({
       disabled: !api.desktop,
       run: () => act("open-folder"),
     },
-    ...(canOpenOriginalPage ? [{
-      label: "Open original webpage",
-      icon: LuArrowUpRight,
-      disabled: !api.desktop,
-      run: () => act("open-origin"),
-    }] : []),
+    ...(canOpenOriginalPage
+      ? [
+          {
+            label: "Open original webpage",
+            icon: LuArrowUpRight,
+            disabled: !api.desktop,
+            run: () => act("open-origin"),
+          },
+        ]
+      : []),
     {
       label: t("downloads.action.openSource"),
       icon: LuArrowUpRight,
@@ -521,6 +647,7 @@ function DownloadRow({
         >
           <bdi>{item.filename}</bdi>
         </button>
+        <SourcePlatformMark item={item} />
         <div className="file-source">
           {item.status === "completed" ? (
             <>
@@ -632,7 +759,7 @@ function DownloadRow({
             <>
               <span>
                 {item.kind === "torrent" &&
-                 String(item.phase || "").startsWith("Waiting for peers")
+                String(item.phase || "").startsWith("Waiting for peers")
                   ? item.phase
                   : item.speed > 0
                     ? `${bytes(item.speed)}/s`
@@ -652,10 +779,20 @@ function DownloadRow({
             <span className="processing-summary">
               {item.phase || t("downloads.verifying")}
               {item.kind === "torrent" && item.stage === "seeding" && (
-                <button type="button" className="torrent-save-now"
+                <button
+                  type="button"
+                  className="torrent-save-now"
                   title="Finish sharing and save to your chosen folder"
-                  onClick={() => api.invoke("torrent:finish-seeding", item.id)
-                    .catch((error) => useUIStore.getState().notify(errorMessage(error), "error"))}>
+                  onClick={() =>
+                    api
+                      .invoke("torrent:finish-seeding", item.id)
+                      .catch((error) =>
+                        useUIStore
+                          .getState()
+                          .notify(errorMessage(error), "error"),
+                      )
+                  }
+                >
                   Save now
                 </button>
               )}
@@ -1004,7 +1141,8 @@ export default function DownloadsPage({ filter, active: visible = true }) {
     setConfirm({
       title: t("downloads.history.title"),
       description: t("downloads.history.scopeDescription", {
-        count: ids.length, scope: title,
+        count: ids.length,
+        scope: title,
       }),
       note: t("downloads.history.filesNote"),
       label: t("downloads.history.confirmAll"),
@@ -1015,7 +1153,9 @@ export default function DownloadsPage({ filter, active: visible = true }) {
           ids,
         });
         exitSelection();
-        useUIStore.getState().notify(t("downloads.history.removed", { count: removed }));
+        useUIStore
+          .getState()
+          .notify(t("downloads.history.removed", { count: removed }));
       },
     });
   };
@@ -1050,7 +1190,8 @@ export default function DownloadsPage({ filter, active: visible = true }) {
       const result = await api.invoke(`download:${action}-all`, bulkScope);
       useUIStore.getState().notify(
         t(result.failed ? "downloads.bulkPartial" : "downloads.bulkUpdated", {
-          count: result.count, total: result.total,
+          count: result.count,
+          total: result.total,
         }),
         result.failed ? "error" : "success",
       );
@@ -1144,8 +1285,14 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                 variant="ghost"
                 icon={LuPause}
                 busy={bulkBusy}
-                disabled={bulkBusy || !base.some((item) =>
-                  active(item) || ["queued", "retrying"].includes(item.status))}
+                disabled={
+                  bulkBusy ||
+                  !base.some(
+                    (item) =>
+                      active(item) ||
+                      ["queued", "retrying"].includes(item.status),
+                  )
+                }
                 onClick={() => batch("pause")}
               >
                 {t("downloads.pauseAll")}
@@ -1155,7 +1302,9 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                 variant="ghost"
                 icon={LuPlay}
                 busy={bulkBusy}
-                disabled={bulkBusy || !base.some((item) => item.status === "paused")}
+                disabled={
+                  bulkBusy || !base.some((item) => item.status === "paused")
+                }
                 onClick={() => batch("resume")}
               >
                 {t("downloads.resumeAll")}

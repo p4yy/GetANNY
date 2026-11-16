@@ -50,6 +50,9 @@ win:
   icon: assets/icon.ico
   executableName: GetANNY
   requestedExecutionLevel: asInvoker
+  extraFiles:
+    - from: installer/publish/GetANNY.Setup.exe
+      to: GetANNY Uninstall.exe
 publish:
   - provider: github
     owner: p4yy

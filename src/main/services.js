@@ -148,9 +148,11 @@ async function createServices({
   });
   speedPolicy.configure(settings.getAll());
   const updateTransferActivity = (downloads) => {
-    speedPolicy.setTransferring(downloads.some(({ status }) =>
-      ["connecting", "downloading", "processing", "seeding"].includes(status),
-    ));
+    speedPolicy.setTransferring(
+      downloads.some(({ status }) =>
+        ["connecting", "downloading", "processing", "seeding"].includes(status),
+      ),
+    );
   };
   manager.on("changed", updateTransferActivity);
   for (const [event, channel] of [
@@ -449,10 +451,15 @@ async function createServices({
             );
         } catch (error) {
           if (attempt === 2)
-            logger?.warn("Browser cleanup still unacknowledged:", error.message);
+            logger?.warn(
+              "Browser cleanup still unacknowledged:",
+              error.message,
+            );
         }
         if (attempt < 2)
-          await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 300 * (attempt + 1)),
+          );
       }
       // The browser's own reconnect reconciliation checks the desktop's
       // completed status and retries the native erase. Never resume an accepted
@@ -483,8 +490,13 @@ async function createServices({
   });
   if (!startTransfers) manager.stopped = true;
   else {
-    await clearTemporaryFiles(true);
     await manager.restoreDownloads();
+    // Clean stale temporary folders after restoring persisted jobs. This can
+    // walk several destination directories, so keep that optional maintenance
+    // work off the first-window startup path.
+    void clearTemporaryFiles(true).catch((error) =>
+      logger?.warn("Startup temporary-file cleanup:", error.message),
+    );
   }
   function takeBrowserRequest(id) {
     const index = pendingBrowserRequests.findIndex(

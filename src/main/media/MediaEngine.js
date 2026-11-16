@@ -31,6 +31,7 @@ class MediaEngine extends EventEmitter {
     this.controller = new AbortController();
     this.status = "queued";
     this.tracks = new Map();
+    this.speed = 0;
   }
   setStatus(status, data = {}) {
     this.status = status;
@@ -54,7 +55,10 @@ class MediaEngine extends EventEmitter {
         media.segment ? "downloading" : "connecting",
         media.segment
           ? { phase: "Downloading source for precise trimming" }
-          : {},
+          : {
+              totalSize: Number(media.estimatedTotalSize) || 0,
+              approximateSize: media.estimatedSizeApproximate === true,
+            },
       );
       await fs.mkdir(this.savePath, { recursive: true });
       // yt-dlp fragments and .part files stay in the private work folder. Only
@@ -127,12 +131,31 @@ class MediaEngine extends EventEmitter {
               if (this.controller.signal.aborted) return;
               const key =
                 value.filename || value.info_dict?.format_id || "stream";
+              const previous = this.tracks.get(key);
+              const received = Number(value.downloaded_bytes) || 0;
+              const receivedAt = Date.now();
+              const reportedSpeed = Number(value.speed) || 0;
+              const trackSpeed =
+                value.status === "downloading" && reportedSpeed > 0
+                  ? previous?.speed > 0
+                    ? previous.speed * 0.72 + reportedSpeed * 0.28
+                    : reportedSpeed
+                  : 0;
               this.tracks.set(key, {
-                bytes: Number(value.downloaded_bytes) || 0,
-                total:
+                // yt-dlp can restart a fragment after a retry. Keep displayed
+                // transferred bytes monotonic; the final published size
+                // replaces this estimate when the download completes.
+                bytes: Math.max(previous?.bytes || 0, received),
+                total: Math.max(
+                  previous?.total || 0,
                   Number(value.total_bytes || value.total_bytes_estimate) || 0,
+                ),
                 approximate:
-                  !value.total_bytes && Number(value.total_bytes_estimate) > 0,
+                  previous?.approximate === true ||
+                  (!value.total_bytes &&
+                    Number(value.total_bytes_estimate) > 0),
+                speed: trackSpeed,
+                speedAt: receivedAt,
               });
               const tracks = [...this.tracks.values()];
               const downloadedSize = tracks.reduce(
@@ -140,10 +163,28 @@ class MediaEngine extends EventEmitter {
                 0,
               );
               // A finished video track is not the whole adaptive download.
-              const totalSize =
+              const reportedTotalSize =
                 tracks.length >= (media.mergeAudio ? 2 : 1) &&
                 tracks.every((track) => track.total > 0)
                   ? tracks.reduce((sum, track) => sum + track.total, 0)
+                  : 0;
+              const totalSize =
+                reportedTotalSize || Number(media.estimatedTotalSize) || 0;
+              const approximateSize = reportedTotalSize
+                ? tracks.some((track) => track.approximate)
+                : media.estimatedSizeApproximate === true;
+              const now = Date.now();
+              const sampledSpeed = tracks.reduce(
+                (sum, track) =>
+                  sum +
+                  (now - (track.speedAt || 0) <= 2500 ? track.speed || 0 : 0),
+                0,
+              );
+              this.speed =
+                sampledSpeed > 0
+                  ? this.speed > 0
+                    ? this.speed * 0.7 + sampledSpeed * 0.3
+                    : sampledSpeed
                   : 0;
               if (
                 value.status === "downloading" &&
@@ -163,9 +204,17 @@ class MediaEngine extends EventEmitter {
                 downloadedSize,
                 totalSize,
                 approximateSize:
-                  totalSize > 0 && tracks.some((track) => track.approximate),
-                speed: Number(value.speed) || 0,
-                eta: Number.isFinite(value.eta) ? value.eta : null,
+                  totalSize > 0 &&
+                  (reportedTotalSize
+                    ? tracks.some((track) => track.approximate)
+                    : media.estimatedSizeApproximate === true),
+                speed: this.speed,
+                eta:
+                  this.speed > 0 &&
+                  totalSize > downloadedSize &&
+                  Number.isFinite(totalSize - downloadedSize)
+                    ? (totalSize - downloadedSize) / this.speed
+                    : null,
                 phase: finalizing
                   ? "Finalizing media"
                   : section

@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    GetANNY Setup — native WPF bootstrapper + uninstaller shell.
+
+    One executable, two roles:
+      * "GetANNY Setup.exe"      : the published EXE with the NSIS engine appended as an
+                                   overlay by scripts/windows/wrap-installer.js.
+      * "GetANNY Uninstall.exe"  : the same published EXE, copied into the install
+                                   directory by electron-builder (extraFiles) and
+                                   registered as UninstallString by installer.nsh.
+    Role detection lives in Core/SetupRole.cs.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>GetANNY.Setup</RootNamespace>
+    <AssemblyName>GetANNY.Setup</AssemblyName>
+    <AssemblyTitle>GetANNY Setup</AssemblyTitle>
+    <Description>Installs and removes GetANNY Download Manager</Description>
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>GetANNY.Setup.Program</StartupObject>
+    <!-- Keep the automatic App.Main out: Program.Main parses the command line first. -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+
+    <!-- Self-contained, single-file, win-x64 publish. WPF cannot be trimmed. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>embedded</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </ApplicationDefinition>
+  </ItemGroup>
+
+  <!--
+    Official brand assets are linked straight from assets/brand in the repository
+    root. They are embedded untouched (no resize, no recolor) as WPF resources.
+  -->
+  <ItemGroup>
+    <Resource Include="..\..\assets\brand\symbol-white.png" Link="Assets\brand\symbol-white.png" />
+    <Resource Include="..\..\assets\brand\wordmark-white.png" Link="Assets\brand\wordmark-white.png" />
+    <Resource Include="..\..\assets\brand\lockup-horizontal-white.png" Link="Assets\brand\lockup-horizontal-white.png" />
+    <Resource Include="..\..\assets\brand\lockup-stacked-white.png" Link="Assets\brand\lockup-stacked-white.png" />
+    <Resource Include="..\..\assets\brand\app-icon-1024.png" Link="Assets\brand\app-icon-1024.png" />
+    <Resource Include="Assets\brand\getanny-logo-animation.gif" />
+  </ItemGroup>
+
+  <!--
+    Inter is embedded when present. scripts/windows/fetch-inter-font.ps1 downloads
+    the checksum-verified OFL release into Fonts/. Without it the resource lookup
+    falls back to Segoe UI Variable / Segoe UI (see Themes/Typography.xaml).
+  -->
+  <ItemGroup>
+    <Resource Include="Fonts\*.ttf" />
+    <Resource Include="Fonts\*.txt" />
+  </ItemGroup>
+
+</Project>

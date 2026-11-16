@@ -1,0 +1,91 @@
+<Window x:Class="GetANNY.Setup.Views.ShellWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:GetANNY.Setup.ViewModels"
+        xmlns:v="clr-namespace:GetANNY.Setup.Views"
+        Title="{Binding WindowTitle}"
+        Width="720" Height="600" MinWidth="720" MinHeight="600"
+        ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="False"
+        Background="{StaticResource Brush.Background}"
+        Foreground="{StaticResource Brush.Text}"
+        FontFamily="{StaticResource Font.UI}"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        AutomationProperties.Name="{Binding WindowTitle}"
+        Icon="pack://application:,,,/Assets/brand/app-icon-1024.png">
+
+    <!--
+      WindowChrome with zero caption/glass keeps the DWM drop shadow while removing
+      every piece of the standard frame. Rounded corners come from DWM (Win11) via
+      NativeMethods.ApplyWindowChrome; on Windows 10 the window is square-cornered
+      with the same shadow — never a classic title bar.
+    -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" GlassFrameThickness="0,0,0,1" CornerRadius="0"
+                      ResizeBorderThickness="0" NonClientFrameEdges="None" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Pages.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
+    </Window.InputBindings>
+
+    <Border BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" Background="{StaticResource Brush.Background}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Custom title bar -->
+            <Grid x:Name="TitleBar" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
+                  AutomationProperties.Name="Title bar">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding WindowCaption}" Margin="14,0,0,0" FontSize="12"
+                           Foreground="{StaticResource Brush.TextSecondary}" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Style="{StaticResource Button.Caption}" Command="{Binding MinimizeCommand}" Margin="0,4,2,4"
+                        ToolTip="Minimize" AutomationProperties.Name="Minimize">
+                    <Path Data="M0,0 H10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" SnapsToDevicePixels="True" VerticalAlignment="Center" />
+                </Button>
+                <Button Grid.Column="2" Style="{StaticResource Button.Caption}" Command="{Binding CloseCommand}" Margin="0,4,6,4"
+                        ToolTip="Close" AutomationProperties.Name="Close" IsCancel="False">
+                    <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" SnapsToDevicePixels="True" />
+                </Button>
+            </Grid>
+
+            <!-- Page host with a short cross-fade on navigation -->
+            <ContentControl x:Name="PageHost" Grid.Row="1" Content="{Binding CurrentPage, NotifyOnTargetUpdated=True}" Focusable="False"
+                            KeyboardNavigation.TabNavigation="Cycle" Margin="0">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Style.Triggers>
+                            <EventTrigger RoutedEvent="Binding.TargetUpdated">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.24">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
+        </Grid>
+    </Border>
+</Window>

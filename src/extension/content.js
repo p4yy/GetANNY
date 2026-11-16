@@ -48,7 +48,11 @@
     const declared = response.headers.get("content-length");
     if (declared !== null) {
       const reported = Number(declared);
-      if (!Number.isSafeInteger(reported) || reported < 0 || reported > 64 * 1024 * 1024)
+      if (
+        !Number.isSafeInteger(reported) ||
+        reported < 0 ||
+        reported > 64 * 1024 * 1024
+      )
         throw new Error("This file exceeds GetANNY’s browser handoff limit.");
     }
     const blob = await response.blob();
@@ -84,7 +88,8 @@
       throw error;
     }
   }
-  const isTikTok = globalThis.GetANNYSocialLinks.socialSite(location.href) === "tiktok";
+  const isTikTok =
+    globalThis.GetANNYSocialLinks.socialSite(location.href) === "tiktok";
   const social =
     window === window.top &&
     globalThis.GetANNYSocialLinks.socialSite(location.href);
@@ -143,38 +148,115 @@
     }
   };
   function activeTikTokPost() {
-    const direct = globalThis.GetANNYSocialLinks.postLink(location.href, location.href);
-    if (direct) return direct;
-    const videos = [...document.querySelectorAll("video")];
-    const playing = videos.filter((video) => !video.paused && !video.ended);
-    // Prefer the one playing video. Never guess from multiple feed cards.
-    const target = playing.length === 1 ? playing[0] :
-      videos.length === 1 ? videos[0] : null;
-    return target
-      ? globalThis.GetANNYSocialLinks.postForMediaElement(target, location.href)
-      : null;
+    // Only trust TikTok's selected post permalink. Feed cards can contain
+    // neighboring or preloaded videos, so a media-element guess can download
+    // a different clip than the one the user opened.
+    return globalThis.GetANNYSocialLinks.postLink(location.href, location.href);
+  }
+  let lastInteractedTikTokVideo = null;
+  const visibleVideoArea = (video) => {
+    const rect = video.getBoundingClientRect();
+    const style = getComputedStyle(video);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      Number(style.opacity) <= 0
+    )
+      return 0;
+    return (
+      Math.max(0, Math.min(rect.right, innerWidth) - Math.max(rect.left, 0)) *
+      Math.max(0, Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0))
+    );
+  };
+  function rememberInteractedVideo(event) {
+    const path = event.composedPath?.() || [event.target];
+    for (const node of path) {
+      if (node instanceof HTMLVideoElement) {
+        lastInteractedTikTokVideo = node;
+        return;
+      }
+      if (node instanceof Element) {
+        const player = node.matches?.('[data-e2e*="video-player"]')
+          ? node
+          : node.closest?.('[data-e2e*="video-player"]');
+        const video = player?.querySelector("video");
+        if (video) {
+          lastInteractedTikTokVideo = video;
+          return;
+        }
+      }
+    }
+  }
+  if (isTikTok) {
+    document.addEventListener("pointerdown", rememberInteractedVideo, true);
+    document.addEventListener("play", rememberInteractedVideo, true);
+    document.addEventListener("playing", rememberInteractedVideo, true);
+  }
+  function activeTikTokPlayback() {
+    const visible = [...document.querySelectorAll("video")]
+      .map((video) => {
+        return {
+          video,
+          area: visibleVideoArea(video),
+        };
+      })
+      // TikTok keeps offscreen/preloaded feed elements in the DOM. Only a
+      // visible, actively playing element can identify the video the user
+      // means. Do not require an arbitrary minimum player size.
+      .filter(
+        ({ video, area }) =>
+          area > 0 && !video.paused && !video.ended && video.readyState >= 2,
+      )
+      .sort((a, b) => b.area - a.area);
+    const interacted = visible.find(
+      ({ video }) => video === lastInteractedTikTokVideo,
+    );
+    const main = interacted || (visible.length === 1 ? visible[0] : null);
+    // If multiple feed players are active, use the one the user interacted
+    // with. Without that signal, refusing a guess prevents a neighboring
+    // preloaded clip from being labeled as the selected one.
+    if (!main) return null;
+    const postUrl =
+      activeTikTokPost() ||
+      globalThis.GetANNYSocialLinks.postForMediaElement(
+        main.video,
+        location.href,
+      );
+    const streamUrl = main.video.currentSrc || main.video.src || "";
+    if (!postUrl || !/^https:\/\//i.test(streamUrl)) return null;
+    return { postUrl, streamUrl };
   }
   function element(root) {
     if (!(root instanceof Element)) return;
     if (root.matches("video,audio")) {
       if (isTikTok && root.matches("video")) {
-        const post = globalThis.GetANNYSocialLinks.postForMediaElement(root, location.href);
+        const playback = activeTikTokPlayback();
+        if (
+          !playback ||
+          playback.streamUrl !== (root.currentSrc || root.src || "")
+        )
+          return;
+        const post = playback.postUrl;
         // Never advertise /en/ (or another TikTok feed URL) as a video.
         if (post) {
           send({ url: post, kind: "media" });
-          const streamUrl = root.currentSrc || root.src || "";
+          const streamUrl = playback.streamUrl;
           // Only a known direct file URL is ready for instant playback
           // capture. blob:, manifest and fragment URLs still use yt-dlp.
-          const match = /\\.(mp4|webm)(?:$|[?#])/i.exec(streamUrl);
+          const match = /\.(mp4|webm)(?:$|[?#])/i.exec(streamUrl);
           if (/^https:\/\//i.test(streamUrl) && match)
-            api.runtime.sendMessage({
-              type: "getanny:playback-captured",
-              postUrl: post,
-              streamUrl,
-              mimeType: match[1].toLowerCase() === "webm"
-                ? "video/webm" : "video/mp4",
-              title: document.title,
-            }).catch(() => {});
+            api.runtime
+              .sendMessage({
+                type: "getanny:playback-captured",
+                postUrl: post,
+                streamUrl,
+                mimeType:
+                  match[1].toLowerCase() === "webm"
+                    ? "video/webm"
+                    : "video/mp4",
+                title: document.title,
+              })
+              .catch(() => {});
         }
         return;
       }
@@ -206,6 +288,10 @@
     if (sender.id !== api.runtime.id) return;
     if (message?.type === "getanny:active-post") {
       respond({ url: isTikTok ? activeTikTokPost() : null });
+      return;
+    }
+    if (message?.type === "getanny:active-playback") {
+      respond({ playback: isTikTok ? activeTikTokPlayback() : null });
       return;
     }
     if (message?.type !== "getanny:scan-media") return;

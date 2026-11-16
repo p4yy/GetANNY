@@ -18,7 +18,7 @@ import {
   LuPlug,
   LuSearch,
 } from "react-icons/lu";
-import { FaChrome, FaFirefoxBrowser, FaOpera, FaEdge } from "react-icons/fa6";
+import { FaChrome, FaFirefoxBrowser, FaOpera, FaEdge, FaYoutube } from "react-icons/fa6";
 import { SiBrave, SiVivaldi } from "react-icons/si";
 import { api, errorMessage } from "../api";
 import {
@@ -77,7 +77,10 @@ export default function BrowserPage({ active = true }) {
       cleanup();
     };
   }, [active, refresh]);
-  const browser = info?.browsers.find((item) => item.id === selected);
+  const browser = Array.isArray(info?.browsers)
+    ? info.browsers.find((item) => item.id === selected)
+    : undefined;
+  const bridge = info?.websocket || {};
   const Icon = browserIcons[selected] || LuGlobe;
   const run = async (action) => {
     setBusy(true);
@@ -112,6 +115,8 @@ export default function BrowserPage({ active = true }) {
     });
   const openFirefoxAddon = () =>
     run(() => api.invoke("app:open-external", firefoxAddonUrl));
+  const openHelpVideo = (url) =>
+    run(() => api.invoke("app:open-external", url));
   const copy = (text) =>
     navigator.clipboard.writeText(text).then(
       () => useUIStore.getState().notify(t("browser.copied")),
@@ -125,14 +130,14 @@ export default function BrowserPage({ active = true }) {
         : null;
   return (
     <div className="page browser-page">
-      <PageHeader eyebrow={t("browser.eyebrow")} title={t("browser.title")}>
+      <PageHeader title={t("browser.title")}>
         <span
           className={`bridge-status-pill ${
-            info?.websocket.error
+            bridge.error
               ? "error"
-              : info?.websocket.clients > 0
+              : bridge.clients > 0
                 ? "connected"
-                : info?.websocket.running && info?.websocket.enabled
+                : bridge.running && bridge.enabled
                   ? "listening"
                   : "offline"
           }`}
@@ -140,24 +145,24 @@ export default function BrowserPage({ active = true }) {
         >
           <span className="bridge-name">{t("browser.bridge")}</span>
           <span
-            className={`live-dot ${info?.websocket.clients > 0 ? "live" : ""}`}
+            className={`live-dot ${bridge.clients > 0 ? "live" : ""}`}
           />
           <strong>
-            {info?.websocket.error
+            {bridge.error
               ? t("browser.error")
-              : info?.websocket.clients > 0
+              : bridge.clients > 0
                 ? t("browser.verifiedMany", {
-                    count: info.websocket.clients,
+                    count: bridge.clients,
                   })
-                : info?.websocket.running && info?.websocket.enabled
+                : bridge.running && bridge.enabled
                   ? t("browser.listening")
-                  : info?.websocket.enabled === false
+                  : bridge.enabled === false
                     ? t("browser.disabled")
                     : info
                       ? t("browser.offline")
                       : t("browser.checking")}
           </strong>
-          <span className="mono">127.0.0.1:{info?.websocket.port ?? "—"}</span>
+          <span className="mono">127.0.0.1:{bridge.port ?? "—"}</span>
         </span>
         <Button
           icon={LuRefreshCw}
@@ -179,42 +184,20 @@ export default function BrowserPage({ active = true }) {
         }}
         busy={busy || refreshing}
       />
-      {!settings.firstRunCompleted && (
-        <section className="onboarding">
-          <div className="onboarding-mark">
-            <LuPlug />
-          </div>
-          <div>
-            <span className="eyebrow">{t("browser.welcomeEyebrow")}</span>
-            <h2>{t("browser.welcomeTitle")}</h2>
-            <p>{t("browser.welcomeText")}</p>
-            <div className="onboarding-points">
-              <span>
-                <LuCheck />
-                {t("browser.pointBrowser")}
-              </span>
-              <span>
-                <LuCheck />
-                {t("browser.pointSecure")}
-              </span>
-              <span>
-                <LuCheck />
-                {t("browser.pointApprove")}
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={() =>
-              save("firstRunCompleted", true).catch((error) =>
-                setError(errorMessage(error)),
-              )
-            }
-          >
-            {t("browser.later")} <LuArrowRight />
+      <section className="extension-video-help" aria-labelledby="extension-video-title">
+        <div className="extension-video-heading">
+          <h2 id="extension-video-title">{t("browser.videoTitle")}</h2>
+          <p>{t("browser.videoText")}</p>
+        </div>
+        <div className="extension-video-actions">
+          <Button variant="ghost" className="youtube-setup" icon={FaYoutube} onClick={() => openHelpVideo("https://www.youtube.com/watch?v=jrJ0kYSQAlk")}>
+            {t("browser.videoInstall")}
           </Button>
-        </section>
-      )}
+          <Button variant="ghost" className="youtube-download" icon={FaYoutube} onClick={() => openHelpVideo("https://www.youtube.com/watch?v=lzJW8I6n3Yw&t=26s")}>
+            {t("browser.videoDownload")}
+          </Button>
+        </div>
+      </section>
       {!api.desktop && (
         <div className="notice">
           <LuMonitor />
@@ -234,8 +217,8 @@ export default function BrowserPage({ active = true }) {
         </div>
       )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
-      {info?.websocket.error && (
-        <ErrorBanner>{info.websocket.error}</ErrorBanner>
+      {bridge.error && (
+        <ErrorBanner>{bridge.error}</ErrorBanner>
       )}
       <div className="browser-workspace">
         <section className="browser-picker">
@@ -244,7 +227,7 @@ export default function BrowserPage({ active = true }) {
             <span>{t("browser.selectOne")}</span>
           </div>
           {info ? (
-            info.browsers.map((item) => {
+            (Array.isArray(info.browsers) ? info.browsers : []).map((item) => {
               const BrowserIcon = browserIcons[item.id] || LuGlobe;
               return (
                 <button
@@ -426,7 +409,7 @@ export default function BrowserPage({ active = true }) {
                   >
                     {t("browser.installExtension")}
                   </Button>
-                )}}
+                )}
                 {api.desktop && !browser?.installed && (
                   <Button
                     variant="ghost"

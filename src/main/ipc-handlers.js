@@ -230,8 +230,11 @@ function createHandlers({ services: s, desktop }) {
     "download:open-working-folder": async (id) => {
       const item = manager.requireItem(id);
       if (item.kind !== "torrent" || item.status === "completed")
-        throw new Error("The torrent work folder is only available during an active transfer.");
-      const location = manager.workPath(item) ||
+        throw new Error(
+          "The torrent work folder is only available during an active transfer.",
+        );
+      const location =
+        manager.workPath(item) ||
         path.join(item.savePath, ".getanny-torrent", String(item.id));
       const stat = await fs.stat(location).catch(() => null);
       if (!stat?.isDirectory())
@@ -242,16 +245,25 @@ function createHandlers({ services: s, desktop }) {
     },
     "download:open-origin": async (id) => {
       const item = manager.requireItem(id);
-      const raw = item.sourcePage || item.browserPage ||
+      const raw =
+        item.sourcePage ||
+        item.browserPage ||
         (item.kind === "media" ? item.url : undefined);
       if (item.privateSession || !raw || !/^https?:\/\//i.test(raw))
-        throw new Error("No originating webpage was recorded for this download.");
+        throw new Error(
+          "No originating webpage was recorded for this download.",
+        );
       await desktopOnly().shell.openExternal(validateUrl(raw));
       return true;
     },
     "media:preview": (url) => mediaDetector.preview(url),
     "media:captured": (url) => mediaDetector.captured(url),
-    "media:download-captured": async ({ pageUrl, captureId, savePath, posterUrl }) => {
+    "media:download-captured": async ({
+      pageUrl,
+      captureId,
+      savePath,
+      posterUrl,
+    }) => {
       if (!settings.get("mediaIntegration"))
         throw new Error("Media integration is disabled.");
       return manager.addDownload({
@@ -261,7 +273,10 @@ function createHandlers({ services: s, desktop }) {
         ...(savePath ? { savePath } : {}),
       });
     },
-    "media:get-formats": (url) => mediaDetector.getFormats(url),
+    "media:get-formats": (url, requestId) =>
+      mediaDetector.getFormats(url, { requestId }),
+    "media:cancel-analysis": (requestId) =>
+      mediaDetector.cancelAnalysis(requestId),
     "media:get-playlist": (url, requestId) =>
       mediaDetector.getPlaylist(url, {
         onEntry(count) {
@@ -325,8 +340,9 @@ function createHandlers({ services: s, desktop }) {
     "browser:open-package": async (id) => {
       const result = await s.extensionInstaller.check(id);
       if (!result.prepared) throw new Error("Prepare this extension first.");
-      const error = await desktopOnly().shell.openPath(result.path);
-      if (error) throw new Error(error);
+      const manifest = path.join(result.path, "manifest.json");
+      await fs.access(manifest);
+      desktopOnly().shell.showItemInFolder(manifest);
       return true;
     },
     "browser:locate": async (id) => {

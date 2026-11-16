@@ -35,6 +35,8 @@ body {
   margin: 0;
   width: 370px;
 }
+.engine-coming-soon { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:10px 0 15px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--raised); color:var(--text); font-size:12px; }
+.engine-coming-soon span { color:var(--muted); font-size:10px; }
 .cookie-optin {
   display: flex;
   align-items: flex-start;

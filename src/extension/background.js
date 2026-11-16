@@ -15,12 +15,29 @@ const detected = new Map();
 const MAX_DETECTIONS = 200;
 const capturedPlayback = new Map();
 const captureChecks = new Map();
-// Passive observation only: never initiate a video transfer, wake the desktop
-// or send browser cookies from this path.
-function forwardPlayback({ url, pageUrl, mimeType, title }) {
-  if (!state.connected || !url?.startsWith("https://") ||
-      !pageUrl || !["video/mp4", "video/webm", "video/quicktime"].includes(
-        String(mimeType || "").split(";")[0].toLowerCase())) return;
+const TIKTOK_MEDIA_HOSTS = [
+  "tiktok.com",
+  "tiktokcdn.com",
+  "tiktokv.com",
+  "byteoversea.com",
+  "ibytedtos.com",
+  "muscdn.com",
+];
+// Passive observation only: never initiate a video transfer or wake the desktop.
+// When the user's cookie toggle is enabled, keep the matching stream request
+// headers with the short-lived capture so TikTok's CDN can authorize the click.
+async function forwardPlayback({ url, pageUrl, mimeType, title }) {
+  if (
+    !state.connected ||
+    !url?.startsWith("https://") ||
+    !pageUrl ||
+    !["video/mp4", "video/webm", "video/quicktime"].includes(
+      String(mimeType || "")
+        .split(";")[0]
+        .toLowerCase(),
+    )
+  )
+    return;
   const key = pageUrl + "|" + url;
   const last = capturedPlayback.get(key) || 0;
   if (Date.now() - last < 15000) return;
@@ -28,8 +45,30 @@ function forwardPlayback({ url, pageUrl, mimeType, title }) {
   while (capturedPlayback.size > 80)
     capturedPlayback.delete(capturedPlayback.keys().next().value);
   try {
-    sendRaw({ type: "media-detected", url, pageUrl, mimeType, title });
-  } catch { /* A disconnected browser still uses ordinary analysis. */ }
+    let headers = {
+      "User-Agent": globalThis.navigator?.userAgent || "",
+      Referer: pageUrl,
+      Accept: "*/*",
+    };
+    const host = new URL(url).hostname.toLowerCase();
+    if (
+      TIKTOK_MEDIA_HOSTS.some(
+        (domain) => host === domain || host.endsWith(`.${domain}`),
+      )
+    )
+      headers = await withSiteCookies(url, headers);
+    if (state.connected)
+      sendRaw({
+        type: "media-detected",
+        url,
+        pageUrl,
+        mimeType,
+        title,
+        headers,
+      });
+  } catch {
+    /* A disconnected browser still uses ordinary analysis. */
+  }
 }
 async function captureVideoResponse(details, mimeType) {
   if (!state.connected || details.tabId < 0) return;
@@ -38,21 +77,30 @@ async function captureVideoResponse(details, mimeType) {
   const key = details.tabId + "|" + details.url;
   if ((captureChecks.get(key) || 0) > Date.now() - 30000) return;
   captureChecks.set(key, Date.now());
-  while (captureChecks.size > 100) captureChecks.delete(captureChecks.keys().next().value);
+  while (captureChecks.size > 100)
+    captureChecks.delete(captureChecks.keys().next().value);
   try {
     const tab = await api.tabs.get(details.tabId);
-    if (!tab || tab.incognito ||
-        globalThis.GetANNYSocialLinks.socialSite(tab.url) !== "tiktok") return;
-    const reported = await api.tabs.sendMessage(details.tabId,
-      { type: "getanny:active-post" }).catch(() => null);
-    const post = globalThis.GetANNYSocialLinks.postLink(
-      reported?.url || tab.url, tab.url);
-    if (!post) return;
-    forwardPlayback({
-      url: details.url, pageUrl: post, mimeType,
+    if (
+      !tab ||
+      tab.incognito ||
+      globalThis.GetANNYSocialLinks.socialSite(tab.url) !== "tiktok"
+    )
+      return;
+    const reported = await api.tabs
+      .sendMessage(details.tabId, { type: "getanny:active-playback" })
+      .catch(() => null);
+    const playback = reported?.playback;
+    if (!playback?.postUrl || playback.streamUrl !== details.url) return;
+    await forwardPlayback({
+      url: details.url,
+      pageUrl: playback.postUrl,
+      mimeType,
       title: String(tab.title || "TikTok video").slice(0, 160),
     });
-  } catch { /* Tabs may navigate while the response arrives. */ }
+  } catch {
+    /* Tabs may navigate while the response arrives. */
+  }
 }
 const { addDetection, classifyMediaResponse } =
   globalThis.GetANNYStreamDetection;
@@ -190,12 +238,21 @@ function scheduleNativeUpgrade() {
   // One bounded attempt per saved identity. If direct dialing fails, retain
   // the working native session rather than falling into an upgrade loop.
   if (directUpgradeRounds >= 1) return;
-  if (directUpgradeTimer || activeTransport !== "native" ||
-      !state.connected || !validPairingKey(pairingKey)) return;
+  if (
+    directUpgradeTimer ||
+    activeTransport !== "native" ||
+    !state.connected ||
+    !validPairingKey(pairingKey)
+  )
+    return;
   directUpgradeTimer = setTimeout(() => {
     directUpgradeTimer = null;
-    if (activeTransport !== "native" || !state.connected ||
-        !validPairingKey(pairingKey)) return;
+    if (
+      activeTransport !== "native" ||
+      !state.connected ||
+      !validPairingKey(pairingKey)
+    )
+      return;
     // Never cut over while a download request or native takeover is owned by
     // the browser. Finish the work on its original transport first.
     if (pending.size > 0 || (interceptor?.entries?.size || 0) > 0) {
@@ -204,7 +261,9 @@ function scheduleNativeUpgrade() {
     }
     directUpgradeAttempts = 0;
     directUpgradeRounds++;
-    resetConnection("Switching from native bootstrap to authenticated direct connection.");
+    resetConnection(
+      "Switching from native bootstrap to authenticated direct connection.",
+    );
     connect().catch((error) => update({ error: error.message }));
   }, 350);
 }
@@ -229,8 +288,11 @@ function connectionReady(message) {
       .then(() => {
         // A working native handshake is a trusted *bootstrap*, not the final
         // direct channel. Upgrade only after the credential is durably saved.
-        if (activeTransport === "native" &&
-            state.connected && pairingKey === provisionedKey)
+        if (
+          activeTransport === "native" &&
+          state.connected &&
+          pairingKey === provisionedKey
+        )
           scheduleNativeUpgrade();
       })
       .catch(() => {
@@ -624,16 +686,23 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       };
     if (message.type === "getanny:playback-captured") {
       const tabUrl = sender.tab?.url;
-      if (!sender.tab || sender.tab.incognito ||
-          globalThis.GetANNYSocialLinks.socialSite(tabUrl) !== "tiktok")
+      if (
+        !sender.tab ||
+        sender.tab.incognito ||
+        globalThis.GetANNYSocialLinks.socialSite(tabUrl) !== "tiktok"
+      )
         return { success: false };
       const post = globalThis.GetANNYSocialLinks.postLink(
-        message.postUrl, tabUrl);
-      if (post) forwardPlayback({
-        url: message.streamUrl, pageUrl: post,
-        mimeType: message.mimeType || "video/mp4",
-        title: message.title,
-      });
+        message.postUrl,
+        tabUrl,
+      );
+      if (post)
+        await forwardPlayback({
+          url: message.streamUrl,
+          pageUrl: post,
+          mimeType: message.mimeType || "video/mp4",
+          title: message.title,
+        });
       return { success: true };
     }
     if (message.type === "media-detected") {
@@ -700,7 +769,10 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
         url: message.url,
         kind: message.kind === "media" ? "media" : "file",
         filename: message.filename,
-        page: validUrl(sender.tab?.url) && !sender.tab?.incognito ? sender.tab.url : undefined,
+        page:
+          validUrl(sender.tab?.url) && !sender.tab?.incognito
+            ? sender.tab.url
+            : undefined,
         headers: {
           "User-Agent": globalThis.navigator.userAgent,
           ...(validUrl(sender.tab?.url) ? { Referer: sender.tab.url } : {}),
@@ -741,10 +813,13 @@ api.webRequest?.onHeadersReceived.addListener(
       disposition,
     );
     const media = output || classifyMediaResponse(details.url, type);
-    if (state.connected &&
-        ["video/mp4", "video/webm", "video/quicktime"].includes(
-          String(type).split(";")[0].trim().toLowerCase()) &&
-        details.url.startsWith("https://"))
+    if (
+      state.connected &&
+      ["video/mp4", "video/webm", "video/quicktime"].includes(
+        String(type).split(";")[0].trim().toLowerCase(),
+      ) &&
+      details.url.startsWith("https://")
+    )
       void captureVideoResponse(details, type);
     if (media)
       remember(details.tabId, {
@@ -782,8 +857,10 @@ api.contextMenus.onClicked.addListener((info, tab) => {
       type: "download",
       url,
       kind: media ? "media" : "file",
-      page: validUrl(info.pageUrl || tab?.url) && !tab?.incognito
-        ? info.pageUrl || tab.url : undefined,
+      page:
+        validUrl(info.pageUrl || tab?.url) && !tab?.incognito
+          ? info.pageUrl || tab.url
+          : undefined,
       privateSession: tab?.incognito === true,
       headers: {
         "User-Agent": globalThis.navigator.userAgent,

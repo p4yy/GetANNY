@@ -39,6 +39,7 @@ const channels = [
   "media:captured",
   "media:download-captured",
   "media:get-formats",
+  "media:cancel-analysis",
   "media:get-playlist",
   "media:download",
   "media:download-subtitle",

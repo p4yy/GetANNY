@@ -86,7 +86,7 @@ export default function ThemesPage() {
   );
   return (
     <div className="page themes-page">
-      <PageHeader eyebrow={t("themes.eyebrow")} title={t("themes.title")}>
+      <PageHeader title={t("themes.title")}>
         <span className="theme-count">
           <LuPalette /> {t("themes.count", { count: themes.length })}
         </span>

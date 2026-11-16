@@ -1,0 +1,32 @@
+<Project>
+  <!--
+    Shared build settings for the GetANNY Windows setup UI.
+    The version is intentionally the single source of truth for the WPF shell;
+    scripts/windows/build-setup-ui.ps1 overrides it from package.json so the
+    bootstrapper, the uninstaller and the Electron app always agree.
+  -->
+  <PropertyGroup>
+    <SetupVersion Condition="'$(SetupVersion)' == ''">2.6.0</SetupVersion>
+    <Version>$(SetupVersion)</Version>
+    <FileVersion>$(SetupVersion).0</FileVersion>
+    <AssemblyVersion>$(SetupVersion).0</AssemblyVersion>
+    <InformationalVersion>$(SetupVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Company>GetANNY Team</Company>
+    <Product>GetANNY Download Manager</Product>
+    <Copyright>Copyright © 2026 GetANNY Download Manager contributors</Copyright>
+    <Authors>GetANNY Download Manager contributors</Authors>
+    <NeutralLanguage>en</NeutralLanguage>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Nullable and compiler warnings are errors; analyzer suggestions stay warnings so a toolchain update never breaks the release build. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors>nullable;CS0618;CS0162;CS1998</WarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+</Project>

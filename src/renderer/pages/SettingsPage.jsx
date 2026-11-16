@@ -26,7 +26,7 @@ import {
 import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
 import { useI18n } from "../i18n/useI18n";
-import completionChime from "../assets/completion-chime.wav";
+import { playCompletionSound } from "../utils/completion-sounds";
 function NumberControl({ value, onChange, min, max, label, suffix, disabled }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(String(value ?? ""));
@@ -138,11 +138,11 @@ function VolumeControl({ value, disabled, onCommit, label }) {
     </div>
   );
 }
-function SettingRow({ title, description, children, disabled = false }) {
+function SettingRow({ title, description, children, disabled = false, tooltip }) {
   return (
     <div className={`setting-row ${disabled ? "unavailable" : ""}`}>
       <div>
-        <h3>{title}</h3>
+        <h3 title={tooltip}>{title}</h3>
         <p>{description}</p>
       </div>
       <div className="setting-control">{children}</div>
@@ -214,7 +214,7 @@ export default function SettingsPage({ capabilities, version }) {
   );
   return (
     <div className="page settings-page">
-      <PageHeader eyebrow={t("settings.eyebrow")} title={t("settings.title")}>
+      <PageHeader title={t("settings.title")}>
         <span className="save-indicator">
           {saving ? (
             t("settings.saving")
@@ -568,6 +568,12 @@ export default function SettingsPage({ capabilities, version }) {
             {toggle("mediaIntegration")}
           </SettingRow>
           <SettingRow
+            title={t("settings.avEngine.title")}
+            description={t("settings.avEngine.description")}
+          >
+            <span className="coming-soon-badge">{t("settings.avEngine.comingSoon")}</span>
+          </SettingRow>
+          <SettingRow
             title={t("settings.manageBrowsers.title")}
             description={t("settings.manageBrowsers.description")}
           >
@@ -701,6 +707,24 @@ export default function SettingsPage({ capabilities, version }) {
               {toggle("completionSound")}
             </SettingRow>
             <SettingRow
+              title={t("settings.completionSound.style")}
+              description={t("settings.completionSound.styleDescription")}
+              disabled={!!saving}
+            >
+              <Select
+                aria-label={t("settings.completionSound.style")}
+                value={settings.completionSoundStyle || "classic"}
+                disabled={!!saving}
+                onChange={(event) => persist("completionSoundStyle", event.target.value)}
+              >
+                {["classic", "gentle", "bright", "double"].map((style) => (
+                  <option key={style} value={style}>
+                    {t(`settings.completionSound.style.${style}`)}
+                  </option>
+                ))}
+              </Select>
+            </SettingRow>
+            <SettingRow
               title={t("settings.completionSound.volume")}
               description={t("settings.completionSound.volumeDescription")}
             >
@@ -718,15 +742,10 @@ export default function SettingsPage({ capabilities, version }) {
               <Button
                 onClick={() => {
                   try {
-                    const audio = new Audio(completionChime);
-                    audio.volume = Math.max(
-                      0,
-                      Math.min(
-                        1,
-                        Number(settings.completionSoundVolume ?? 50) / 100,
-                      ),
+                    playCompletionSound(
+                      settings.completionSoundStyle || "classic",
+                      settings.completionSoundVolume,
                     );
-                    audio.play().catch(() => {});
                   } catch {
                     /* optional preview */
                   }

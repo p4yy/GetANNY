@@ -33,6 +33,9 @@ class SettingsRepo {
     this.setStmt.run(key, JSON.stringify(value));
     return value;
   }
+  delete(key) {
+    this.db.prepare("DELETE FROM settings WHERE key=?").run(key);
+  }
   setAll(values) {
     const transaction = this.db.transaction((obj) =>
       Object.entries(obj).forEach(([k, v]) => this.set(k, v)),

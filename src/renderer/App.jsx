@@ -29,6 +29,7 @@ import {
   LuWifiOff,
   LuLoaderCircle,
   LuRefreshCw,
+  LuZap,
 } from "react-icons/lu";
 import { api, errorMessage } from "./api";
 import { useIPC } from "./hooks/useIPC";
@@ -59,7 +60,7 @@ import AddDownloadDialog from "./components/AddDownloadDialog";
 import DownloadDetails from "./components/DownloadDetails";
 import { Button, IconButton, Toasts } from "./components/ui";
 import { active, bytes } from "./utils/format";
-import completionChime from "./assets/completion-chime.wav";
+import { playCompletionSound } from "./utils/completion-sounds";
 import ErrorBoundary from "./components/ErrorBoundary";
 const navigation = [
   ["all", LuArrowDownToLine, "nav.all"],
@@ -112,7 +113,6 @@ function Sidebar({ bridge, version, platform }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="workspace-label">{t("shell.personalWorkspace")}</div>
         <Button
           icon={LuPlus}
           variant="primary"
@@ -652,10 +652,10 @@ export default function App() {
       .catch(() => {});
   }, [boot, bridge.clients, settings.firstRunCompleted]);
   useEffect(() => {
-    applyTheme(settings.theme || "nord");
+    applyTheme(settings.theme || "contrast");
     const system = window.matchMedia("(prefers-color-scheme: light)");
     const update = () => {
-      if ((settings.theme || "nord") === "system") applyTheme("system");
+      if ((settings.theme || "contrast") === "system") applyTheme("system");
     };
     system.addEventListener("change", update);
     return () => system.removeEventListener("change", update);
@@ -736,18 +736,16 @@ export default function App() {
       if (now - lastChime.current < 2000) return;
       lastChime.current = now;
       try {
-        const audio = new Audio(completionChime);
-        audio.volume = Math.max(
-          0,
-          Math.min(1, Number(settings.completionSoundVolume ?? 50) / 100),
+        playCompletionSound(
+          settings.completionSoundStyle || "classic",
+          settings.completionSoundVolume,
         );
-        audio.play().catch(() => {});
       } catch {
         /* audio is optional */
       }
     });
     return unsubscribe;
-  }, [settings.completionSound, settings.completionSoundVolume]);
+  }, [settings.completionSound, settings.completionSoundStyle, settings.completionSoundVolume]);
   useEffect(() => {
     const handleDragEnter = (event) => {
       if (event.dataTransfer?.types?.includes("application/x-getanny-queue"))

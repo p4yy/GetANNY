@@ -50,6 +50,7 @@ export default function MediaPage({ tools }) {
     [folder, setFolder] = useState(settings.defaultDownloadPath || ""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [analysisElapsed, setAnalysisElapsed] = useState(0),
     [preview, setPreview] = useState(null),
     [captured, setCaptured] = useState(null),
     [capturedBusy, setCapturedBusy] = useState(false),
@@ -101,18 +102,51 @@ export default function MediaPage({ tools }) {
     ),
     [playlistSelection],
   );
-  useEffect(() => api.on("media:captured", (capture) => {
-    const pageId = /\/video\/(\d+)/.exec(url)?.[1];
-    const captureId = /\/video\/(\d+)/.exec(capture.postUrl)?.[1];
-    if (pageId && pageId === captureId) setCaptured(capture);
-  }), [url]);
+  useEffect(
+    () =>
+      api.on("media:captured", (capture) => {
+        const pageId = /\/video\/(\d+)/.exec(url)?.[1];
+        const captureId = /\/video\/(\d+)/.exec(capture.postUrl)?.[1];
+        if (pageId && pageId === captureId) {
+          analysisCaptureReady.current = true;
+          setCaptured(capture);
+          // Let the user queue the stream already playing in their browser without
+          // waiting for the full quality picker to finish its separate analysis.
+          setBusy(false);
+        }
+      }),
+    [url],
+  );
   const generation = useRef(0),
-    lastAuto = useRef(0);
+    lastAuto = useRef(0),
+    analysisRequest = useRef(null),
+    analysisCaptureReady = useRef(false);
+  const analysisStartedAt = useRef(0);
+  useEffect(() => {
+    if (!busy) return undefined;
+    const tick = () =>
+      setAnalysisElapsed(
+        Math.floor((Date.now() - analysisStartedAt.current) / 1000),
+      );
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [busy]);
+  const cancelAnalysis = () => {
+    generation.current++;
+    if (analysisRequest.current) {
+      api
+        .invoke("media:cancel-analysis", analysisRequest.current)
+        .catch(() => {});
+      analysisRequest.current = null;
+    }
+    lastAuto.current = 0;
+    setBusy(false);
+  };
   const clearLink = () => {
     // Invalidate any in-flight analysis so its result cannot repopulate the
     // input or the format list after the user cleared the link.
-    generation.current++;
-    lastAuto.current = 0;
+    cancelAnalysis();
     setUrl("");
     setResult(null);
     setPreview(null);
@@ -126,6 +160,15 @@ export default function MediaPage({ tools }) {
   const analyze = async (event) => {
     event?.preventDefault();
     const current = ++generation.current;
+    if (analysisRequest.current)
+      api
+        .invoke("media:cancel-analysis", analysisRequest.current)
+        .catch(() => {});
+    const requestId = crypto.randomUUID();
+    analysisRequest.current = requestId;
+    analysisCaptureReady.current = false;
+    analysisStartedAt.current = Date.now();
+    setAnalysisElapsed(0);
     setBusy(true);
     setError("");
     setResult(null);
@@ -141,16 +184,26 @@ export default function MediaPage({ tools }) {
       const mediaUrl = url.trim();
       // Run quick public TikTok preview alongside extraction, not ahead of it.
       // The generation guard keeps stale requests from repainting the page.
-      const formatsPromise = api.invoke("media:get-formats", mediaUrl);
+      const formatsPromise = api.invoke(
+        "media:get-formats",
+        mediaUrl,
+        requestId,
+      );
       // Already observed browser streams do not need another webpage parse.
       // Show the direct option immediately; full qualities load separately.
-      api.invoke("media:captured", mediaUrl)
+      api
+        .invoke("media:captured", mediaUrl)
         .then((data) => {
-          if (current === generation.current && data) setCaptured(data);
+          if (current === generation.current && data) {
+            analysisCaptureReady.current = true;
+            setCaptured(data);
+            setBusy(false);
+          }
         })
         .catch(() => {});
       if (/^https:\/\/(?:www\.|m\.)?tiktok\.com\//i.test(mediaUrl))
-        api.invoke("media:preview", mediaUrl)
+        api
+          .invoke("media:preview", mediaUrl)
           .then((data) => {
             if (current === generation.current && data) setPreview(data);
           })
@@ -174,8 +227,10 @@ export default function MediaPage({ tools }) {
       setSelected(preferred?.formatId || null);
       if (!info.formats.length) setError(t("media.noFormats"));
     } catch (error) {
-      if (current === generation.current) setError(errorMessage(error));
+      if (current === generation.current && !analysisCaptureReady.current)
+        setError(errorMessage(error));
     } finally {
+      if (analysisRequest.current === requestId) analysisRequest.current = null;
       if (current === generation.current) setBusy(false);
     }
   };
@@ -261,6 +316,11 @@ export default function MediaPage({ tools }) {
     () => () => {
       generation.current++;
       lastAuto.current = 0;
+      if (analysisRequest.current)
+        api
+          .invoke("media:cancel-analysis", analysisRequest.current)
+          .catch(() => {});
+      analysisRequest.current = null;
     },
     [],
   );
@@ -294,7 +354,9 @@ export default function MediaPage({ tools }) {
         pageUrl: url.trim(),
         captureId: captured.id,
         posterUrl: preview?.thumbnail || null,
-        ...(folder !== settings.defaultDownloadPath ? { savePath: folder } : {}),
+        ...(folder !== settings.defaultDownloadPath
+          ? { savePath: folder }
+          : {}),
       });
       useUIStore.getState().notify("Browser playback queued for download.");
       useUIStore.getState().setActiveTab("all");
@@ -302,7 +364,9 @@ export default function MediaPage({ tools }) {
       setError(errorMessage(cause));
       // Keep the regular format picker available after a stream expires.
       setCaptured(null);
-    } finally { setCapturedBusy(false); }
+    } finally {
+      setCapturedBusy(false);
+    }
   };
   const add = async () => {
     setAdding(true);
@@ -371,7 +435,18 @@ export default function MediaPage({ tools }) {
                 placeholder={t("media.urlPlaceholder")}
                 value={url}
                 onChange={(event) => {
-                  setUrl(event.target.value);
+                  const nextUrl = event.target.value;
+                  setUrl(nextUrl);
+                  if (!nextUrl.trim()) {
+                    cancelAnalysis();
+                    analysisCaptureReady.current = false;
+                    setResult(null);
+                    setPreview(null);
+                    setCaptured(null);
+                    setSelected(null);
+                    setSegment(null);
+                    setError("");
+                  }
                   setPlaylist(null);
                   setPlaylistSelection(new Set());
                   if (result) {
@@ -533,15 +608,28 @@ export default function MediaPage({ tools }) {
         </section>
       )}
       {captured && (
-        <section className="media-capture-option" aria-label="Detected TikTok playback">
+        <section
+          className="media-capture-option"
+          aria-label="Detected TikTok playback"
+        >
           <div className="media-capture-description">
             <span className="eyebrow">FAST PLAYBACK CAPTURE</span>
             <strong>Ready from your browser</strong>
-            <span>Download the stream TikTok is currently playing without waiting for full format analysis.</span>
-            <small>Current playback quality only · Other qualities load separately · The stream may expire.</small>
+            <span>
+              Download the stream TikTok is currently playing without waiting
+              for full format analysis.
+            </span>
+            <small>
+              Current playback quality only · Other qualities load separately ·
+              The stream may expire.
+            </small>
           </div>
-          <Button variant="primary" icon={LuArrowDownToLine}
-            busy={capturedBusy} onClick={addCaptured}>
+          <Button
+            variant="primary"
+            icon={LuArrowDownToLine}
+            busy={capturedBusy}
+            onClick={addCaptured}
+          >
             Download now
           </Button>
         </section>
@@ -554,19 +642,36 @@ export default function MediaPage({ tools }) {
                 src={preview.thumbnail}
                 alt={t("media.previewAlt")}
                 referrerPolicy="no-referrer"
-                onError={(event) => { event.currentTarget.hidden = true; }}
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
               />
               <div>
                 <span className="eyebrow">TikTok</span>
-                <strong>{preview.title || preview.author || "TikTok video"}</strong>
+                <strong>
+                  {preview.title || preview.author || "TikTok video"}
+                </strong>
                 {preview.author && <small>{preview.author}</small>}
               </div>
             </div>
           )}
           <div className="loader-ring" />
-          <h2>{captured ? "More quality options loading" : t("media.loadingTitle")}</h2>
-          <p>{captured ? "Your browser playback is ready to download above. Additional formats are loading in the background." : t("media.loadingText")}</p>
-          <span>{t("media.loadingNote")}</span>
+          <h2>
+            {captured
+              ? "More quality options loading"
+              : t("media.loadingTitle")}
+          </h2>
+          <p>
+            {captured
+              ? "Your browser playback is ready to download above. Additional formats are loading in the background."
+              : t("media.loadingText")}
+          </p>
+          <span>
+            {t("media.loadingNote")} · {analysisElapsed}s
+          </span>
+          <Button variant="ghost" onClick={cancelAnalysis}>
+            {t("media.cancelAnalysis")}
+          </Button>
         </div>
       )}
       {!busy && result && (

@@ -54,7 +54,7 @@ export function PageHeader({ eyebrow, title, description, children }) {
   return (
     <div className="page-header">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
@@ -276,13 +276,14 @@ export function ErrorBanner({ children }) {
     </div>
   );
 }
-export function Switch({ checked, onChange, label, disabled }) {
+export function Switch({ checked, onChange, label, disabled, title }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      title={title}
       disabled={disabled}
       className={`switch ${checked ? "on" : ""}`}
       onClick={() => onChange(!checked)}
