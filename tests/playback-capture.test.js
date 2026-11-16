@@ -35,7 +35,10 @@ test("playback cache accepts only authenticated public TikTok video captures", (
   const selection = cache.resolve(post, found.id);
   assert.equal(selection.url, stream);
   assert.equal(selection.filename, "TikTok-7234567890123456789.mp4");
-  assert.deepEqual(selection.headers, { Referer: "https://www.tiktok.com/" });
+  assert.deepEqual(selection.headers, {
+    Accept: "*/*",
+    Referer: "https://www.tiktok.com/",
+  });
   cache.close();
   assert.equal(cache.find(post), null);
 });

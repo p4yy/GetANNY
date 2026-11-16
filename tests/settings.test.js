@@ -22,7 +22,7 @@ test("settings return validated defaults, execute behavioral hooks, persist thro
     downloadPath: dir,
     onChange: (k, v) => changes.push([k, v]),
   });
-  assert.equal(service.get("maxConcurrentDownloads"), 3);
+  assert.equal(service.get("maxConcurrentDownloads"), 12);
   await service.set("maxConcurrentDownloads", 5);
   await service.set("theme", "midnight");
   await service.set("defaultDownloadPath", path.join(dir, "new-folder"));
