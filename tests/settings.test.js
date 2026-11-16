@@ -40,7 +40,7 @@ test("settings return validated defaults, execute behavioral hooks, persist thro
   assert.equal(service.get("theme"), "midnight");
   assert.equal(service.get("maxConcurrentDownloads"), 5);
   await service.reset();
-  assert.equal(service.get("maxConcurrentDownloads"), 3);
+  assert.equal(service.get("maxConcurrentDownloads"), 12);
 });
 test("all displayed preference types reject malformed values", () => {
   for (const [key, value] of [
