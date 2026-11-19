@@ -13,6 +13,16 @@ function audioCodec(format) {
     /^(m4a|mp3|ogg|opus|aac|wav|flac)$/.test(format.ext)
   );
 }
+function originalAudio(format, info) {
+  if (format.is_original === true) return true;
+  if (typeof format.language !== "string") return false;
+  if (/\(original\)/i.test(format.format_note || "")) return true;
+  return (
+    typeof info.original_language === "string" &&
+    format.language.replaceAll("_", "-").toLowerCase() ===
+      info.original_language.replaceAll("_", "-").toLowerCase()
+  );
+}
 function normalizeFormats(info) {
   const seen = new Set();
   const separateAudio = (info.formats || []).some(
@@ -74,6 +84,7 @@ function normalizeFormats(info) {
         bitrate: format.abr || format.tbr || null,
         audioChannels: format.audio_channels || null,
         language: format.language || null,
+        originalAudio: hasAudio && originalAudio(format, info),
         note: format.format_note || null,
         protocol: format.protocol || null,
       };
@@ -96,6 +107,7 @@ function normalizeFormats(info) {
         format.acodec,
         format.bitrate,
         format.language,
+        format.originalAudio,
         format.audioChannels,
         format.note,
       ]);

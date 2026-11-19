@@ -3,10 +3,10 @@ const { createReadStream } = require("node:fs");
 const path = require("node:path");
 const { createHash } = require("node:crypto");
 
-async function hashFile(file) {
-  const hash = createHash("sha256");
+async function hashFile(file, algorithm = "sha256", encoding = "hex") {
+  const hash = createHash(algorithm);
   for await (const chunk of createReadStream(file)) hash.update(chunk);
-  return hash.digest("hex");
+  return hash.digest(encoding);
 }
 
 async function writeChecksums(dir = path.resolve("release-assets")) {

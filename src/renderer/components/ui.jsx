@@ -128,6 +128,7 @@ export function Dialog({
   onClose,
   wide = false,
   busy = false,
+  fixedActions = false,
 }) {
   const { t } = useI18n();
   const ref = useRef();
@@ -147,10 +148,11 @@ export function Dialog({
         ),
       ].filter((element) => element.getClientRects().length);
     (
-      root.querySelector("input:not(:disabled),[data-autofocus]") ||
+      root.querySelector("[data-autofocus]:not(:disabled)") ||
+      (!fixedActions && root.querySelector("input:not(:disabled)")) ||
       focusable()[0] ||
       root
-    ).focus();
+    ).focus({ preventScroll: true });
     const keydown = (event) => {
       if (event.key === "Escape") {
         event.stopPropagation();
@@ -196,7 +198,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className={`dialog ${wide ? "wide" : ""}`}
+        className={`dialog ${wide ? "wide" : ""}${fixedActions ? " dialog-fixed-actions" : ""}`}
       >
         <header className="dialog-header">
           <div>

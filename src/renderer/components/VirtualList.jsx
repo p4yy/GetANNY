@@ -18,6 +18,7 @@ export default function VirtualList({
   className = "",
   navigationRef,
   pinnedIndex,
+  scrollParent,
 }) {
   const host = useRef(null);
   const heights = useRef(new Map());
@@ -49,16 +50,32 @@ export default function VirtualList({
   useLayoutEffect(() => {
     const node = host.current;
     if (!node) return;
-    const update = () =>
-      setViewport({ top: node.scrollTop, height: node.clientHeight || 520 });
+    const external = scrollParent ? node.closest(scrollParent) : null;
+    const update = () => {
+      if (!external) {
+        setViewport({ top: node.scrollTop, height: node.clientHeight || 520 });
+        return;
+      }
+      const offset = external.getBoundingClientRect().top - node.getBoundingClientRect().top;
+      setViewport((old) => {
+        const top = Math.max(0, offset);
+        const height = Math.max(0, external.clientHeight + Math.min(0, offset));
+        return old.top === top && old.height === height ? old : { top, height };
+      });
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
+    if (external) {
+      observer.observe(external);
+      external.addEventListener("scroll", update, { passive: true });
+    }
     return () => {
       observer.disconnect();
+      external?.removeEventListener("scroll", update);
       if (scrollFrame.current) cancelAnimationFrame(scrollFrame.current);
     };
-  }, []);
+  }, [scrollParent, setViewport]);
   const offsets = useMemo(() => {
     const result = new Array(items.length + 1);
     result[0] = 0;
@@ -141,7 +158,7 @@ export default function VirtualList({
     <div
       ref={host}
       className={className}
-      onScroll={(event) => {
+      onScroll={scrollParent ? undefined : (event) => {
         const top = event.currentTarget.scrollTop;
         if (scrollFrame.current) cancelAnimationFrame(scrollFrame.current);
         scrollFrame.current = requestAnimationFrame(() => {

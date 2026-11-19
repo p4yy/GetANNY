@@ -2,6 +2,7 @@
 if (typeof importScripts === "function")
   importScripts(
     "config.js",
+    "download-preferences.js",
     "download-interceptor.js",
     "stream-detection.js",
     "social-links.js",
@@ -138,10 +139,8 @@ const hasHeader = (headers, name) =>
 async function withSiteCookies(url, headers = {}) {
   if (hasHeader(headers, "cookie") || !api.cookies?.getAll) return headers;
   try {
-    const saved = await api.storage.local.get(["includeSiteCookies"]);
-    // Site cookies are required for cloud/private files by default. The popup
-    // and interceptor pass an explicit false when the user opts out.
-    if (saved.includeSiteCookies === false) return headers;
+    const { includeSiteCookies } = await globalThis.GetANNYDownloadPreferences.get(api, url);
+    if (!includeSiteCookies) return headers;
     const cookies = await api.cookies.getAll({ url });
     if (!cookies.length) return headers;
     return {
@@ -587,11 +586,12 @@ async function request(message) {
   if (
     message.type === "download" &&
     message.kind !== "media" &&
+    !message.intercepted &&
     !message.privateSession &&
     message.includeSiteCookies !== false
   ) {
     outgoing = {
-      ...message,
+      ...outgoing,
       headers: await withSiteCookies(message.url, outgoing.headers),
     };
   }
@@ -684,6 +684,17 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       return {
         site: validUrl(sender.tab?.url) ? new URL(sender.tab.url).origin : null,
       };
+    if (message.type === "getanny:dribbble-video") {
+      const links = globalThis.GetANNYSocialLinks;
+      const page = links.postLink(message.page, sender.tab?.url);
+      const url = links.dribbbleAsset(message.url, page);
+      if (!page || links.socialSite(page) !== "dribbble" || !url)
+        throw new Error("Choose a video from the Dribbble shot.");
+      return request({ type: "download", kind: "file", url,
+        ...(sender.tab.incognito ? { privateSession: true } : { page }),
+        headers: { Referer: page },
+      });
+    }
     if (message.type === "getanny:playback-captured") {
       const tabUrl = sender.tab?.url;
       if (
@@ -847,13 +858,40 @@ api.runtime.onInstalled.addListener(() => {
       title: "Analyze media in GetANNY",
       contexts: ["page"],
     });
+    api.contextMenus.create({
+      id: "getanny-card-video",
+      title: "Download video with GetANNY",
+      contexts: ["link", "image", "video", "page"],
+      documentUrlPatterns: ["*://*.youtube.com/*", "*://*.tiktok.com/*", "*://*.dribbble.com/*"],
+    });
   });
 });
-api.contextMenus.onClicked.addListener((info, tab) => {
-  const media = info.menuItemId === "getanny-page";
-  const url = media ? tab.url : info.linkUrl || info.srcUrl;
-  if (validUrl(url))
-    request({
+async function downloadFromContext(info, tab) {
+  const links = globalThis.GetANNYSocialLinks;
+  const page = info.frameUrl || info.pageUrl || tab?.url;
+  const cardAction = info.menuItemId === "getanny-card-video";
+  const link = info.linkUrl;
+  const linkedPost = link && links.postLink(link, link);
+  const supported = (post) => ["youtube", "tiktok", "dribbble"].includes(links.socialSite(post));
+  const sendToCard = (message) => api.tabs.sendMessage(tab.id, message, { frameId: info.frameId ?? 0 });
+  let post = supported(linkedPost) ? linkedPost : null;
+  if (!post && cardAction) {
+    const card = await sendToCard({ type: "getanny:card-context" }).catch(() => null);
+    post = links.contextPost(link, page, card?.post);
+    if (!supported(post)) {
+      await sendToCard({ type: "getanny:card-error" });
+      return;
+    }
+  }
+  if (links.socialSite(post) === "dribbble") {
+    const reply = await sendToCard({ type: "getanny:card-dribbble", url: post, mediaUrl: info.mediaType === "video" ? info.srcUrl : undefined });
+    if (!reply?.accepted) throw new Error("Reload the Dribbble tab to use the updated GetANNY extension.");
+    return;
+  }
+  const media = !!post || info.menuItemId === "getanny-page";
+  const url = post || (media ? tab?.url : link || info.srcUrl);
+  if (validUrl(url)) {
+    await request({
       type: "download",
       url,
       kind: media ? "media" : "file",
@@ -868,7 +906,11 @@ api.contextMenus.onClicked.addListener((info, tab) => {
           ? { Referer: info.pageUrl || tab.url }
           : {}),
       },
-    }).catch((error) => update({ error: error.message }));
+    });
+  }
+}
+api.contextMenus.onClicked.addListener((info, tab) => {
+  downloadFromContext(info, tab).catch((error) => update({ error: error.message }));
 });
 interceptor = new globalThis.GetANNYDownloadInterceptor({
   api,

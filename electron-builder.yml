@@ -56,7 +56,7 @@ win:
 publish:
   - provider: github
     owner: p4yy
-    repo: GetANNY-Download-Manager
+    repo: GetANNY
     releaseType: release
 nsis:
   # scripts/windows/installer.nsh creates resources/getanny-github-updates for

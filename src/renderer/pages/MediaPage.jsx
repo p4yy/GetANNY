@@ -1,6 +1,5 @@
 import VideoPreview from "../components/VideoPreview";
 import ExportOptions from "../components/ExportOptions";
-import DestinationPreview from "../components/DestinationPreview";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LuAudioLines,
@@ -35,15 +34,27 @@ import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
 import { bytes, duration } from "../utils/format";
 import { choosePlaylistFormat } from "../utils/playlist-formats.mjs";
-import { choosePreferredMediaFormat } from "../utils/choose-media-format.mjs";
+import {
+  chooseMediaPreset,
+  choosePreferredAudioFormat,
+  choosePreferredMediaFormat,
+  choosePreferredSubtitle,
+  mediaAudioTrackLabel,
+  mediaLanguageName,
+} from "../utils/choose-media-format.mjs";
 import { useI18n } from "../i18n/useI18n";
 export default function MediaPage({ tools }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const url = useUIStore((state) => state.mediaUrl),
     setUrl = useUIStore((state) => state.setMediaUrl),
     mediaRequest = useUIStore((state) => state.mediaRequest);
   const settings = useSettingsStore((state) => state.settings);
+  const audioPreferences = {
+    language: settings.mediaPreferences?.audioLanguage,
+    interfaceLanguage: language,
+  };
   const [showVariants, setShowVariants] = useState(false);
+  const [preset, setPreset] = useState("");
   const [result, setResult] = useState(null),
     [selected, setSelected] = useState(null),
     [group, setGroup] = useState("video"),
@@ -57,6 +68,7 @@ export default function MediaPage({ tools }) {
     [adding, setAdding] = useState(false),
     [section, setSection] = useState("media"),
     [withSubtitles, setWithSubtitles] = useState(false),
+    [allowWithoutCaptions, setAllowWithoutCaptions] = useState(false),
     [subtitleLanguage, setSubtitleLanguage] = useState(""),
     [subtitleFormat, setSubtitleFormat] = useState("vtt"),
     [segment, setSegment] = useState(null);
@@ -72,6 +84,7 @@ export default function MediaPage({ tools }) {
     [playlistProgress, setPlaylistProgress] = useState(null),
     [playlistFailures, setPlaylistFailures] = useState([]);
   const playlistRequest = useRef(null);
+  const playlistQueuing = playlistProgress?.phase === "queuing";
   useEffect(
     () =>
       api.on("media:playlist-progress", ({ requestId, count }) => {
@@ -143,22 +156,47 @@ export default function MediaPage({ tools }) {
     lastAuto.current = 0;
     setBusy(false);
   };
-  const clearLink = () => {
-    // Invalidate any in-flight analysis so its result cannot repopulate the
-    // input or the format list after the user cleared the link.
-    cancelAnalysis();
-    setUrl("");
+  const cancelPlaylist = () => {
+    if (!playlistRequest.current) return;
+    api.invoke("media:cancel-analysis", playlistRequest.current).catch(() => {});
+    playlistRequest.current = null;
+    setPlaylistBusy(false);
+    setPlaylistProgress(null);
+  };
+  const resetMedia = () => {
+    analysisCaptureReady.current = false;
     setResult(null);
     setPreview(null);
     setCaptured(null);
     setSelected(null);
     setSegment(null);
     setError("");
-    setBusy(false);
+    setSection("media");
+    setWithSubtitles(false);
+    setAllowWithoutCaptions(false);
+    setPreset("");
+  };
+  const editLink = (nextUrl) => {
+    cancelAnalysis();
+    cancelPlaylist();
+    resetMedia();
+    setPlaylist(null);
+    setPlaylistSelection(new Set());
+    setPlaylistFailures([]);
+    setUrl(nextUrl);
+  };
+  const clearLink = () => {
+    editLink("");
     document.getElementById("media-url")?.focus();
   };
   const analyze = async (event) => {
     event?.preventDefault();
+    cancelPlaylist();
+    if (!playlistQueuing) {
+      setPlaylist(null);
+      setPlaylistSelection(new Set());
+      setPlaylistFailures([]);
+    }
     const current = ++generation.current;
     if (analysisRequest.current)
       api
@@ -166,22 +204,17 @@ export default function MediaPage({ tools }) {
         .catch(() => {});
     const requestId = crypto.randomUUID();
     analysisRequest.current = requestId;
-    analysisCaptureReady.current = false;
+    resetMedia();
     analysisStartedAt.current = Date.now();
     setAnalysisElapsed(0);
     setBusy(true);
-    setError("");
-    setResult(null);
-    setPreview(null);
-    setCaptured(null);
-    setSelected(null);
-    setSegment(null);
-    setSection("media");
-    setWithSubtitles(false);
     try {
       if (!/^https?:\/\//i.test(url.trim()))
         throw new Error(t("media.invalidUrl"));
       const mediaUrl = url.trim();
+      const source = new URL(mediaUrl);
+      if (/^(?:www\.|m\.)?youtube\.com$/i.test(source.hostname) && source.pathname === "/")
+        throw new Error(t("media.youtubeHome"));
       // Run quick public TikTok preview alongside extraction, not ahead of it.
       // The generation guard keeps stale requests from repainting the page.
       const formatsPromise = api.invoke(
@@ -211,16 +244,20 @@ export default function MediaPage({ tools }) {
       const info = await formatsPromise;
       if (current !== generation.current) return;
       setResult(info);
+      const preferredAudio = choosePreferredAudioFormat(info.formats, audioPreferences);
+      const sourceAudio = info.formats.find((item) => item.originalAudio && item.language);
+      setAudioFormatId(preferredAudio?.formatId || "");
       setSubtitleLanguage(
-        info.subtitles.find(
-          (s) => s.id === settings.mediaPreferences?.subtitleLanguage,
-        )?.id ||
-          info.subtitles[0]?.id ||
-          "",
+        choosePreferredSubtitle(
+          info.subtitles,
+          settings.mediaPreferences?.subtitleLanguage,
+          sourceAudio?.language,
+          language,
+        )?.id || "",
       );
       const preferred = choosePreferredMediaFormat(
         info.formats,
-        settings.mediaPreferences,
+        { ...settings.mediaPreferences, interfaceLanguage: language },
         info.tools,
       );
       setGroup(preferred?.group || "video");
@@ -235,6 +272,9 @@ export default function MediaPage({ tools }) {
     }
   };
   const loadPlaylist = async () => {
+    cancelAnalysis();
+    cancelPlaylist();
+    resetMedia();
     const requestId = crypto.randomUUID();
     playlistRequest.current = requestId;
     setPlaylistBusy(true);
@@ -278,11 +318,14 @@ export default function MediaPage({ tools }) {
         const info = await api.invoke("media:get-formats", entry.url);
         const cap =
           playlistQuality === "highest" ? Infinity : Number(playlistQuality);
-        const format = choosePlaylistFormat(info.formats, playlistFormat, cap);
+        const format = choosePlaylistFormat(info.formats, playlistFormat, cap, audioPreferences);
         if (!format) throw new Error(t("media.playlistNoFormat"));
         await api.invoke("media:download", {
           analysisId: info.analysisId,
           formatId: format.formatId,
+          ...(format.mergeAudio
+            ? { audioFormatId: choosePreferredAudioFormat(info.formats, audioPreferences)?.formatId }
+            : {}),
           ...(folder !== settings.defaultDownloadPath
             ? { savePath: folder }
             : {}),
@@ -321,10 +364,16 @@ export default function MediaPage({ tools }) {
           .invoke("media:cancel-analysis", analysisRequest.current)
           .catch(() => {});
       analysisRequest.current = null;
+      if (playlistRequest.current)
+        api.invoke("media:cancel-analysis", playlistRequest.current).catch(() => {});
+      playlistRequest.current = null;
     },
     [],
   );
   const format = result?.formats.find((item) => item.formatId === selected);
+  const formatsInGroup = (result?.formats || []).filter((item) => item.group === group);
+  const variantKey = (item) => item.group === "video" ? item.height : `${item.ext}/${item.language}`;
+  const hasVariants = new Set(formatsInGroup.map(variantKey)).size < formatsInGroup.length;
   const [exportOptions, setExportOptions] = useState({
     mode: "precise",
     container: "mkv",
@@ -335,16 +384,44 @@ export default function MediaPage({ tools }) {
   const [audioFormatId, setAudioFormatId] = useState("");
   const [showEditor, setShowEditor] = useState(false);
   useEffect(() => setShowEditor(false), [result?.analysisId]);
+  const canTrim = group === "video" && result?.duration > 0 && !result.live && result.tools.ffmpeg;
+  const editorOpen = showEditor && canTrim && section === "media";
+  const editor = useRef(null);
+  const formatList = useRef(null);
+  const returnToTrim = useRef(false);
   useEffect(() => {
-    const preferred = result?.formats.find(
-      (f) =>
-        f.group === "audio" &&
-        settings.mediaPreferences?.audioLanguage &&
-        f.language === settings.mediaPreferences.audioLanguage,
-    );
-    setAudioFormatId(preferred?.formatId || "");
-  }, [result?.analysisId]);
+    if (editorOpen) {
+      editor.current?.focus({ preventScroll: true });
+      editor.current?.scrollIntoView({ block: "start" });
+    } else if (returnToTrim.current) {
+      returnToTrim.current = false;
+      document.getElementById("open-media-trim")?.focus();
+    }
+  }, [editorOpen]);
+  useEffect(() => {
+    const list = formatList.current;
+    const selectedRow = list?.querySelector(".format-option.selected");
+    if (!selectedRow) return;
+    const bounds = list.getBoundingClientRect();
+    const row = selectedRow.getBoundingClientRect();
+    if (row.top < bounds.top || row.bottom > bounds.bottom)
+      list.scrollTop += row.top - bounds.top;
+  }, [selected, result?.analysisId, section, showVariants, editorOpen]);
   const partialSegment = group === "video" && !!segment;
+  const useCompanion = group === "video" && withSubtitles;
+  const selectedAudio = format?.mergeAudio
+    ? result.formats.find((item) => item.formatId === audioFormatId)
+    : format?.hasAudio ? format : null;
+  const audioLabel = (item) => [
+    mediaLanguageName(item?.language, language),
+    item?.originalAudio && t("media.originalAudio"),
+  ].filter(Boolean).join(" · ");
+  const presets = result?.formats.length > 1 && group === "video" && !partialSegment
+    ? ["best", "compatible", "small"].map((name) => ({
+        name,
+        choice: chooseMediaPreset(result.formats, name, result.tools, audioPreferences),
+      })).filter(({ choice }) => choice)
+    : [];
   const addCaptured = async () => {
     if (!captured) return;
     setCapturedBusy(true);
@@ -372,7 +449,7 @@ export default function MediaPage({ tools }) {
     setAdding(true);
     setError("");
     try {
-      await api.invoke("media:download", {
+      const receipt = await api.invoke("media:download", {
         analysisId: result.analysisId,
         formatId: format.formatId,
         audioFormatId: format.mergeAudio ? audioFormatId : undefined,
@@ -383,11 +460,12 @@ export default function MediaPage({ tools }) {
               audioFormatId: format.mergeAudio ? audioFormatId : undefined,
             }
           : {}),
-        ...(withSubtitles && subtitleLanguage
+        ...(useCompanion && subtitleLanguage
           ? {
               subtitle: {
                 languageId: subtitleLanguage,
                 format: subtitleFormat,
+                allowWithoutCaptions,
               },
             }
           : {}),
@@ -395,12 +473,17 @@ export default function MediaPage({ tools }) {
           ? { savePath: folder }
           : {}),
       });
+      if (receipt?.subtitleQueued === false) {
+        setSection("subtitles");
+        setError(t("media.companionNotQueued"));
+        return;
+      }
       useUIStore
         .getState()
         .notify(
           partialSegment
             ? t("media.segment.queued")
-            : withSubtitles
+            : useCompanion
               ? t("media.addedWithSubtitles")
               : t("media.added"),
         );
@@ -411,6 +494,112 @@ export default function MediaPage({ tools }) {
       setAdding(false);
     }
   };
+  const downloadButton = (
+    <Button
+      variant="primary"
+      icon={LuArrowDownToLine}
+      busy={adding}
+      disabled={
+        !format ||
+        !folder ||
+        (useCompanion && !subtitleLanguage) ||
+        (format.mergeAudio && !result.tools.ffmpeg)
+      }
+      onClick={add}
+    >
+      {t(
+        partialSegment
+          ? "media.segment.download"
+          : group === "audio"
+            ? "media.downloadAudio"
+            : "media.downloadVideo",
+      )}
+    </Button>
+  );
+  const destinationField = (
+    <FolderField
+      value={folder}
+      onChange={setFolder}
+      id="media-folder"
+    />
+  );
+  const audioTrackName = (item) => mediaAudioTrackLabel(item, language, t("media.originalAudio"));
+  const audioTrackField = format?.mergeAudio && (
+    <label className="media-audio-track">
+      {t("trim.audioTrack")}
+      <Select
+        value={audioFormatId}
+        title={selectedAudio ? audioTrackName(selectedAudio) : undefined}
+        onChange={(event) => {
+          setAudioFormatId(event.target.value);
+          setPreset("");
+        }}
+      >
+        <option value="">{t("trim.autoAudio")}</option>
+        {result.formats.filter((item) => item.group === "audio").map((item) => (
+          <option value={item.formatId} key={item.formatId}>{audioTrackName(item)}</option>
+        ))}
+      </Select>
+    </label>
+  );
+  const subtitleOptions =
+    group === "video" && result?.subtitles.length > 0 && (
+      <div className="subtitle-companion">
+        <label>
+          <input
+            type="checkbox"
+            checked={withSubtitles}
+            onChange={(event) =>
+              setWithSubtitles(event.target.checked)
+            }
+          />
+          {partialSegment
+            ? t("trim.includeCaptions")
+            : t("media.includeSubtitles")}
+        </label>
+        {withSubtitles && (
+          <div>
+            <Select
+              aria-label={t("media.subtitleLanguage")}
+              value={subtitleLanguage}
+              onChange={(event) =>
+                setSubtitleLanguage(event.target.value)
+              }
+            >
+              <option value="">{t("media.chooseSubtitle")}</option>
+              {result.subtitles.map((subtitle) => (
+                <option key={subtitle.id} value={subtitle.id}>
+                  {subtitle.name}
+                  {subtitle.automatic ? t("media.autoSuffix") : ""}
+                </option>
+              ))}
+            </Select>
+            <Select
+              aria-label={t("media.subtitleFormat")}
+              value={subtitleFormat}
+              onChange={(event) =>
+                setSubtitleFormat(event.target.value)
+              }
+            >
+              <option value="vtt">VTT</option>
+              <option value="srt">SRT</option>
+            </Select>
+          </div>
+        )}
+        {withSubtitles && partialSegment && (
+          <label>
+            <input
+              type="checkbox"
+              checked={allowWithoutCaptions}
+              onChange={(event) =>
+                setAllowWithoutCaptions(event.target.checked)
+              }
+            />
+            {t("media.allowWithoutCaptions")}
+          </label>
+        )}
+      </div>
+    );
   return (
     <div className="page media-page">
       <PageHeader title={t("media.title")}>
@@ -434,26 +623,8 @@ export default function MediaPage({ tools }) {
                 dir="ltr"
                 placeholder={t("media.urlPlaceholder")}
                 value={url}
-                onChange={(event) => {
-                  const nextUrl = event.target.value;
-                  setUrl(nextUrl);
-                  if (!nextUrl.trim()) {
-                    cancelAnalysis();
-                    analysisCaptureReady.current = false;
-                    setResult(null);
-                    setPreview(null);
-                    setCaptured(null);
-                    setSelected(null);
-                    setSegment(null);
-                    setError("");
-                  }
-                  setPlaylist(null);
-                  setPlaylistSelection(new Set());
-                  if (result) {
-                    setResult(null);
-                    setSelected(null);
-                  }
-                }}
+                onChange={(event) => editLink(event.target.value)}
+                disabled={playlistQueuing}
                 spellCheck="false"
                 autoComplete="off"
               />
@@ -464,6 +635,7 @@ export default function MediaPage({ tools }) {
                   title={t("media.clearLink")}
                   aria-label={t("media.clearLink")}
                   onClick={clearLink}
+                  disabled={playlistQueuing}
                 >
                   <LuX />
                 </button>
@@ -474,7 +646,7 @@ export default function MediaPage({ tools }) {
               icon={LuSearch}
               variant="primary"
               busy={busy}
-              disabled={!url.trim() || !tools.ytdlp}
+              disabled={!url.trim() || !tools.ytdlp || playlistQueuing}
             >
               {t("media.analyze")}
             </Button>
@@ -697,7 +869,6 @@ export default function MediaPage({ tools }) {
                 {result.duration ? `· ${duration(result.duration)}` : ""}
               </span>
               <h2>{result.title}</h2>
-              <p>{t("media.formatsCount", { count: result.formats.length })}</p>
             </div>
           </div>
           <div
@@ -713,7 +884,7 @@ export default function MediaPage({ tools }) {
                 "media.tab.thumbnails",
                 result.thumbnails.length,
               ],
-              ["description", LuFileText, "media.tab.description", null],
+              ["description", LuFileText, "media.tab.description", result.description ? null : 0],
               ["tags", LuTags, "media.tab.tags", result.tags.length],
               [
                 "subtitles",
@@ -721,7 +892,7 @@ export default function MediaPage({ tools }) {
                 "media.tab.subtitles",
                 result.subtitles.length,
               ],
-            ].map(([id, Icon, labelKey, count]) => (
+            ].filter(([id, , , count]) => id === "media" || count !== 0).map(([id, Icon, labelKey, count]) => (
               <button
                 key={id}
                 role="tab"
@@ -734,10 +905,10 @@ export default function MediaPage({ tools }) {
               </button>
             ))}
           </div>
-          {section === "media" && (
+          {section === "media" && !editorOpen && (
             <div className="media-result-body">
               <div className="format-panel">
-                <div
+                {new Set(result.formats.map((item) => item.group)).size > 1 && <div
                   className="format-tabs"
                   role="tablist"
                   aria-label={t("media.formatTypeLabel")}
@@ -751,11 +922,17 @@ export default function MediaPage({ tools }) {
                       aria-selected={group === key}
                       key={key}
                       onClick={() => {
+                        if (group === key) return;
                         setGroup(key);
+                        setPreset("");
                         if (key !== "video") setSegment(null);
-                        const first = result.formats.find(
-                          (item) => item.group === key,
-                        );
+                        const first = key === "audio"
+                          ? choosePreferredAudioFormat(result.formats, audioPreferences)
+                          : choosePreferredMediaFormat(
+                              result.formats.filter((item) => item.group === key),
+                              settings.mediaPreferences,
+                              result.tools,
+                            );
                         setSelected(first?.formatId || null);
                       }}
                     >
@@ -769,23 +946,49 @@ export default function MediaPage({ tools }) {
                       </span>
                     </button>
                   ))}
-                </div>
-                <div className="format-variants">
-                  <Button onClick={() => setShowVariants((v) => !v)}>
+                </div>}
+                {(presets.length > 0 || hasVariants) && <div className="format-variants">
+                  {presets.length > 0 && (
+                    <Select
+                      aria-label={t("media.presetLabel")}
+                      value={preset}
+                      onChange={(event) => {
+                        const choice = presets.find(
+                          ({ name }) => name === event.target.value,
+                        );
+                        setPreset(choice?.name || "");
+                        if (choice?.choice) {
+                          setSelected(choice.choice.format.formatId);
+                          setAudioFormatId(choice.choice.audio?.formatId || "");
+                        }
+                      }}
+                    >
+                      <option value="">{t("media.presetLabel")}</option>
+                      {presets.map(({ name }) => (
+                        <option key={name} value={name}>
+                          {t("media.preset." + name)}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  {hasVariants && <Button
+                    title={group === "video" ? t("enhance.codecNote") : undefined}
+                    onClick={() => setShowVariants((v) => !v)}
+                  >
                     {t(
                       showVariants
                         ? "enhance.hideVariants"
                         : "enhance.showVariants",
                     )}
-                  </Button>
-                  <small>{t("enhance.codecNote")}</small>
-                </div>
+                  </Button>}
+                </div>}
                 <div className="format-heading">
                   <span>{t("media.qualityFormat")}</span>
                   <span>{t("media.size")}</span>
                 </div>
                 <div
                   className="format-list"
+                  ref={formatList}
                   role="radiogroup"
                   aria-label={t("media.formatGroup", {
                     group: t(
@@ -793,18 +996,12 @@ export default function MediaPage({ tools }) {
                     ),
                   })}
                 >
-                  {result.formats
-                    .filter((item) => item.group === group)
+                  {formatsInGroup
                     .filter(
                       (item, index, list) =>
                         showVariants ||
                         item.formatId === selected ||
-                        list.findIndex((f) =>
-                          group === "video"
-                            ? f.height === item.height
-                            : f.ext === item.ext &&
-                              f.language === item.language,
-                        ) === index,
+                        list.findIndex((format) => variantKey(format) === variantKey(item)) === index,
                     )
                     .map((item) => (
                       <label
@@ -817,7 +1014,10 @@ export default function MediaPage({ tools }) {
                           value={item.formatId}
                           checked={selected === item.formatId}
                           disabled={item.mergeAudio && !result.tools.ffmpeg}
-                          onChange={() => setSelected(item.formatId)}
+                          onChange={() => {
+                            setSelected(item.formatId);
+                            setPreset("");
+                          }}
                         />
                         <span className="format-radio">
                           <LuCheck />
@@ -827,12 +1027,11 @@ export default function MediaPage({ tools }) {
                             {item.quality} <span>{item.ext.toUpperCase()}</span>
                             {item.fps > 30 && <span>{item.fps} FPS</span>}
                           </strong>
-                          <small>
+                          <span className="format-meta">
                             {[
-                              item.resolution,
                               item.vcodec?.split(".")[0],
-                              item.acodec?.split(".")[0],
-                              item.language,
+                              (item.mergeAudio && selected === item.formatId ? selectedAudio?.acodec : item.acodec)?.split(".")[0],
+                              audioLabel(item.mergeAudio && selected === item.formatId ? selectedAudio : item),
                               item.mergeAudio
                                 ? t("media.audioMerged")
                                 : item.hasVideo
@@ -849,7 +1048,7 @@ export default function MediaPage({ tools }) {
                             ]
                               .filter(Boolean)
                               .join(" · ")}
-                          </small>
+                          </span>
                         </div>
                         <span className="format-size">
                           {item.filesize
@@ -879,11 +1078,17 @@ export default function MediaPage({ tools }) {
                 </p>
               </div>
               <aside className="media-output">
-                <div className="eyebrow">{t("media.yourDownload")}</div>
-                <div className="selected-quality">
-                  {format?.quality || t("media.chooseFormat")}
-                  <span>{format?.ext.toUpperCase()}</span>
+                <div className="media-output-heading">
+                  <div className="eyebrow">{t("media.yourDownload")}</div>
+                  <div className="selected-quality">
+                    {format?.quality || t("media.chooseFormat")}
+                    <span>{format?.ext.toUpperCase()}</span>
+                  </div>
                 </div>
+                <div className="media-output-action">
+                  {downloadButton}
+                </div>
+                <div className="media-output-controls">
                 <dl>
                   <div>
                     <dt>{t("media.content")}</dt>
@@ -907,8 +1112,22 @@ export default function MediaPage({ tools }) {
                           : format?.audioUnknown
                             ? t("media.audioNotReported")
                             : "—"}
+                      {audioLabel(selectedAudio) && (
+                        <small> · {audioLabel(selectedAudio)}</small>
+                      )}
                     </dd>
                   </div>
+                  {(format?.vcodec || selectedAudio?.acodec) && (
+                    <div>
+                      <dt>{t("media.codecs")}</dt>
+                      <dd>
+                        {[format?.vcodec, selectedAudio?.acodec]
+                          .filter(Boolean)
+                          .map((codec) => codec.split(".")[0])
+                          .join(" · ")}
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt>{t("media.fileSize")}</dt>
                     <dd>
@@ -918,21 +1137,14 @@ export default function MediaPage({ tools }) {
                     </dd>
                   </div>
                 </dl>
-                <FolderField
-                  value={folder}
-                  onChange={setFolder}
-                  id="media-folder"
-                />
-                {group === "video" &&
-                  result.duration > 0 &&
-                  !result.live &&
-                  result.tools.ffmpeg && (
+                  {destinationField}
+                  {audioTrackField}
+                  {canTrim && (
                     <Button
-                      aria-expanded={showEditor}
-                      aria-controls="media-segment-editor"
-                      onClick={() => setShowEditor((open) => !open)}
+                      id="open-media-trim"
+                      onClick={() => setShowEditor(true)}
                     >
-                      {t(showEditor ? "trim.closeEditor" : "trim.openEditor")}
+                      {t("trim.openEditor")}
                     </Button>
                   )}
                 {group === "video" && (result.live || !result.duration) && (
@@ -950,148 +1162,67 @@ export default function MediaPage({ tools }) {
                       {t("media.segment.ffmpegUnavailable")}
                     </div>
                   )}
-                {group === "video" && result.subtitles.length > 0 && (
-                  <div className="subtitle-companion">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={withSubtitles}
-                        onChange={(event) =>
-                          setWithSubtitles(event.target.checked)
-                        }
-                      />
-                      {partialSegment
-                        ? t("trim.includeCaptions")
-                        : t("media.includeSubtitles")}
-                    </label>
-                    {withSubtitles && (
-                      <div>
-                        <Select
-                          aria-label={t("media.subtitleLanguage")}
-                          value={subtitleLanguage}
-                          onChange={(event) =>
-                            setSubtitleLanguage(event.target.value)
-                          }
-                        >
-                          {result.subtitles.map((subtitle) => (
-                            <option key={subtitle.id} value={subtitle.id}>
-                              {subtitle.name}
-                              {subtitle.automatic ? t("media.autoSuffix") : ""}
-                            </option>
-                          ))}
-                        </Select>
-                        <Select
-                          aria-label={t("media.subtitleFormat")}
-                          value={subtitleFormat}
-                          onChange={(event) =>
-                            setSubtitleFormat(event.target.value)
-                          }
-                        >
-                          <option value="vtt">VTT</option>
-                          <option value="srt">SRT</option>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <Button
-                  variant="primary"
-                  icon={LuArrowDownToLine}
-                  busy={adding}
-                  disabled={
-                    !format ||
-                    !folder ||
-                    (withSubtitles && !partialSegment && !subtitleLanguage) ||
-                    (format.mergeAudio && !result.tools.ffmpeg)
-                  }
-                  onClick={add}
-                >
-                  {t(
-                    partialSegment
-                      ? "media.segment.download"
-                      : group === "audio"
-                        ? "media.downloadAudio"
-                        : "media.downloadVideo",
-                  )}
-                </Button>
-                <p>
-                  {partialSegment
-                    ? t("media.segment.progressNote")
-                    : t("media.progressNote")}
-                </p>
+                  {subtitleOptions}
                 {!result.tools.ffmpeg && (
                   <div className="small-warning">
                     {t("media.ffmpegMissing")}
                   </div>
                 )}
+                </div>
               </aside>
-              {showEditor &&
-                group === "video" &&
-                result.duration > 0 &&
-                !result.live &&
-                result.tools.ffmpeg && (
-                  <section
-                    id="media-segment-editor"
-                    className="media-editor"
-                    aria-label={t("media.segment.title")}
-                  >
-                    <VideoPreview
-                      result={result}
-                      format={format}
-                      segment={segment}
-                      onChange={setSegment}
-                    />
-                    <VideoSegmentSelector
-                      fps={format?.fps || 30}
-                      duration={result.duration}
-                      value={segment}
-                      onChange={setSegment}
-                    />
-                    {segment && (
-                      <ExportOptions
-                        value={exportOptions}
-                        onChange={setExportOptions}
-                        format={format}
-                        result={result}
-                        segment={segment}
-                        audioFormatId={audioFormatId}
-                        onAudioChange={setAudioFormatId}
-                      />
-                    )}
-                    <DestinationPreview
-                      url={url}
-                      media={{ type: "video", audioOnly: false }}
-                      savePath={
-                        folder !== settings.defaultDownloadPath
-                          ? folder
-                          : undefined
-                      }
-                    />
-                    <div className="media-editor-actions">
-                      <Button
-                        variant="primary"
-                        icon={LuArrowDownToLine}
-                        busy={adding}
-                        disabled={
-                          !format ||
-                          !folder ||
-                          (withSubtitles && !subtitleLanguage)
-                        }
-                        onClick={add}
-                      >
-                        {t(
-                          segment
-                            ? "media.segment.download"
-                            : "media.downloadVideo",
-                        )}
-                      </Button>
-                      <Button onClick={() => setShowEditor(false)}>
-                        {t("trim.closeEditor")}
-                      </Button>
-                    </div>
-                  </section>
-                )}
             </div>
+          )}
+          {editorOpen && (
+            <section
+              id="media-segment-editor"
+              className="media-editor"
+              ref={editor}
+              tabIndex={-1}
+              aria-label={t("media.segment.title")}
+            >
+              <VideoPreview
+                result={result}
+                format={format}
+                segment={segment}
+                onChange={setSegment}
+              />
+              <VideoSegmentSelector
+                fps={format?.fps || 30}
+                duration={result.duration}
+                value={segment}
+                onChange={setSegment}
+              />
+              {segment && (
+                <ExportOptions
+                  value={exportOptions}
+                  onChange={setExportOptions}
+                  format={format}
+                  result={result}
+                  segment={segment}
+                  audioFormatId={audioFormatId}
+                  onAudioChange={(next) => {
+                    setAudioFormatId(next);
+                    setPreset("");
+                  }}
+                />
+              )}
+              <div className="media-editor-options">
+                {destinationField}
+                {!partialSegment && audioTrackField}
+                {subtitleOptions}
+              </div>
+              <div className="media-editor-actions">
+                {downloadButton}
+                <Button
+                  onClick={() => {
+                    returnToTrim.current = true;
+                    setShowEditor(false);
+                  }}
+                >
+                  {t("trim.closeEditor")}
+                </Button>
+              </div>
+            </section>
           )}
           {section !== "media" && (
             <MediaMetadata

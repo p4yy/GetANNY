@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { EventEmitter } = require("node:events");
 const { createHash } = require("node:crypto");
 const { createReadStream } = require("node:fs");
 const { DownloadEngine } = require("../src/main/engine/DownloadEngine");
@@ -215,15 +216,18 @@ test("valid empty files complete at exactly zero bytes", async (t) => {
   assert.equal((await fs.stat(path.join(dir, engine.filename))).size, 0);
 });
 test("per-transfer speed limit is shared across connections", async (t) => {
-  const server = await fixtureServer(t, { size: 256 * 1024 });
+  const server = await fixtureServer(t, { size: 4 * 1024 * 1024 });
   const dir = await temporary(t);
   const start = Date.now();
   const engine = new ChunkDownloader({
     url: server.url + "/file.bin",
     savePath: dir,
-    speedLimit: 256 * 1024,
+    connections: 2,
+    speedLimit: 4 * 1024 * 1024,
   });
   assert.equal(await run(engine), undefined);
+  assert.equal(engine.segmentCount, 2);
+  assert.ok(server.state.maxActive > 1);
   assert.ok(Date.now() - start >= 950);
 });
 async function managerFixture(t, settings = {}, options = {}) {
@@ -255,7 +259,9 @@ test("queue slots, retries, history and collision-safe naming are real", async (
   const server = await fixtureServer(t, { size: 1024 * 1024, delay: 10 });
   const { manager, repo } = await managerFixture(t);
   const first = await manager.addDownload({ url: server.url + "/file.bin" }),
-    second = await manager.addDownload({ url: server.url + "/file.bin?second=1" });
+    second = await manager.addDownload({
+      url: server.url + "/file.bin?second=1",
+    });
   assert.equal(manager.running.size, 1);
   assert.equal(manager.requireItem(second).status, "queued");
   await waitFor(
@@ -382,7 +388,9 @@ test("concurrent name reservations cannot collide before files are created", asy
   const server = await fixtureServer(t, { size: 256 * 1024, delay: 5 });
   const { manager } = await managerFixture(t, { maxConcurrentDownloads: 3 });
   const ids = await Promise.all(
-    [1, 2, 3].map(() => manager.addDownload({ url: server.url + "/file.bin" })),
+    [1, 2, 3].map((index) =>
+      manager.addDownload({ url: `${server.url}/file.bin?job=${index}` }),
+    ),
   );
   await waitFor(() =>
     ids.every((id) => manager.requireItem(id).status === "completed"),
@@ -391,6 +399,127 @@ test("concurrent name reservations cannot collide before files are created", asy
     new Set(ids.map((id) => manager.requireItem(id).filePath)).size,
     3,
   );
+});
+
+test("type-routed transfers use the server filename and respect an explicit folder", async (t) => {
+  const content = Buffer.from("document");
+  const server = await fixtureServer(t, {
+    extra(_request, response) {
+      response.writeHead(200, {
+        "Content-Length": content.length,
+        "Content-Disposition": 'attachment; filename="invoice.pdf"',
+      });
+      response.end(content);
+      return true;
+    },
+  });
+  const { dir, manager } = await managerFixture(t, {
+    autoStartDownloads: false,
+  });
+  const documents = path.join(dir, "invoices");
+  const manualFolder = path.join(dir, "manual");
+  manager.updateSettings({
+    ...manager.settings,
+    organizeByType: true,
+    destinationRules: { Documents: documents },
+  });
+  const automatic = await manager.addDownload({
+    url: `${server.url}/automatic`,
+    priority: "high",
+  });
+  const explicit = await manager.addDownload({
+    url: `${server.url}/explicit`,
+    savePath: manualFolder,
+    priority: "low",
+  });
+  assert.equal(manager.requireItem(automatic).priority, 1);
+  assert.equal(manager.requireItem(explicit).priority, -1);
+  await assert.rejects(
+    manager.addDownload({ url: `${server.url}/invalid`, priority: "urgent" }),
+    /Invalid queue priority/,
+  );
+  for (const id of [automatic, explicit]) manager.resume(id);
+  await waitFor(() =>
+    [automatic, explicit].every(
+      (id) => manager.requireItem(id).status === "completed",
+    ),
+  );
+  assert.equal(
+    manager.requireItem(automatic).filePath,
+    path.join(documents, "invoice.pdf"),
+  );
+  assert.equal(
+    manager.requireItem(explicit).filePath,
+    path.join(manualFolder, "invoice.pdf"),
+  );
+  await assert.rejects(
+    fs.access(path.join(manager.settings.defaultDownloadPath, "Other")),
+    { code: "ENOENT" },
+  );
+});
+
+test("descriptive media format data preserves duplicate detection for existing jobs", async (t) => {
+  const { manager } = await managerFixture(t, { autoStartDownloads: false });
+  const url = "https://example.test/video";
+  const media = { type: "video", title: "Example", formatId: "original" };
+  await manager.addMedia({ url, media });
+  const current = {
+    ...media,
+    requestedContainer: "mp4",
+    audioCodec: "aac",
+    videoCodec: "h264",
+    audioOnly: false,
+  };
+  await assert.rejects(
+    manager.addMedia({ url, media: current }),
+    /already in your library/,
+  );
+  assert.ok(
+    await manager.addMedia({
+      url,
+      media: { ...current, formatId: "alternate" },
+    }),
+  );
+});
+
+test("a saved, sharing torrent releases a normal download slot", async (t) => {
+  const engines = new Map();
+  const { manager } = await managerFixture(
+    t,
+    {},
+    {
+      engineFactory(item) {
+        const engine = new EventEmitter();
+        engine.start = () =>
+          new Promise((resolve) => {
+            engine.finish = resolve;
+            engine.emit("status", item.id, "downloading");
+          });
+        engine.pause = () => {
+          engine.emit("status", item.id, "paused");
+          engine.finish();
+        };
+        engines.set(item.id, engine);
+        return engine;
+      },
+    },
+  );
+  const torrent = await manager.addTorrent({
+    torrent: `magnet:?xt=urn:btih:${"0".repeat(40)}`,
+  });
+  const file = await manager.addDownload({
+    url: "https://example.test/queued.bin",
+  });
+  assert.equal(manager.requireItem(file).status, "queued");
+  engines
+    .get(torrent)
+    .emit("status", torrent, "processing", { stage: "saving" });
+  assert.equal(manager.requireItem(file).status, "queued");
+  engines
+    .get(torrent)
+    .emit("status", torrent, "processing", { stage: "seeding" });
+  assert.equal(manager.requireItem(file).status, "downloading");
+  assert.ok(manager.running.has(torrent));
 });
 
 test("a resumed URL without entity validators restarts rather than mixing changed bytes", async (t) => {

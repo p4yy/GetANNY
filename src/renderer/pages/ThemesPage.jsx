@@ -155,7 +155,7 @@ export default function ThemesPage() {
                 <strong>{theme.name}</strong>
                 <small>
                   {theme.mode === "dark" ? <LuMoon /> : <LuSun />}
-                  {t(`themes.${theme.mode}`)}
+                  {t(theme.mode === "dark" ? "common.dark" : "common.light")}
                 </small>
               </span>
               <span className="theme-card-footer">

@@ -1,13 +1,9 @@
-# GetANNY Download Manager 2.6.0
+# GetANNY Download Manager 2.6.5
 
-## Highlights
+- Right-click video cards on supported YouTube, TikTok, and Dribbble pages to send the selected video to Media Studio. Browser handoffs also handle supported file downloads from ChatGPT and Claude more reliably.
+- Review batches of file, media, and torrent links before adding them. Paused transfers have their own view, and the sidebar can collapse to icons.
+- Media Studio keeps the selected format visible and opens trimming in a dedicated view with one set of actions. Audio language preferences, subtitle recovery, and video export options are easier to use.
+- Browser integration shows setup while detection runs. Download rows and the status bar use the same transfer rates.
+- Improved transfer recovery, torrent file selection and save behavior, and setup detection of the bundled uninstaller.
 
-- Added a safe fallback for producing the one-time welcome animation when the embedded legacy motion clip is invalid.
-- Kept the animation scoped to the first-run welcome view; it does not leave an idle video decoder running.
-- Preserved the tested Windows flows for browser connection, supported media, torrents, settings, and download-folder selection.
-
-## Windows package
-
-The official asset is the unsigned 64-bit Windows Setup EXE. The release workflow publishes measured build and install/reinstall/uninstall results, checksums, and verification evidence alongside the installer. Browser extension automation is not part of that workflow; the owner manually tested the extension on Windows.
-
-The installer is unsigned and may display a Windows SmartScreen warning. The app does not install browser extensions silently.
+The Windows x64 Setup EXE is unsigned. This release includes `latest.yml` and SHA-256 checksums for the public installer. No browser extension is installed silently.

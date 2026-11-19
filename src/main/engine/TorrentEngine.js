@@ -8,12 +8,17 @@ const {
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const { sanitizeFilename } = require("./utils");
+const {
+  loadVerifiedTorrent,
+  publishTorrentOutput,
+  recordVerifiedTorrent,
+} = require("./torrent-output");
 
 const LEGACY_FOLDER =
   /^Torrent \[[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\]$/i;
 const MAX_PEERS = 200;
 const METADATA_TIMEOUT_MS = 180_000;
-const NO_PEER_TIMEOUT_MS = 30 * 60_000;
+const NO_PROGRESS_TIMEOUT_MS = 30 * 60_000;
 
 function connectionTarget(connections = 8, activeTransfers = 3) {
   const perDownload = Number.isFinite(connections) ? connections : 8;
@@ -91,35 +96,6 @@ class TorrentEngine extends EventEmitter {
     );
   }
 
-  async uniqueTarget(name) {
-    const extension = path.extname(name);
-    const basename = path.basename(name, extension);
-    let candidate = path.join(this.savePath, name);
-    let counter = 0;
-    while (
-      await fs.access(candidate).then(
-        () => true,
-        () => false,
-      )
-    )
-      candidate = path.join(
-        this.savePath,
-        `${basename} (${++counter})${extension}`,
-      );
-    return candidate;
-  }
-
-  async publish(source, target) {
-    try {
-      await fs.rename(source, target);
-      return;
-    } catch (error) {
-      if (!["EXDEV", "EPERM", "EACCES"].includes(error.code)) throw error;
-    }
-    await fs.cp(source, target, { recursive: true, errorOnExist: true });
-    await fs.rm(source, { recursive: true, force: true });
-  }
-
   async createTorrentInput() {
     if (this.torrentMetadataPath) {
       try {
@@ -133,37 +109,54 @@ class TorrentEngine extends EventEmitter {
     return this.url;
   }
 
-  async outputPath(files) {
-    const existing = [];
-    for (const file of files) {
-      const target = path.resolve(this.workPath, file.path);
-      if (
-        target !== path.resolve(this.workPath) &&
-        !target.startsWith(path.resolve(this.workPath) + path.sep)
-      )
-        throw new Error("Torrent metadata contains an unsafe file path.");
-      if (
-        await fs.stat(target).then(
-          () => true,
-          () => false,
-        )
-      )
-        existing.push(target);
-    }
-    if (!existing.length)
-      throw new Error(
-        "Selected torrent files were not found after completion.",
+  async saveVerified(ready, { sharing = false } = {}) {
+    const totalSize = ready.files.reduce((sum, file) => sum + file.length, 0);
+    this.setStatus("processing", {
+      stage: "saving",
+      stageProgress: null,
+      totalSize,
+      downloadedSize: totalSize,
+      phase: "Saving verified torrent files",
+    });
+    const publication = (async () => {
+      await fs.mkdir(this.savePath, { recursive: true });
+      return publishTorrentOutput({
+        workPath: this.workPath,
+        savePath: this.savePath,
+        id: this.id,
+        ready,
+        copy: sharing,
+      });
+    })();
+    this.publication = publication;
+    try {
+      const target = await publication;
+      this.published = {
+        filename: path.basename(target),
+        totalSize,
+        downloadedSize: totalSize,
+        filePath: target,
+        savePath: this.savePath,
+      };
+    } catch (cause) {
+      const error = new Error(
+        "GetANNY could not save this torrent. Verified files are kept. Choose another folder or retry saving.",
+        { cause },
       );
-    if (existing.length === 1) return existing[0];
-
-    const output = path.join(this.workPath, ".getanny-output");
-    await fs.rm(output, { recursive: true, force: true });
-    for (const source of existing) {
-      const target = path.join(output, path.relative(this.workPath, source));
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.rename(source, target);
+      error.code = "TORRENT_SAVE_FAILED";
+      throw error;
+    } finally {
+      this.publication = null;
     }
-    return output;
+  }
+
+  async completeSavedFiles() {
+    await this.destroyTorrent(false).catch(() => {});
+    await fs
+      .rm(this.workPath, { recursive: true, force: true })
+      .catch(() => {});
+    this.setStatus("completed", this.published);
+    this.emit("complete", this.id, this.published);
   }
 
   async run() {
@@ -173,8 +166,15 @@ class TorrentEngine extends EventEmitter {
       this.workPath =
         this.tempPath ||
         path.join(this.savePath, ".getanny-torrent", String(this.id));
-      await fs.mkdir(this.savePath, { recursive: true });
       await fs.mkdir(this.workPath, { recursive: true });
+      const saved = await loadVerifiedTorrent(this.workPath);
+      if (this.wantedState) return;
+      if (saved) {
+        await this.saveVerified(saved);
+        await this.completeSavedFiles();
+        return;
+      }
+      await fs.mkdir(this.savePath, { recursive: true });
 
       this.setStatus("connecting", {
         phase: "Connecting to torrent peers",
@@ -297,11 +297,15 @@ class TorrentEngine extends EventEmitter {
         phase: "Downloading and verifying pieces",
       });
 
+      const verified = () => {
+        this.lastVerifiedAt = Date.now();
+      };
+      verified();
+      torrent.on("verified", verified);
       await new Promise((resolve, reject) => {
         this.transferActive = true;
         this.finish = resolve;
         this.clientError = reject;
-        let noPeerSince = 0;
         poller = setInterval(() => {
           if (this.wantedState === "paused") return;
           if (this.wantedState) return resolve();
@@ -310,34 +314,28 @@ class TorrentEngine extends EventEmitter {
           const seeds = (torrent.wires || []).filter(
             (wire) => wire.isSeeder,
           ).length;
-          // Even a nearly finished torrent can stall indefinitely when the
-          // final shared piece has not been verified and every peer disappears.
-          // Preserve the checkpoint; let the user retry instead of hanging at 100%.
-          if (!peers && !selectedDone()) {
-            if (!noPeerSince) noPeerSince = Date.now();
-            if (Date.now() - noPeerSince > NO_PEER_TIMEOUT_MS) {
-              return reject(
-                new Error(
-                  "No torrent peers have been available for 30 minutes. Verified pieces are preserved; resume when peers return.",
-                ),
-              );
-            }
-          } else {
-            noPeerSince = 0;
-          }
+          const stalledFor = Date.now() - this.lastVerifiedAt;
+          if (stalledFor > NO_PROGRESS_TIMEOUT_MS)
+            return reject(
+              new Error(
+                "No new torrent pieces were verified for 30 minutes. Verified pieces are kept. Resume when more pieces are available.",
+              ),
+            );
+          const downloadedSize = selectedDownloaded();
           this.emit("progress", this.id, {
-            downloadedSize: selectedDownloaded(),
+            downloadedSize,
             totalSize,
-            phase: !peers && noPeerSince && Date.now() - noPeerSince > 30_000
-              ? selectedDownloaded() >= totalSize * 0.99
-                ? "Waiting for peers to verify final pieces"
-                : "Waiting for peers to continue downloading"
-              : "Downloading and verifying pieces",
+            phase:
+              stalledFor < 30_000
+                ? "Downloading and verifying pieces"
+                : peers
+                  ? "Waiting for peers with missing pieces"
+                  : "Waiting for peers to continue downloading",
             speed: torrent.downloadSpeed || 0,
             uploadSpeed: torrent.uploadSpeed || 0,
             eta:
               torrent.downloadSpeed > 0
-                ? Math.max(0, totalSize - selectedDownloaded()) /
+                ? Math.max(0, totalSize - downloadedSize) /
                   torrent.downloadSpeed
                 : null,
             peers,
@@ -363,7 +361,7 @@ class TorrentEngine extends EventEmitter {
         if (selectedDone()) resolve();
         else torrent.once("done", resolve);
         torrent.once("error", reject);
-      });
+      }).finally(() => torrent.off("verified", verified));
 
       if (this.wantedState) return;
       if (!selectedDone())
@@ -374,26 +372,40 @@ class TorrentEngine extends EventEmitter {
       // this task cleanly, rather than retain an already-resolved transfer task.
       clearInterval(poller);
       this.transferActive = false;
-      if (this.seedMinutes > 0) {
+      await this.checkpoint?.close();
+      this.checkpoint = null;
+      if (this.wantedState) return;
+      const ready = await recordVerifiedTorrent(
+        this.workPath,
+        files,
+        this.destinationName(),
+      );
+      if (this.wantedState) return;
+      const sharing = this.seedMinutes > 0 && !torrent.destroyed;
+      if (!sharing) await this.destroyTorrent(false);
+      if (this.wantedState) return;
+      await this.saveVerified(ready, { sharing });
+      if (sharing && !torrent.destroyed) {
         const end = Date.now() + this.seedMinutes * 60000;
         this.setStatus("processing", {
           stage: "seeding",
           stageProgress: null,
-          phase: "Sharing verified torrent pieces before saving",
+          phase: "Sharing verified torrent pieces",
+          seedRemaining: this.seedMinutes * 60,
+          ...this.published,
         });
-        await new Promise((resolve, reject) => {
+        await new Promise((resolve) => {
           let deadline, progress;
-          const finish = (error) => {
+          const finish = () => {
             clearTimeout(deadline);
             clearInterval(progress);
-            torrent.removeListener("error", onError);
+            torrent.removeListener("error", finish);
             this.finishSeeding = null;
-            error ? reject(error) : resolve();
+            resolve();
           };
-          const onError = (error) => finish(error);
-          this.finishSeeding = () => finish();
+          this.finishSeeding = finish;
           this.finish = this.finishSeeding;
-          torrent.once("error", onError);
+          torrent.once("error", finish);
           progress = setInterval(
             () =>
               this.emit("progress", this.id, {
@@ -415,33 +427,8 @@ class TorrentEngine extends EventEmitter {
           deadline.unref?.();
           progress.unref?.();
         });
-        if (this.wantedState) return;
       }
-      const output = await this.outputPath(files);
-      const target = await this.uniqueTarget(
-        files.length > 1
-          ? this.destinationName()
-          : sanitizeFilename(path.basename(output)),
-      );
-      this.setStatus("processing", {
-        stage: "saving",
-        stageProgress: null,
-        phase: "Saving completed torrent",
-      });
-      await this.destroyTorrent(false);
-      await this.publish(output, target);
-      await fs
-        .rm(this.workPath, { recursive: true, force: true })
-        .catch(() => {});
-      const stat = await fs.stat(target);
-      this.setStatus("completed");
-      this.emit("complete", this.id, {
-        filename: path.basename(target),
-        totalSize: stat.isDirectory() ? totalSize : stat.size,
-        downloadedSize: stat.isDirectory() ? totalSize : stat.size,
-        filePath: target,
-        savePath: this.savePath,
-      });
+      await this.completeSavedFiles();
     } catch (error) {
       if (this.wantedState) this.setStatus(this.wantedState);
       else {
@@ -483,6 +470,12 @@ class TorrentEngine extends EventEmitter {
   async stop(status) {
     if (["completed", "failed", "cancelled"].includes(this.status))
       return false;
+    if (this.publication) return false;
+    if (this.published) {
+      this.finishSeeding?.();
+      await this.task;
+      return true;
+    }
     this.wantedState = status;
     if (
       status === "paused" &&
@@ -518,6 +511,7 @@ class TorrentEngine extends EventEmitter {
       return false;
     this.wantedState = null;
     this.keepTorrentPaused = false;
+    this.lastVerifiedAt = Date.now();
     this.torrent.resume();
     this.setStatus("downloading", {
       phase: "Resumed from verified local pieces",
@@ -531,6 +525,12 @@ class TorrentEngine extends EventEmitter {
 
   async shutdown() {
     if (["completed", "failed", "cancelled"].includes(this.status)) return;
+    if (this.publication || this.published) {
+      await this.publication?.catch(() => {});
+      this.finishSeeding?.();
+      await this.task;
+      return;
+    }
     this.wantedState = "paused";
     this.keepTorrentPaused = false;
     this.finish?.();

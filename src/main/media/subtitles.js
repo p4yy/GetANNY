@@ -2,6 +2,49 @@ const http = require("node:http");
 const https = require("node:https");
 
 const MAX_CAPTION_BYTES = 8 * 1024 * 1024;
+const DEFAULT_RETRY_MS = 60 * 1000;
+const rateLimits = new Map();
+
+function captionRateLimit(retryAfter, now = Date.now()) {
+  const header = String(retryAfter ?? "").trim();
+  const retryAt = /^\d+$/.test(header)
+    ? now + Number(header) * 1000
+    : Date.parse(header);
+  return new CaptionRateLimitError(
+    Number.isFinite(retryAt) && retryAt > now && retryAt <= 8.64e15
+      ? retryAt
+      : now + DEFAULT_RETRY_MS,
+  );
+}
+
+class CaptionRateLimitError extends Error {
+  constructor(retryAt) {
+    super("The site rate-limited subtitles (HTTP 429). Retry this download after " +
+      new Date(retryAt).toISOString() + ".");
+    this.code = "CAPTION_RATE_LIMIT";
+    this.statusCode = 429;
+    this.retryAt = retryAt;
+  }
+}
+
+function captionOrigins(urls) {
+  return urls.filter(Boolean).map((url) => new URL(url).origin);
+}
+
+function checkCaptionCooldown(urls, retryAt = 0, now = Date.now()) {
+  for (const [origin, until] of rateLimits) {
+    if (until <= now) rateLimits.delete(origin);
+  }
+  const blockedUntil = Math.max(retryAt || 0, 0, ...captionOrigins(urls)
+    .map((origin) => rateLimits.get(origin) || 0));
+  if (blockedUntil > now) throw new CaptionRateLimitError(blockedUntil);
+}
+
+function recordCaptionCooldown(urls, error) {
+  if (error.code !== "CAPTION_RATE_LIMIT") return;
+  for (const origin of captionOrigins(urls))
+    rateLimits.set(origin, Math.max(rateLimits.get(origin) || 0, error.retryAt));
+}
 
 function toSrtTime(raw) {
   let value = String(raw || "").trim();
@@ -96,7 +139,10 @@ function convertCaptions(text, from, to) {
 }
 
 /** Streams a caption track, following redirects and enforcing a size cap. */
-function fetchCaption(url, { headers = {}, signal, timeout = 30000 } = {}) {
+function fetchCaption(
+  url,
+  { headers = {}, signal, timeout = 30000, redirects = 5 } = {},
+) {
   return new Promise((resolve, reject) => {
     let target;
     try {
@@ -129,15 +175,28 @@ function fetchCaption(url, { headers = {}, signal, timeout = 30000 } = {}) {
         if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
           response.resume();
           const location = response.headers.location;
-          if (!location) {
-            reject(new Error("The caption request redirected without a target."));
+          if (!location || redirects <= 0) {
+            reject(new Error("The caption request could not follow its redirect."));
             return;
           }
-          fetchCaption(new URL(location, target).toString(), {
+          let next;
+          try {
+            next = new URL(location, target).toString();
+          } catch {
+            reject(new Error("The caption request redirected to an invalid URL."));
+            return;
+          }
+          fetchCaption(next, {
             headers,
             signal,
             timeout,
+            redirects: redirects - 1,
           }).then(resolve, reject);
+          return;
+        }
+        if (response.statusCode === 429) {
+          response.resume();
+          reject(captionRateLimit(response.headers["retry-after"]));
           return;
         }
         if (response.statusCode !== 200) {
@@ -171,17 +230,22 @@ function fetchCaption(url, { headers = {}, signal, timeout = 30000 } = {}) {
     );
     request.on("timeout", () => request.destroy(new Error("Caption request timed out.")));
     request.on("error", reject);
-    if (signal)
-      signal.addEventListener("abort", () => request.destroy(new Error("Subtitle download cancelled.")), {
-        once: true,
-      });
+    if (signal) {
+      const abort = () =>
+        request.destroy(new Error("Subtitle download cancelled."));
+      signal.addEventListener("abort", abort, { once: true });
+      request.on("close", () => signal.removeEventListener("abort", abort));
+    }
   });
 }
 
 module.exports = {
+  captionRateLimit,
+  checkCaptionCooldown,
   convertCaptions,
   fetchCaption,
   looksLikeCaptions,
+  recordCaptionCooldown,
   srtToVtt,
   vttToSrt,
 };

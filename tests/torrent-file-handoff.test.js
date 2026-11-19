@@ -41,7 +41,7 @@ test("torrent handoff removes only its source history after the torrent was queu
   const fs = require("node:fs/promises");
   const code = await fs.readFile("src/renderer/components/AddDownloadDialog.jsx", "utf8");
   const queued = code.indexOf("const downloadId = await api.invoke(");
-  const cleanup = code.indexOf('if (kind === "torrent" && initial.sourceTorrentDownloadId)');
+  const cleanup = code.indexOf('if (submitKind === "torrent" && initial.sourceTorrentDownloadId)');
   assert.ok(queued >= 0 && cleanup > queued,
     "source row must remain when the user cancels inspection or torrent creation fails");
   assert.match(code.slice(cleanup, cleanup + 450), /deleteFile: false/);

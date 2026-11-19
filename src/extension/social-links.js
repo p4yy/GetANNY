@@ -7,6 +7,7 @@
       if (host === "youtube.com") return "youtube";
       if (host === "instagram.com") return "instagram";
       if (host === "tiktok.com") return "tiktok";
+      if (host === "dribbble.com") return "dribbble";
       if (["x.com", "twitter.com"].includes(host)) return "x";
     } catch {
       // Browser UI and extension pages have no social media links.
@@ -41,6 +42,10 @@
         return /^\/@[\w.-]+\/video\/\d+$/.test(path)
           ? clean("www.tiktok.com")
           : null;
+      case "dribbble":
+        return /^\/shots\/\d+(?:-[\w-]+)?$/i.test(path)
+          ? clean("dribbble.com")
+          : null;
       case "x":
         return /^\/(?:[\w]+\/status|i\/web\/status)\/\d+$/.test(path)
           ? "https://x.com/i/web/status/" + path.split("/").at(-1)
@@ -55,8 +60,10 @@
   // element's own card, never the generic feed URL or an unrelated post.
   function postForMediaElement(video, page) {
     if (socialSite(page) !== "tiktok") return null;
-    const direct = postLink(page, page);
-    if (direct) return direct;
+    return postLink(page, page) || postForCard(video, page);
+  }
+
+  function postForCard(video, page) {
     let node = video;
     for (let depth = 0; node && depth < 8; depth++, node = node.parentElement) {
       const selfHref = node.getAttribute?.("href");
@@ -81,7 +88,22 @@
     return null;
   }
 
-  const links = { socialSite, postLink, postForMediaElement };
+  function contextPost(href, page, card) {
+    const linked = href && postLink(href, href);
+    return linked || card || (!href && postLink(page, page)) || null;
+  }
+
+  function dribbbleAsset(raw, page) {
+    if (!raw) return null;
+    try {
+      const url = new URL(raw, page);
+      if (url.protocol === "https:" && !url.username && !url.password &&
+          /(^|\.)dribbble\.com$/i.test(url.hostname) && /\.(mp4|webm|mov)$/i.test(url.pathname)) return url.href;
+    } catch {}
+    return null;
+  }
+
+  const links = { socialSite, postLink, postForMediaElement, postForCard, contextPost, dribbbleAsset };
   globalThis.GetANNYSocialLinks = links;
   if (typeof module === "object" && module.exports) module.exports = links;
 })();

@@ -340,7 +340,7 @@ class YtDlpWrapper {
       "--socket-timeout",
       String(timeout),
       "--retries",
-      "2",
+      "0",
       "-o",
       outputTemplate,
     ];
@@ -349,7 +349,9 @@ class YtDlpWrapper {
     args.push("--", validateUrl(url));
     await this.run(args, { signal });
     const folder = path.dirname(outputTemplate);
-    const stem = path.basename(outputTemplate).replace(/\.%\(ext\)s$/, "");
+    const stem = path.basename(outputTemplate)
+      .replace(/\.%\(ext\)s$/, "")
+      .replaceAll("%%", "%");
     const candidates = (await fs.readdir(folder)).filter(
       (name) =>
         name.startsWith(`${stem}.`) &&

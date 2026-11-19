@@ -1,3 +1,6 @@
+const releaseBase = "https://github.com/p4yy/GetANNY/releases";
+const releaseApi = "https://api.github.com/repos/p4yy/GetANNY/releases/latest";
+
 function compareVersions(candidate, current) {
   const parse = (value) => {
     const match =
@@ -45,6 +48,7 @@ function configureAutoUpdater({
   mainWindow = () => null,
   currentVersion,
   fetchAsset = globalThis.fetch,
+  openRelease,
   logger = console,
   updater,
 } = {}) {
@@ -52,6 +56,7 @@ function configureAutoUpdater({
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false;
   let state = { status: "idle" };
+  let releasePage = null;
   let availabilityPromise = Promise.resolve();
   const publish = (next) => {
     state = next;
@@ -77,13 +82,19 @@ function configureAutoUpdater({
         const version = String(info.version).replace(/^v/, "");
         const url = new URL(
           asset.url,
-          `https://github.com/p4yy/GetANNY/releases/download/v${version}/`,
+          `${releaseBase}/download/v${version}/`,
         );
-        if (url.origin !== "https://github.com") {
+        if (
+          url.origin !== "https://github.com" ||
+          !url.pathname.startsWith(`/p4yy/GetANNY/releases/download/v${version}/`)
+        ) {
           publish({ status: "unavailable" });
           return;
         }
-        const response = await fetchAsset(url, { method: "HEAD" });
+        const response = await fetchAsset(url, {
+          method: "HEAD",
+          signal: AbortSignal.timeout(8000),
+        });
         if (!response?.ok) {
           publish({ status: "unavailable" });
           return;
@@ -109,12 +120,44 @@ function configureAutoUpdater({
     logger.warn("Update check unavailable:", error?.message || error);
     publish({ status: "unavailable" });
   });
+  async function checkPublishedRelease() {
+    if (typeof openRelease !== "function" || typeof fetchAsset !== "function")
+      return;
+    try {
+      const response = await fetchAsset(releaseApi, {
+        headers: { Accept: "application/vnd.github+json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) return;
+      const release = await response.json();
+      const tag = release.tag_name;
+      if (release.draft || release.prerelease || !/^v\d+\.\d+\.\d+$/.test(tag))
+        return;
+      const version = tag.slice(1);
+      if (!compareVersions(version, currentVersion)) {
+        publish({ status: "current" });
+        return;
+      }
+      if (
+        !Array.isArray(release.assets) ||
+        !release.assets.some(
+          (asset) => asset?.state === "uploaded" && /^getanny[ .-]setup\.exe$/i.test(asset.name),
+        )
+      )
+        return;
+      releasePage = `${releaseBase}/tag/${tag}`;
+      publish({ status: "available", version, manual: true });
+    } catch (error) {
+      logger.warn("GitHub release check unavailable:", error?.message || error);
+    }
+  }
   let checking = false;
   return {
     getState: () => state,
     check: async () => {
       if (checking) return state;
       checking = true;
+      releasePage = null;
       publish({ status: "checking" });
       try {
         const result = await updater.checkForUpdates();
@@ -124,21 +167,24 @@ function configureAutoUpdater({
           (info && compareVersions(info.version, currentVersion))
         )
           await availabilityPromise;
-        if (info && !compareVersions(info.version, currentVersion)) {
+        if (
+          (info && !compareVersions(info.version, currentVersion)) ||
+          result?.isUpdateAvailable === false
+        )
           publish({ status: "current" });
-          return state;
-        }
-        if (result?.isUpdateAvailable === false) publish({ status: "current" });
-        return state;
       } catch (error) {
         logger.warn("Update check unavailable:", error?.message || error);
         publish({ status: "unavailable" });
+      }
+      try {
+        if (state.status === "checking") publish({ status: "unavailable" });
+        if (state.status === "unavailable") await checkPublishedRelease();
         return state;
       } finally {
         checking = false;
       }
     },
-    download: () => updater.downloadUpdate(),
+    download: () => (releasePage ? openRelease(releasePage) : updater.downloadUpdate()),
     install: () => updater.quitAndInstall(),
   };
 }

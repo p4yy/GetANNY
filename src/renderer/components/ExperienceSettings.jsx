@@ -84,7 +84,7 @@ export default function ExperienceSettings() {
               {t(`enhance.${key}`)}
               <input
                 dir="ltr"
-                placeholder="en, ar…"
+                placeholder="en-US"
                 maxLength={35}
                 value={prefs[key]}
                 onChange={(e) => setPrefs({ ...prefs, [key]: e.target.value })}
@@ -93,7 +93,15 @@ export default function ExperienceSettings() {
           ))}
         </div>
         <p>{t("enhance.preferenceNote")}</p>
-        <Button onClick={() => safeSave("mediaPreferences", prefs)}>
+        <Button
+          onClick={() =>
+            safeSave("mediaPreferences", {
+              ...prefs,
+              audioLanguage: (prefs.audioLanguage || "").trim(),
+              subtitleLanguage: (prefs.subtitleLanguage || "").trim(),
+            })
+          }
+        >
           {t("enhance.save")}
         </Button>
       </section>

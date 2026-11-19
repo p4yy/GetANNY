@@ -153,11 +153,10 @@ public sealed class InstallService
     private static async Task ObserveAsync(string dir, string exe, string marker, bool wantsDesktop, bool wantsStart, IProgress<StageUpdate> progress, CancellationToken ct)
     {
         bool files = false, reg = false, links = false, browser = false;
-        var engineUninstaller = Path.Combine(dir, Product.EngineUninstallerFileName);
         while (!ct.IsCancellationRequested)
         {
             await Task.Delay(300, ct);
-            if (!files && File.Exists(exe) && File.Exists(engineUninstaller))
+            if (!files && File.Exists(exe) && Product.FindEngineUninstaller(dir) is not null)
             {
                 files = true;
                 progress.Report(new StageUpdate(InstallStages.Files, StageState.Done));
@@ -188,8 +187,8 @@ public sealed class InstallService
 
     private static async Task RollbackAsync(string targetDir)
     {
-        var uninstaller = Path.Combine(targetDir, Product.EngineUninstallerFileName);
-        if (!File.Exists(uninstaller)) return;
+        var uninstaller = Product.FindEngineUninstaller(targetDir);
+        if (uninstaller is null) return;
         var temp = Path.Combine(Path.GetTempPath(), $"GetANNY-rollback-{Environment.ProcessId}.exe");
         File.Copy(uninstaller, temp, true);
         try

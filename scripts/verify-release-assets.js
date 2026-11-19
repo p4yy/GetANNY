@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { hashFile } = require("./checksums");
+const { installerName, updateMetadataName, updateMetadata } = require("./write-update-metadata");
 
 async function verifyReleaseAssets(release, directory, { tag, source }) {
   assert.equal(release.tag_name, tag, "Wrong release tag");
@@ -23,6 +24,11 @@ async function verifyReleaseAssets(release, directory, { tag, source }) {
     .map((entry) => entry.name);
   assert.ok(names.length > 0, "Release directory is empty");
   assert.equal(
+    await fs.readFile(path.join(directory, updateMetadataName), "utf8"),
+    await updateMetadata(directory, tag.slice(1)),
+    "Update metadata must match the release version and installer bytes",
+  );
+  assert.equal(
     release.assets.length,
     names.length,
     "Release asset count differs",
@@ -37,6 +43,8 @@ async function verifyReleaseAssets(release, directory, { tag, source }) {
       `Missing or duplicate uploaded asset: ${name}`,
     );
     const asset = matches[0];
+    if (name === installerName || name === updateMetadataName)
+      assert.equal(asset.name, name, `GitHub changed the public update path: ${name}`);
     assert.equal(asset.state, "uploaded", `Asset not uploaded: ${name}`);
     assert.equal(
       asset.digest,

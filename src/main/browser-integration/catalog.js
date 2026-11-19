@@ -83,6 +83,7 @@ const browsers = [
     name: "Mozilla Firefox",
     family: "firefox",
     page: "about:debugging#/runtime/this-firefox",
+    storeUrl: "https://addons.mozilla.org/firefox/addon/getanny-downlaod-manager/",
     registry: ["Mozilla"],
     linux: ["firefox"],
     config: ".mozilla",

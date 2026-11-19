@@ -10,24 +10,54 @@ import { useI18n } from "../i18n/useI18n";
 
 export default function DownloadDetails({ item, onClose }) {
   const { t } = useI18n();
-  const originalPage = !item.privateSession &&
-    (item.sourcePage || item.browserPage || (item.kind === "media" ? item.url : undefined));
-  const canOpenOriginalPage = typeof originalPage === "string" && /^https?:\/\//i.test(originalPage);
+  const originalPage =
+    !item.privateSession &&
+    (item.sourcePage ||
+      item.browserPage ||
+      (item.kind === "media" ? item.url : undefined));
+  const canOpenOriginalPage =
+    typeof originalPage === "string" && /^https?:\/\//i.test(originalPage);
   const kindKey =
     item.kind === "torrent"
       ? "details.kindTorrent"
       : item.kind === "media"
         ? "details.kindMedia"
         : "details.kindFile";
+  const suffix = (value) =>
+    /\.([a-z0-9]{1,12})$/i.exec(value || "")?.[1]?.toUpperCase();
+  const requestedFormat =
+    item.kind === "media" &&
+    (item.media?.requestedContainer === undefined
+      ? item.media?.ext
+      : item.media.requestedContainer
+    )?.toUpperCase();
+  const sourceFormat = item.kind === "media" && item.media?.ext?.toUpperCase();
+  const savedFormat =
+    item.filePath &&
+    (item.kind !== "torrent" || item.selectedFiles?.length === 1)
+      ? suffix(item.filePath)
+      : null;
+  const torrentSaved =
+    item.kind === "torrent" && item.stage === "seeding" && !!item.filePath;
   const fields = [
     ["details.status", t(`status.${item.status}`)],
     ["details.type", t(kindKey)],
     [
-      "details.format",
-      item.filename.match(/\.([^.]+)$/)?.[1]?.toUpperCase() ||
-        item.mimeType ||
-        t("common.unknown"),
+      sourceFormat && !savedFormat && !requestedFormat
+        ? "details.sourceFormat"
+        : "details.format",
+      item.kind === "torrent"
+        ? savedFormat || t("details.kindTorrent")
+        : item.kind === "media"
+          ? savedFormat || requestedFormat || sourceFormat || t("common.unknown")
+          : savedFormat ||
+            suffix(item.filename) ||
+            item.mimeType ||
+            t("common.unknown"),
     ],
+    ...(savedFormat && requestedFormat && savedFormat !== requestedFormat
+      ? [["details.requestedFormat", requestedFormat]]
+      : []),
     [
       "details.completed",
       item.completedAt
@@ -59,13 +89,16 @@ export default function DownloadDetails({ item, onClose }) {
     ["details.created", new Date(item.createdAt).toLocaleString()],
     ["details.location", item.filePath || item.savePath],
     ["details.source", item.url],
-    ...(canOpenOriginalPage ? [["Original webpage", originalPage]] : []),
+    ...(canOpenOriginalPage && originalPage !== item.url
+      ? [["details.originalPage", originalPage]]
+      : []),
   ];
   return (
     <Dialog
       title={t("details.title")}
       description={item.filename}
       onClose={onClose}
+      fixedActions
     >
       <div className="dialog-body">
         {!["completed", "cancelled"].includes(item.status) && (
@@ -116,19 +149,39 @@ export default function DownloadDetails({ item, onClose }) {
         {item.status !== "completed" && (
           <DownloadWorkflowControls item={item} />
         )}
-        {item.status === "completed" && <LibraryPanel item={item} />}
+        {(item.status === "completed" || torrentSaved) && (
+          <LibraryPanel item={item} />
+        )}
+        {item.warning && <p role="status">{item.warning}</p>}
         {item.error && <div className="error-banner">{item.error}</div>}
       </div>
       <footer className="dialog-footer">
-        {item.kind === "torrent" && item.status !== "completed" &&
-          <Button onClick={() =>
-            api.invoke("download:open-working-folder", item.id).catch((error) =>
-              useUIStore.getState().notify(errorMessage(error), "error"))
-          }>Show transfer data</Button>}
-        {canOpenOriginalPage && <Button onClick={() =>
-          api.invoke("download:open-origin", item.id).catch((error) =>
-            useUIStore.getState().notify(errorMessage(error), "error"))
-        }>Open original webpage</Button>}
+        {item.kind === "torrent" && item.status !== "completed" && (
+          <Button
+            onClick={() =>
+              api
+                .invoke("download:open-working-folder", item.id)
+                .catch((error) =>
+                  useUIStore.getState().notify(errorMessage(error), "error"),
+                )
+            }
+          >
+            Show transfer data
+          </Button>
+        )}
+        {canOpenOriginalPage && (
+          <Button
+            onClick={() =>
+              api
+                .invoke("download:open-origin", item.id)
+                .catch((error) =>
+                  useUIStore.getState().notify(errorMessage(error), "error"),
+                )
+            }
+          >
+            {t("details.openOriginalPage")}
+          </Button>
+        )}
         <Button onClick={onClose}>{t("details.done")}</Button>
       </footer>
     </Dialog>

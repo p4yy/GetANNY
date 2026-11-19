@@ -27,9 +27,8 @@ class FtpDownloader extends ChunkDownloader {
     return validateUrl(url, ["ftp:", "ftps:"]);
   }
 
-  async withClient(callback) {
+  async withClient(callback, signal = this.controller.signal) {
     const client = this.openClient();
-    const signal = this.controller.signal;
     const close = () => client.close();
     this.clients.add(client);
     signal.addEventListener("abort", close, { once: true });
@@ -118,8 +117,7 @@ class FtpDownloader extends ChunkDownloader {
     });
   }
 
-  async runSegment(part) {
-    const signal = this.controller.signal;
+  async runSegment(part, signal = this.controller.signal) {
     const offset = part.start + part.existing;
     const length = part.end - offset + 1;
     await this.withClient(async (client) => {
@@ -184,7 +182,7 @@ class FtpDownloader extends ChunkDownloader {
         if (result.status === "rejected") throw result.reason;
       if (received !== length)
         throw new Error("The FTP server returned an incomplete segment.");
-    }).catch((error) => {
+    }, signal).catch((error) => {
       for (const client of this.clients) client.close();
       throw error;
     });

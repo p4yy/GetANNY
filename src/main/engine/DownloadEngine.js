@@ -71,6 +71,7 @@ class DownloadEngine extends EventEmitter {
     this.headers = validateHeaders(options.headers);
     this.timeout = options.timeout || 30000;
     this.requestOptions = options.requestOptions || {};
+    this.requestBudget = options.requestBudget;
     this.binPath = options.binPath;
     this.reserveTarget = options.reserveTarget;
     this.connections = options.connections || 1;
@@ -95,6 +96,7 @@ class DownloadEngine extends EventEmitter {
       timeout: this.timeout,
       signal: this.controller.signal,
       requestOptions: this.requestOptions,
+      budget: this.requestBudget,
     });
     if ([400, 403, 405, 501].includes(rangeProbe.response.statusCode)) {
       rangeProbe.response.destroy();
@@ -103,6 +105,7 @@ class DownloadEngine extends EventEmitter {
         timeout: this.timeout,
         signal: this.controller.signal,
         requestOptions: this.requestOptions,
+        budget: this.requestBudget,
       });
     }
     const response = rangeProbe.response;
@@ -222,9 +225,9 @@ class DownloadEngine extends EventEmitter {
     return this.tempPath || this.savePath;
   }
   async prepare(info) {
+    if (this.reserveTarget) Object.assign(this, await this.reserveTarget(info));
     await fsp.mkdir(this.savePath, { recursive: true });
     await fsp.mkdir(this.workPath(), { recursive: true });
-    if (this.reserveTarget) Object.assign(this, await this.reserveTarget(info));
     this.partialPath = path.join(this.workPath(), `.getanny-${this.id}.part`);
     this.stateFile = path.join(this.workPath(), `.getanny-${this.id}.json`);
     const state = await DurablePartials.read(this.stateFile);
@@ -395,6 +398,7 @@ class DownloadEngine extends EventEmitter {
       timeout: this.timeout,
       signal: this.controller.signal,
       requestOptions: this.requestOptions,
+      budget: this.requestBudget,
     });
     if (![200, 204, 206].includes(response.statusCode)) {
       response.destroy();

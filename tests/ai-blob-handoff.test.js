@@ -8,8 +8,11 @@ const path = require("node:path");
 const script = fs.readFileSync(
   path.resolve(__dirname, "../src/extension/content.js"), "utf8",
 );
+const preferencesScript = fs.readFileSync(
+  path.resolve(__dirname, "../src/extension/download-preferences.js"), "utf8",
+);
 
-async function handoff({ body = Buffer.from("exact AI download bytes"), header = null, oversized = false, desktopAvailable = true } = {}) {
+async function handoff({ body = Buffer.from("exact AI download bytes"), header = null, oversized = false, desktopAvailable = true, preferences = {} } = {}) {
   const messages = [];
   let nativeClicks = 0;
   let handler;
@@ -43,6 +46,7 @@ async function handoff({ body = Buffer.from("exact AI download bytes"), header =
   window.top = window;
   const context = {
     chrome: {
+      storage: { local: { async get() { return preferences; } } },
       runtime: {
         id: "getanny-fixture",
         onMessage: { addListener() {} },
@@ -69,7 +73,10 @@ async function handoff({ body = Buffer.from("exact AI download bytes"), header =
     clearTimeout, setTimeout,
   };
   context.globalThis = context;
-  vm.runInNewContext(script, context, { filename: "content.js" });
+  vm.createContext(context);
+  vm.runInContext(preferencesScript, context, { filename: "download-preferences.js" });
+  vm.runInContext(script, context, { filename: "content.js" });
+  await new Promise(setImmediate);
   assert.equal(typeof handler, "function", "AI-provider click handler should install");
   let prevented = false;
   handler({
@@ -81,6 +88,7 @@ async function handoff({ body = Buffer.from("exact AI download bytes"), header =
     }) },
     preventDefault() { prevented = true; },
   });
+  if (!prevented) return { prevented, nativeClicks, messages };
   await Promise.race([
     finished,
     new Promise((_, reject) =>
@@ -108,6 +116,17 @@ test("oversized browser Blob falls back before desktop upload begins", async () 
   const result = await handoff({ oversized: true });
   assert.equal(result.nativeClicks, 1);
   assert.equal(result.messages.length, 0);
+});
+
+test("manual-only and per-site settings leave generated files to the browser", async () => {
+  for (const preferences of [
+    { getannyAutomaticHandoff: false },
+    { "getanny:downloads:keep:chatgpt.com": true },
+  ]) {
+    const result = await handoff({ preferences });
+    assert.equal(result.prevented, false);
+    assert.deepEqual(result.messages, []);
+  }
 });
 
 test("desktop rejection returns Blob to browser with no finish acknowledgement", async () => {

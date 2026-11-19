@@ -2,6 +2,7 @@ import React from "react";
 import { Select } from "./ui";
 import { bytes } from "../utils/format";
 import { useI18n } from "../i18n/useI18n";
+import { mediaAudioTrackLabel } from "../utils/choose-media-format.mjs";
 export default function ExportOptions({
   value,
   onChange,
@@ -11,7 +12,7 @@ export default function ExportOptions({
   audioFormatId,
   onAudioChange,
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const set = (key, next) => onChange({ ...value, [key]: next });
   const length = segment.end - segment.start;
   const estimate =
@@ -67,10 +68,11 @@ export default function ExportOptions({
         </Select>
       </label>
       {format?.mergeAudio && (
-        <label>
+        <label className="media-audio-track">
           {t("trim.audioTrack")}
           <Select
             value={audioFormatId}
+            title={selectedAudio ? mediaAudioTrackLabel(selectedAudio, language, t("media.originalAudio")) : undefined}
             onChange={(e) => onAudioChange(e.target.value)}
           >
             <option value="">{t("trim.autoAudio")}</option>
@@ -78,14 +80,7 @@ export default function ExportOptions({
               .filter((f) => f.group === "audio")
               .map((f) => (
                 <option key={f.formatId} value={f.formatId}>
-                  {[
-                    f.language,
-                    f.quality,
-                    f.audioChannels && `${f.audioChannels} ch`,
-                    f.ext,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {mediaAudioTrackLabel(f, language, t("media.originalAudio"))}
                 </option>
               ))}
           </Select>

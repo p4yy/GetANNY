@@ -6,6 +6,9 @@ const { EventEmitter } = require("node:events");
 const { DownloadEngine } = require("../src/main/engine/DownloadEngine");
 const { ChunkDownloader } = require("../src/main/engine/ChunkDownloader");
 const { DownloadManager } = require("../src/main/engine/DownloadManager");
+const {
+  HttpConnectionBudget,
+} = require("../src/main/engine/http-connection-budget");
 const { fixtureServer, temporary, waitFor, checksum } = require("./helpers");
 
 async function run(engine) {
@@ -160,6 +163,12 @@ test(
       url: server.url + "/file.bin",
       savePath: dir,
       connections: 64,
+      requestBudget: new HttpConnectionBudget({
+        global: 64,
+        initial: 64,
+        maximum: 64,
+      }),
+      requestOptions: { agent: false },
     };
     const first = new ChunkDownloader({
       ...options,

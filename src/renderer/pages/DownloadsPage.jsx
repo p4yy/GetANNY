@@ -48,6 +48,7 @@ import {
   LuSquareCheck,
   LuMinus,
   LuClipboardPaste,
+  LuActivity,
 } from "react-icons/lu";
 import { api, errorMessage } from "../api";
 import {
@@ -381,6 +382,8 @@ function DownloadRow({
   const Icon =
     item.kind === "torrent" ? LuMagnet : icons[item.category] || LuFile;
   const statusText = t(`status.${item.status}`);
+  const browserRecovery = item.kind === "file" && item.status === "paused" &&
+    (item.awaitingBrowserConfirmation || (item.sessionRequired && item.error));
   const knownSize = item.totalSize > 0 || item.status === "completed";
   const pct =
     item.totalSize > 0
@@ -397,6 +400,8 @@ function DownloadRow({
       const result = await api.invoke(`download:${action}`, item.id);
       if (result === false)
         useUIStore.getState().notify(t("downloads.actionUnavailable"), "error");
+      else if (action === "browser-fallback")
+        useUIStore.getState().notify(t("workflow.browserManaged"));
     } catch (error) {
       useUIStore.getState().notify(errorMessage(error), "error");
     } finally {
@@ -411,6 +416,7 @@ function DownloadRow({
       (item.kind === "media" ? item.url : null));
   const canOpenOriginalPage =
     typeof originalPage === "string" && /^https?:\/\//i.test(originalPage);
+  const torrentSaved = item.kind === "torrent" && item.stage === "seeding" && !!item.filePath;
   const sendToTorrents = () => {
     if (!openCompletedTorrent(item, useUIStore.getState()))
       useUIStore
@@ -431,7 +437,7 @@ function DownloadRow({
           },
         ]
       : []),
-    ...(item.status === "completed"
+    ...(item.status === "completed" || torrentSaved
       ? [
           {
             label: t("downloads.action.openFile"),
@@ -450,14 +456,14 @@ function DownloadRow({
     ...(canOpenOriginalPage
       ? [
           {
-            label: "Open original webpage",
+            label: t("details.openOriginalPage"),
             icon: LuArrowUpRight,
             disabled: !api.desktop,
             run: () => act("open-origin"),
           },
         ]
       : []),
-    {
+    ...(!canOpenOriginalPage || originalPage !== item.url ? [{
       label: t("downloads.action.openSource"),
       icon: LuArrowUpRight,
       disabled: !api.desktop || !/^https?:\/\//i.test(item.url || ""),
@@ -467,7 +473,7 @@ function DownloadRow({
           .catch((error) =>
             useUIStore.getState().notify(errorMessage(error), "error"),
           ),
-    },
+    }] : []),
     {
       label: t("downloads.action.copySource"),
       icon: LuCopy,
@@ -782,7 +788,7 @@ function DownloadRow({
                 <button
                   type="button"
                   className="torrent-save-now"
-                  title="Finish sharing and save to your chosen folder"
+                  title={t("enhance.stopSharing")}
                   onClick={() =>
                     api
                       .invoke("torrent:finish-seeding", item.id)
@@ -793,7 +799,7 @@ function DownloadRow({
                       )
                   }
                 >
-                  Save now
+                  {t("enhance.stopSharing")}
                 </button>
               )}
             </span>
@@ -802,15 +808,7 @@ function DownloadRow({
               {t("downloads.retryWaiting", { attempt: item.attempt })}
             </span>
           ) : (
-            <span>
-              {item.status === "completed"
-                ? t("downloads.savedToDisk")
-                : item.resumable
-                  ? t("downloads.resumeSupported")
-                  : item.status === "queued"
-                    ? t("downloads.waitingSlot")
-                    : "—"}
-            </span>
+            item.status === "queued" ? <span>{t("downloads.waitingSlot")}</span> : null
           )}
         </div>
       </div>
@@ -865,7 +863,11 @@ function DownloadRow({
           >
             <LuPause />
           </IconButton>
-        ) : ["paused", "failed", "cancelled"].includes(item.status) ? (
+        ) : browserRecovery ? (
+          <IconButton label={t("workflow.browserFallback")} busy={busy} onClick={() => act("browser-fallback")}>
+            <LuArrowUpRight />
+          </IconButton>
+        ) : item.returnedToBrowser ? null : ["paused", "failed", "cancelled"].includes(item.status) ? (
           <IconButton
             label={t(
               item.status === "paused"
@@ -906,6 +908,16 @@ function DownloadRow({
   );
 }
 const MemoDownloadRow = React.memo(DownloadRow);
+function TransferTotal({ rows }) {
+  const { t } = useI18n();
+  const base = useMemo(() => rows.reduce((sum, item) => sum + (Number(item.downloadedSize) || 0), 0), [rows]);
+  const inProgress = useMemo(() => rows.filter(active), [rows]);
+  const total = useDownloadStore((state) => inProgress.reduce((sum, item) => {
+    const current = state.progressById[item.id]?.downloadedSize;
+    return current == null ? sum : sum + current - (Number(item.downloadedSize) || 0);
+  }, base));
+  return <span>{rows.length ? t("downloads.transferred", { size: bytes(total) }) : t("downloads.localOnly")}</span>;
+}
 export default function DownloadsPage({ filter, active: visible = true }) {
   const { t } = useI18n();
   const downloads = useDownloadStore((state) => state.downloads);
@@ -920,15 +932,17 @@ export default function DownloadsPage({ filter, active: visible = true }) {
   const virtual = useRef(null);
   const [focusedId, setFocusedId] = useState(null);
   const selectionMode = selected.size > 0;
+  const showActiveShortcut = ["completed", "paused", "failed"].includes(filter) && downloads.some((item) => active(item) || ["queued", "retrying"].includes(item.status));
+  const showPausedShortcut = filter === "all" && downloads.some((item) => item.status === "paused");
   const title = t(titleKeys[filter] || titleKeys.all);
   const base = useMemo(
     () =>
       downloads.filter(
         (item) =>
-          filter === "all" ||
+          (filter === "all" && item.status !== "paused") ||
           (filter === "active" &&
             (active(item) || ["queued", "retrying"].includes(item.status))) ||
-          (filter === "torrent" && item.kind === "torrent") ||
+          (filter === "torrent" && item.kind === "torrent" && item.status !== "paused") ||
           filter === item.status,
       ),
     [downloads, filter],
@@ -1136,6 +1150,10 @@ export default function DownloadsPage({ filter, active: visible = true }) {
     ["completed", "failed", "cancelled"].includes(item.status);
   // Current-view scope deliberately ignores search and category filters.
   const historicalRows = base.filter(historical);
+  const canPause = base.some((item) => active(item) || ["queued", "retrying"].includes(item.status));
+  const resumableRows = filter === "paused"
+    ? base.filter((item) => !item.awaitingBrowserConfirmation && !item.returnedToBrowser)
+    : [];
   const clearHistoryView = () => {
     const ids = historicalRows.map((item) => item.id);
     setConfirm({
@@ -1180,14 +1198,13 @@ export default function DownloadsPage({ filter, active: visible = true }) {
       },
     });
   };
-  const bulkScope = {
-    ids: base.map((item) => item.id),
-    kind: filter === "torrent" ? "torrent" : "all",
-  };
   const batch = async (action) => {
     setBulkBusy(true);
     try {
-      const result = await api.invoke(`download:${action}-all`, bulkScope);
+      const result = await api.invoke(`download:${action}-all`, {
+        ids: (action === "resume" ? resumableRows : base).map((item) => item.id),
+        kind: filter === "torrent" ? "torrent" : "all",
+      });
       useUIStore.getState().notify(
         t(result.failed ? "downloads.bulkPartial" : "downloads.bulkUpdated", {
           count: result.count,
@@ -1253,20 +1270,11 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                 ["Images", "downloads.category.images"],
                 ["Other", "downloads.category.other"],
               ]
-                .filter(
-                  ([name]) =>
-                    [
-                      "All files",
-                      "Video",
-                      "Audio",
-                      "Archives",
-                      "Documents",
-                    ].includes(name) ||
-                    base.some((item) => item.category === name),
-                )
+                .filter(([name]) => name === "All files" || name === category || base.some((item) => item.category === name))
                 .map(([name, key]) => (
                   <button
                     className={category === name ? "selected" : ""}
+                    aria-pressed={category === name}
                     key={name}
                     onClick={() => setCategory(name)}
                   >
@@ -1275,40 +1283,7 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                   </button>
                 ))}
             </div>
-            <div
-              className="toolbar-actions"
-              aria-label={t("downloads.bulkScopeHint", { scope: title })}
-              title={t("downloads.bulkScopeHint", { scope: title })}
-            >
-              <Button
-                className="bulk-action-button"
-                variant="ghost"
-                icon={LuPause}
-                busy={bulkBusy}
-                disabled={
-                  bulkBusy ||
-                  !base.some(
-                    (item) =>
-                      active(item) ||
-                      ["queued", "retrying"].includes(item.status),
-                  )
-                }
-                onClick={() => batch("pause")}
-              >
-                {t("downloads.pauseAll")}
-              </Button>
-              <Button
-                className="bulk-action-button"
-                variant="ghost"
-                icon={LuPlay}
-                busy={bulkBusy}
-                disabled={
-                  bulkBusy || !base.some((item) => item.status === "paused")
-                }
-                onClick={() => batch("resume")}
-              >
-                {t("downloads.resumeAll")}
-              </Button>
+            <div className="library-controls">
               <Select
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
@@ -1319,15 +1294,13 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                 <option value="name">{t("downloads.sort.name")}</option>
                 <option value="size">{t("downloads.sort.size")}</option>
               </Select>
-              <Button
-                className="bulk-action-button"
-                variant="ghost"
-                icon={LuTrash2}
-                disabled={bulkBusy || historicalRows.length === 0}
-                onClick={clearHistoryView}
-              >
-                {t("downloads.clearHistory")}
-              </Button>
+              {(canPause || resumableRows.length > 0 || historicalRows.length > 0) && (
+                <div className="library-bulk" role="group" aria-label={t("downloads.bulkScopeHint", { scope: title })}>
+                  {canPause && <IconButton label={t("downloads.pauseAll")} busy={bulkBusy} onClick={() => batch("pause")}><LuPause /></IconButton>}
+                  {resumableRows.length > 0 && <IconButton label={t("downloads.resumeAll")} busy={bulkBusy} onClick={() => batch("resume")}><LuPlay /></IconButton>}
+                  {historicalRows.length > 0 && <IconButton label={t("downloads.clearHistory")} disabled={bulkBusy} onClick={clearHistoryView}><LuTrash2 /></IconButton>}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1441,7 +1414,15 @@ export default function DownloadsPage({ filter, active: visible = true }) {
               </div>
               <h2>{t(emptyTitleKey)}</h2>
               <p>{t(emptyDescriptionKey)}</p>
-              {!search && category === "All files" && (
+              {!search && category === "All files" && (showPausedShortcut ? (
+                <Button icon={LuPause} onClick={() => useUIStore.getState().setActiveTab("paused")}>
+                  {t("nav.paused")}
+                </Button>
+              ) : showActiveShortcut ? (
+                <Button icon={LuActivity} onClick={() => useUIStore.getState().setActiveTab("active")}>
+                  {t("shell.openActive")}
+                </Button>
+              ) : (
                 <div className="empty-actions">
                   <Button
                     icon={LuPlus}
@@ -1461,8 +1442,8 @@ export default function DownloadsPage({ filter, active: visible = true }) {
                         : t("downloads.newDownload")}
                   </Button>
                 </div>
-              )}
-              {!search && category === "All files" && (
+              ))}
+              {!search && category === "All files" && !showActiveShortcut && !showPausedShortcut && (
                 <Button
                   className="clipboard-empty-action"
                   variant="ghost"
@@ -1484,15 +1465,7 @@ export default function DownloadsPage({ filter, active: visible = true }) {
               total: base.length,
             })}
           </span>
-          <span>
-            {rows.length
-              ? t("downloads.transferred", {
-                  size: bytes(
-                    rows.reduce((sum, item) => sum + item.downloadedSize, 0),
-                  ),
-                })
-              : t("downloads.localOnly")}
-          </span>
+          <TransferTotal rows={rows} />
         </div>
       </div>
       {filter === "torrent" && base.length > 0 && (

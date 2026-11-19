@@ -35,7 +35,7 @@ export function useIPC() {
           /^Authentication required:/.test(data.error || "");
         if (
           requiresAuthentication ||
-          !["all", "active", "failed"].includes(useUIStore.getState().activeTab)
+          !["all", "active", "failed", "paused"].includes(useUIStore.getState().activeTab)
         )
           useUIStore.getState().notify(data.error, "error");
       }),

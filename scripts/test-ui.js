@@ -90,7 +90,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       fullPage: true,
     });
     await page.getByRole("button", { name: "I’ll set this up later" }).click();
-    await nav("All downloads").click();
+    await nav("Downloads").click();
     const bridgeStatus = await invoke("browser:bridge-status");
     const bridgeIdentity = await getBridgeIdentity(
       path.resolve(".arena/preview-data"),
@@ -218,7 +218,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     await row
       .getByRole("button", { name: `Resume ${filename}`, exact: true })
       .click();
-    await nav("All downloads").click();
+    await nav("Downloads").click();
     await expect(row.getByText("Completed", { exact: true })).toBeVisible({
       timeout: 20000,
     });
@@ -240,7 +240,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     ).toContainText("HTTP 404");
     const emptyName = `Verified empty file ${Date.now()}.bin`;
     await add(fixture.url + "/empty", emptyName);
-    await nav("All downloads").click();
+    await nav("Downloads").click();
     const emptyRow = page.getByRole("listitem").filter({
       has: page.getByRole("button", { name: emptyName, exact: true }),
     });
@@ -303,7 +303,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       .getByRole("button", { name: "Download video", exact: true })
       .click();
     await expect(
-      page.getByRole("heading", { name: "All downloads", exact: true }),
+      page.getByRole("heading", { name: "Downloads", exact: true }),
     ).toBeVisible();
     await waitFor(
       async () =>
@@ -542,7 +542,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       path: path.join(output, "themes-1320.png"),
       fullPage: true,
     });
-    await nav("All downloads").click();
+    await nav("Downloads").click();
     const activeName = `Live transfer verification ${Date.now()}.bin`;
     await add(fixture.url + "/file.bin", activeName);
     await page.waitForTimeout(500);
@@ -553,7 +553,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
     for (const width of [1024, 760, 480]) {
       await page.setViewportSize({ width, height: 800 });
       for (const name of [
-        "All downloads",
+        "Downloads",
         "Media studio",
         "Browser integration",
         "Settings",
@@ -581,7 +581,7 @@ const base = process.env.GETANNY_PREVIEW_URL || "http://127.0.0.1:5173";
       }
     }
     await page.setViewportSize({ width: 1320, height: 860 });
-    await nav("All downloads").click();
+    await nav("Downloads").click();
     // Keyboard dialog trap, Escape, and no accidental submission by Browse/Cancel.
     await nav("New download").click();
     await page

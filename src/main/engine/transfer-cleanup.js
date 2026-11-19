@@ -110,13 +110,13 @@ async function reconcileTemporaryFiles({
   for (const folder of destinations) {
     if (!folder || !path.isAbsolute(folder)) continue;
     for (const entry of await directoryEntries(folder)) {
-      if (!entry.isFile()) continue;
       const match = STAGING_FILE.exec(entry.name);
       if (!match || activeIds.has(match[1])) continue;
       const [name, id, pid] = match;
       const fullPath = path.join(folder, name);
       const stat = await fs.lstat(fullPath).catch(() => null);
-      if (!stat?.isFile()) continue;
+      if (!stat?.isFile() && !stat?.isDirectory()) continue;
+      if (stat.isDirectory() && !pid) continue;
       if (
         pid
           ? processIsAlive(Number(pid))
@@ -124,7 +124,9 @@ async function reconcileTemporaryFiles({
       )
         continue;
       await record("publishingFiles", id, () =>
-        fs.rm(fullPath, { force: true }),
+        stat.isDirectory()
+          ? removeOwnedDirectory(folder, name)
+          : fs.rm(fullPath, { force: true }),
       );
     }
   }

@@ -553,7 +553,6 @@ export default function SettingsPage({ capabilities, version }) {
         <section className="settings-panel">
           <div className="settings-section-heading">
             <h2>{t("settings.browser.title")}</h2>
-            <p>{t("settings.browser.description")}</p>
           </div>
           <SettingRow
             title={t("settings.browserIntegration.title")}
@@ -566,12 +565,6 @@ export default function SettingsPage({ capabilities, version }) {
             description={t("settings.mediaIntegration.description")}
           >
             {toggle("mediaIntegration")}
-          </SettingRow>
-          <SettingRow
-            title={t("settings.avEngine.title")}
-            description={t("settings.avEngine.description")}
-          >
-            <span className="coming-soon-badge">{t("settings.avEngine.comingSoon")}</span>
           </SettingRow>
           <SettingRow
             title={t("settings.manageBrowsers.title")}

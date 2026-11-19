@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 
-test("Windows NSIS-only harness waits for async uninstall, collects browser evidence and fails closed", async () => {
+test("Windows NSIS-only harness waits for async uninstall and CI collects separate browser source evidence", async () => {
   const script = await fs.readFile(
     "scripts/windows/test-installers.ps1",
     "utf8",
@@ -14,18 +14,26 @@ test("Windows NSIS-only harness waits for async uninstall, collects browser evid
     /Wait-ProductRemoved \$installedExe \$uninstaller\.FullName/,
   );
   assert.doesNotMatch(script, /Start-Sleep -Seconds 2/);
-  const browser = script.indexOf("test-browser-matrix.ps1");
+  assert.doesNotMatch(script, /test-browser-matrix\.ps1/);
+  assert.match(script, /browserExtensionTests='Skipped per owner request/);
   const uninstall = script.indexOf("Run-Checked $uninstaller.FullName");
   const wait = script.indexOf("Wait-ProductRemoved $installedExe");
   const catchFailure = script.indexOf("EXE cleanup gate failed");
   const report = script.indexOf("installer-report.json");
   const finalFailure = script.indexOf('if ($exeCleanupError) { throw');
-  assert.ok(browser > -1 && browser < uninstall);
   assert.ok(uninstall > -1 && uninstall < wait);
   assert.ok(wait < catchFailure && catchFailure < report && report < finalFailure);
   assert.doesNotMatch(script, /Installing the actual MSI package|portable-first-launch/);
   assert.match(script, /sourceCommit=\$env:GITHUB_SHA/);
   assert.match(script, /\$signatures/);
+
+  const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
+  const browser = workflow.indexOf("Test browser handoff and authenticated local bridge");
+  const browserReport = workflow.indexOf("--test-reporter-destination=test-results/windows/browser-junit.xml");
+  const installer = workflow.indexOf("./scripts/windows/test-installers.ps1");
+  assert.ok(browser > -1 && browser < browserReport && browserReport < installer);
+  const assembly = await fs.readFile("scripts/windows/assemble-release.ps1", "utf8");
+  assert.match(assembly, /Browser handoff source test evidence is missing, failed or skipped/);
 });
 
 test("real-browser harnesses use current privileged Firefox startup and bounded Vivaldi/UI cleanup", async () => {
@@ -65,7 +73,7 @@ test("installed-app smoke fixtures are unique across reinstalls", async () => {
   assert.ok(source.includes("priorRunObserved: !!priorRun"));
 });
 
-test("owner freeze builds only the installed NSIS Setup EXE and blocks Store, portable and publication", async () => {
+test("Windows workflow builds the NSIS Setup EXE and requires explicit publication approval", async () => {
   const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
   const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
   assert.match(workflow, /electron-builder --win nsis --x64 --publish never/);
@@ -73,7 +81,17 @@ test("owner freeze builds only the installed NSIS Setup EXE and blocks Store, po
   assert.doesNotMatch(workflow, /electron-builder --win (?:appx|portable|msi)\b/);
   assert.doesNotMatch(workflow, /name: Build separate unsigned Microsoft Store AppX candidate/);
   assert.doesNotMatch(workflow, /name: Preserve Store preparation artifact/);
-  assert.match(workflow, /if: \$\{\{ false \}\}/);
+  assert.match(workflow, /workflow_dispatch:\s+inputs:\s+publish:[\s\S]*?default: false/);
+  assert.match(workflow, /if:.*github\.event_name == 'workflow_dispatch' && inputs\.publish.*GetANNY-Release-Approved:/);
+  const assembly = workflow.indexOf("./scripts/windows/assemble-release.ps1");
+  const stage = workflow.indexOf("gh release create $tag --draft");
+  const verify = workflow.indexOf("node scripts/verify-release-assets.js");
+  const publish = workflow.indexOf("gh api --method PATCH");
+  assert.ok(assembly > -1 && assembly < stage && stage < verify && verify < publish);
+  const candidate = workflow.indexOf("Verify and select the exact installer from the release draft");
+  const exercise = workflow.indexOf("./scripts/windows/test-installers.ps1");
+  assert.ok(candidate > -1 && candidate < exercise && exercise < assembly);
+  assert.match(workflow, /Get-FileHash -LiteralPath \$candidate\)\.Hash -ne \$env:CANDIDATE_SHA256/);
   assert.equal(pkg.scripts.dist, "npm run build:win");
   assert.match(pkg.scripts["build:win:store"], /disabled until the owner tests and approves/);
   assert.match(pkg.scripts.build, /electron-builder --win nsis --x64 --publish never/);
@@ -134,14 +152,12 @@ test("Windows picker permits a direct UIA address child only after dialog and pr
   assert.match(source, /Folder dialog lost foreground before path selection/);
 });
 
-test("real Windows browser matrix restores default native hosts before ownership and uninstall checks", async () => {
+test("NSIS harness restores default native hosts before ownership and uninstall checks", async () => {
   const ps = await fs.readFile("scripts/windows/test-installers.ps1","utf8");
-  const matrix = ps.indexOf("test-browser-matrix.ps1");
   const restore = ps.indexOf("Run-Checked $installedExe @('--setup-browser-hosts','--quiet') 90000");
   const owner = ps.indexOf("Owned-NativeEntries $defaultData",restore);
   const uninstall = ps.indexOf("Run-Checked $uninstaller.FullName @('/S')",owner);
-  assert.ok(matrix >= 0 && matrix < restore);
-  assert.ok(restore < owner && owner < uninstall);
+  assert.ok(restore > -1 && restore < owner && owner < uninstall);
   assert.match(ps,/Native owner restore\/verification failed\. Continue real uninstall then fail/);
   assert.match(ps,/if \(\$nativeRestoreError\) \{ throw "NSIS native registration gate failed/);
   assert.match(ps,/Missing or overwritten:/);
@@ -202,18 +218,17 @@ test("browser matrix runs the actual Edge binary and keeps unexpected browser fa
   assert.ok(ps.includes("An available browser failed real extension/native/download tests"));
 });
 
-test("NSIS harness returns its explicit result after manual-only browser outcomes", async (t) => {
+test("NSIS harness exit status reflects native ownership and product cleanup", async (t) => {
   if (process.platform !== "win32") return t.skip("Windows PowerShell harness");
   const { spawnSync } = require("node:child_process");
   const script = await fs.readFile("scripts/windows/test-installers.ps1", "utf8");
   const outcome = script.slice(script.lastIndexOf("if ($exeCleanupError) { throw"));
-  for (const result of ["", "browser failure", "ownership failure", "cleanup failure"]) {
+  for (const result of ["", "ownership failure", "cleanup failure"]) {
     const setup = [
       "$ErrorActionPreference = 'Stop'",
       "cmd.exe /d /c exit 1",
       "$exeCleanupError = " + (result === "cleanup failure" ? "'cleanup failure'" : "$null"),
       "$nativeRestoreError = " + (result === "ownership failure" ? "'ownership failure'" : "$null"),
-      "$matrixError = " + (result === "browser failure" ? "'browser failure'" : "$null"),
     ].join("\n");
     const encoded = Buffer.from(setup + "\n" + outcome, "utf16le").toString("base64");
     const run = spawnSync("powershell.exe", ["-NoProfile", "-EncodedCommand", encoded], {

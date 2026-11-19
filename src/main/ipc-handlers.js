@@ -22,8 +22,9 @@ function createHandlers({ services: s, desktop }) {
   };
   const openKnown = async (id, folder) => {
     const item = manager.requireItem(id);
+    const outputAvailable = item.filePath && (item.status === "completed" || (item.kind === "torrent" && item.stage === "seeding"));
     if (folder) {
-      if (item.filePath && item.status === "completed") {
+      if (outputAvailable) {
         await fs.access(item.filePath);
         desktopOnly().shell.showItemInFolder(item.filePath);
       } else {
@@ -31,8 +32,8 @@ function createHandlers({ services: s, desktop }) {
         if (error) throw new Error(error);
       }
     } else {
-      if (item.status !== "completed" || !item.filePath)
-        throw new Error("Only completed downloads can be opened.");
+      if (!outputAvailable)
+        throw new Error("The download has not been saved yet.");
       await fs.access(item.filePath).catch(() => {
         throw new Error("This file was moved or deleted outside GetANNY.");
       });
@@ -112,6 +113,12 @@ function createHandlers({ services: s, desktop }) {
       const item = manager.requireItem(id);
       if (item.kind !== "file" || !["failed", "paused"].includes(item.status))
         throw new Error("Pause the file before using browser recovery.");
+      if (item.retainsBrowserCopy && (!item.returnedToBrowser || item.error)) return s.resumeRetainedBrowserDownload(item);
+      if (item.returnedToBrowser) return { success: true, browserManaged: true };
+      if (item.errorCode === "SOURCE_PAGE" && item.browserPage) {
+        await desktopOnly().shell.openExternal(validateUrl(item.browserPage));
+        return { success: true, browserManaged: true };
+      }
       const url = validateUrl(item.url);
       const browserId = item.browserSource || settings.get("preferredBrowser");
       const result = await s.wsServer.browserDownload(browserId, { url });
@@ -279,6 +286,7 @@ function createHandlers({ services: s, desktop }) {
       mediaDetector.cancelAnalysis(requestId),
     "media:get-playlist": (url, requestId) =>
       mediaDetector.getPlaylist(url, {
+        requestId,
         onEntry(count) {
           if (
             typeof requestId === "string" &&
@@ -301,13 +309,26 @@ function createHandlers({ services: s, desktop }) {
           })
         : null;
       if (subtitle && selection.media.segment)
-        selection.media.segmentSubtitle = subtitle.media.subtitle;
+        selection.media.segmentSubtitle = {
+          ...subtitle.media.subtitle,
+          allowWithoutCaptions: options.subtitle.allowWithoutCaptions === true,
+        };
       const id = await manager.addMedia({
         ...selection,
         savePath: options.savePath,
+        priority: options.priority,
       });
-      if (subtitle && !selection.media.segment)
-        await manager.addMedia({ ...subtitle, savePath: options.savePath });
+      if (subtitle && !selection.media.segment) {
+        try {
+          await manager.addMedia({
+            ...subtitle,
+            savePath: options.savePath,
+            priority: options.priority,
+          });
+        } catch {
+          return { id, subtitleQueued: false };
+        }
+      }
       return id;
     },
     "media:download-subtitle": (options) =>
@@ -326,9 +347,13 @@ function createHandlers({ services: s, desktop }) {
       return settings.getAll();
     },
     "settings:reset": () => settings.reset(),
-    "browser:status": () => s.browserStatus(),
+    "browser:status": ({ rescan, overview, includeNative } = {}) =>
+      s.browserStatus(rescan === true, {
+        overview: overview === true,
+        includeNative: includeNative !== false,
+      }),
     "browser:bridge-status": () => s.wsServer.status(),
-    "browser:detect": () => s.browserDetector.detect(),
+    "browser:detect": () => s.browserDetector.detect(true),
     "browser:prepare": (id) => {
       desktopOnly();
       return s.prepareBrowser(id);
@@ -336,6 +361,10 @@ function createHandlers({ services: s, desktop }) {
     "browser:open-extensions": (id) => {
       desktopOnly();
       return s.browserDetector.openExtensions(id);
+    },
+    "browser:open-store": (id) => {
+      desktopOnly();
+      return s.browserDetector.openStore(id);
     },
     "browser:open-package": async (id) => {
       const result = await s.extensionInstaller.check(id);

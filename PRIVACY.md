@@ -1,6 +1,6 @@
 # GetANNY Browser Assistant Privacy Policy
 
-Last updated: 3 November 2026
+Last updated: 19 November 2026
 
 GetANNY Browser Assistant connects your browser to the GetANNY desktop application so you can send downloads and supported media pages to that application.
 
@@ -10,7 +10,7 @@ When you use the extension, it may read the active page's address and title, sup
 
 The extension does not read passwords that you type into websites.
 
-If **Include site cookies** is enabled, the extension can read cookies for the site associated with a download and send them over the authenticated local connection to the GetANNY desktop application. This lets the application retrieve downloads that require your existing site session. Cookie forwarding can be turned off in the extension. Cookies are not sent to GetANNY's developer or to a GetANNY online server. The desktop application may include the relevant cookies in its download request to the website you selected; that website handles the request under its own privacy policy.
+Cookie forwarding is off until you enable **Include cookies for this download site** for the hostname displayed in the popup. GetANNY may read cookies for matching download URLs and forward them over the authenticated local connection to authorize that download. The desktop app may include those cookies in its download request to the selected website, which handles the request under its own privacy policy.
 
 For an unfinished ordinary browser download, GetANNY can retain the supplied session headers in an encrypted local file for up to 12 hours so it can resume after a restart. It uses the operating system's credential protection and keeps the headers in memory when that protection is unavailable. The application excludes those headers from history, logs, and renderer events. It removes the encrypted session when the transfer completes, is cancelled, or the site rejects authentication.
 
@@ -22,7 +22,7 @@ Information handled by the extension is used to provide the browser-to-desktop h
 
 ## Your choices and deletion
 
-You can turn off **Include site cookies** in the extension popup. You can remove saved pairing information by disconnecting or resetting the browser connection in GetANNY, or by removing the extension from your browser. Removing the extension also removes its browser-stored settings and pairing information. You can stop a handoff by not starting it or by cancelling it in GetANNY.
+In the extension popup you can turn off cookies for a specific site, turn off automatic handoff, or leave a site's ordinary downloads in the browser. Removing the extension clears its browser-stored settings and pairing information. Cancel an active handoff in GetANNY.
 
 ## Changes and contact
 

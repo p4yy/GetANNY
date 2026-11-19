@@ -1,6 +1,6 @@
 {
   "name": "GetANNY · Browser Assistant",
-  "version": "2.6.0",
+  "version": "2.6.5",
   "description": "Send files and supported media pages to your GetANNY desktop download manager. Authenticated local desktop connection with automatic reconnection and explicit user control.",
   "permissions": [
     "storage",
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["overlay-preferences.js", "social-links.js", "site-downloads.js", "content.js", "injector.js"],
+      "js": ["download-preferences.js", "overlay-preferences.js", "social-links.js", "site-downloads.js", "content.js", "injector.js"],
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true
@@ -41,6 +41,7 @@
   "background": {
     "scripts": [
       "config.js",
+      "download-preferences.js",
       "download-interceptor.js",
       "stream-detection.js",
       "social-links.js",

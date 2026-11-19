@@ -1,6 +1,8 @@
-export function choosePlaylistFormat(formats, mode, cap) {
+import { choosePreferredAudioFormat } from "./choose-media-format.mjs";
+
+export function choosePlaylistFormat(formats, mode, cap, audioPreferences) {
   const group = ["audio", "m4a", "opus"].includes(mode) ? "audio" : "video";
-  return formats
+  const candidates = formats
     .filter(
       (format) =>
         format.group === group &&
@@ -9,11 +11,10 @@ export function choosePlaylistFormat(formats, mode, cap) {
           format.ext === mode ||
           (mode === "opus" && /^opus/i.test(format.acodec || ""))) &&
         (group === "audio" || !format.height || format.height <= cap),
-    )
-    .sort((a, b) =>
-      group === "audio"
-        ? (b.bitrate || 0) - (a.bitrate || 0)
-        : (b.height || 0) - (a.height || 0) ||
-          (b.bitrate || 0) - (a.bitrate || 0),
-    )[0];
+    );
+  if (group === "audio")
+    return choosePreferredAudioFormat(candidates, audioPreferences) || undefined;
+  return candidates.sort((a, b) =>
+    (b.height || 0) - (a.height || 0) || (b.bitrate || 0) - (a.bitrate || 0),
+  )[0];
 }

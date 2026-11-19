@@ -40,7 +40,13 @@
     return null;
   }
 
-  const adapters = { providerFor, classifyOutput };
+  function prefersBrowser(page, target, includeSiteCookies) {
+    if (includeSiteCookies) return false;
+    return ["ChatGPT", "Claude"].some((provider) =>
+      [providerFor(page), providerFor(target)].includes(provider));
+  }
+
+  const adapters = { providerFor, classifyOutput, prefersBrowser };
   globalThis.GetANNYSiteDownloads = adapters;
   if (typeof module === "object" && module.exports) module.exports = adapters;
 })();

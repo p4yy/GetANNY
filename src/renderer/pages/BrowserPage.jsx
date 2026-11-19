@@ -1,5 +1,4 @@
-import BrowserSetupWizard from "../components/BrowserSetupWizard";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LuArrowRight,
   LuCheck,
@@ -9,7 +8,6 @@ import {
   LuFolderOpen,
   LuGlobe,
   LuKeyRound,
-  LuLink,
   LuRefreshCw,
   LuShieldCheck,
   LuCircleHelp,
@@ -31,7 +29,6 @@ import {
 import useUIStore from "../stores/useUIStore";
 import useSettingsStore from "../stores/useSettingsStore";
 import { useI18n } from "../i18n/useI18n";
-const firefoxAddonUrl = "https://addons.mozilla.org/fr/firefox/addon/getanny-downlaod-manager/";
 const browserIcons = {
   chrome: FaChrome,
   chromium: FaChrome,
@@ -55,25 +52,38 @@ export default function BrowserPage({ active = true }) {
     [prepared, setPrepared] = useState(null),
     [pairing, setPairing] = useState(""),
     [showInstallGuide, setShowInstallGuide] = useState(false);
-  const refresh = useCallback(async (visible = false) => {
-    if (visible) setRefreshing(true);
+  const request = useRef(0);
+  const refresh = useCallback(async (rescan = false) => {
+    const current = ++request.current;
+    if (rescan) setRefreshing(true);
     try {
-      setInfo(await api.invoke("browser:status"));
+      const status = await api.invoke("browser:status", { rescan, includeNative: false });
+      if (current === request.current) setInfo(status);
     } catch (error) {
-      setError(errorMessage(error));
+      if (current === request.current) setError(errorMessage(error));
     } finally {
-      if (visible) setRefreshing(false);
+      if (rescan) setRefreshing(false);
     }
   }, []);
   useEffect(() => {
-    if (!active || document.visibilityState !== "visible") return;
-    refresh();
-    const timer = setInterval(() => {
+    if (!active) return;
+    let activePage = true;
+    api.invoke("browser:status", { overview: true, includeNative: false })
+      .then((status) => {
+        if (activePage) setInfo((current) => current ?? status);
+      })
+      .catch(() => { /* The full refresh reports errors. */ });
+    const refreshVisible = () => {
       if (document.visibilityState === "visible") refresh();
-    }, 30000);
-    const cleanup = api.on("browser:changed", () => refresh());
+    };
+    refreshVisible();
+    const timer = setInterval(refreshVisible, 30000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    const cleanup = api.on("browser:changed", refreshVisible);
     return () => {
+      activePage = false;
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisible);
       cleanup();
     };
   }, [active, refresh]);
@@ -114,7 +124,7 @@ export default function BrowserPage({ active = true }) {
         .notify(t("browser.installNextStep", { path: result.path }));
     });
   const openFirefoxAddon = () =>
-    run(() => api.invoke("app:open-external", firefoxAddonUrl));
+    run(() => api.invoke("browser:open-store", selected));
   const openHelpVideo = (url) =>
     run(() => api.invoke("app:open-external", url));
   const copy = (text) =>
@@ -128,42 +138,13 @@ export default function BrowserPage({ active = true }) {
       : browser?.prepared
         ? browser.packagePath
         : null;
+  const openDownloads = () => run(async () => {
+    if (!settings.firstRunCompleted) await save("firstRunCompleted", true);
+    useUIStore.getState().setActiveTab("all");
+  });
   return (
     <div className="page browser-page">
       <PageHeader title={t("browser.title")}>
-        <span
-          className={`bridge-status-pill ${
-            bridge.error
-              ? "error"
-              : bridge.clients > 0
-                ? "connected"
-                : bridge.running && bridge.enabled
-                  ? "listening"
-                  : "offline"
-          }`}
-          role="status"
-        >
-          <span className="bridge-name">{t("browser.bridge")}</span>
-          <span
-            className={`live-dot ${bridge.clients > 0 ? "live" : ""}`}
-          />
-          <strong>
-            {bridge.error
-              ? t("browser.error")
-              : bridge.clients > 0
-                ? t("browser.verifiedMany", {
-                    count: bridge.clients,
-                  })
-                : bridge.running && bridge.enabled
-                  ? t("browser.listening")
-                  : bridge.enabled === false
-                    ? t("browser.disabled")
-                    : info
-                      ? t("browser.offline")
-                      : t("browser.checking")}
-          </strong>
-          <span className="mono">127.0.0.1:{bridge.port ?? "—"}</span>
-        </span>
         <Button
           icon={LuRefreshCw}
           busy={refreshing}
@@ -172,23 +153,8 @@ export default function BrowserPage({ active = true }) {
           {t("browser.refresh")}
         </Button>
       </PageHeader>
-      <BrowserSetupWizard
-        info={info}
-        selected={selected}
-        onSelect={setSelected}
-        onDetect={() => refresh(true)}
-        onPrepare={prepare}
-        onInstall={() => {
-          setShowInstallGuide(true);
-          return true;
-        }}
-        busy={busy || refreshing}
-      />
-      <section className="extension-video-help" aria-labelledby="extension-video-title">
-        <div className="extension-video-heading">
-          <h2 id="extension-video-title">{t("browser.videoTitle")}</h2>
-          <p>{t("browser.videoText")}</p>
-        </div>
+      <details className="browser-guides">
+        <summary>{t("browser.videoTitle")}</summary>
         <div className="extension-video-actions">
           <Button variant="ghost" className="youtube-setup" icon={FaYoutube} onClick={() => openHelpVideo("https://www.youtube.com/watch?v=jrJ0kYSQAlk")}>
             {t("browser.videoInstall")}
@@ -197,7 +163,7 @@ export default function BrowserPage({ active = true }) {
             {t("browser.videoDownload")}
           </Button>
         </div>
-      </section>
+      </details>
       {!api.desktop && (
         <div className="notice">
           <LuMonitor />
@@ -224,7 +190,6 @@ export default function BrowserPage({ active = true }) {
         <section className="browser-picker">
           <div className="panel-heading">
             <h2>{t("browser.browsers")}</h2>
-            <span>{t("browser.selectOne")}</span>
           </div>
           {info ? (
             (Array.isArray(info.browsers) ? info.browsers : []).map((item) => {
@@ -233,6 +198,8 @@ export default function BrowserPage({ active = true }) {
                 <button
                   key={item.id}
                   className={`browser-option ${selected === item.id ? "selected" : ""}`}
+                  aria-pressed={selected === item.id}
+                  disabled={busy}
                   onClick={() => {
                     setSelected(item.id);
                     setError("");
@@ -250,7 +217,9 @@ export default function BrowserPage({ active = true }) {
                         ? t("browser.connectionVerified")
                         : item.installed
                           ? t("browser.browserDetected")
-                          : t("browser.notDetected")}
+                          : item.detection === "checking"
+                            ? t("browser.checking")
+                            : t("browser.notDetected")}
                     </small>
                   </div>
                   {item.connected ? (
@@ -268,7 +237,6 @@ export default function BrowserPage({ active = true }) {
               ))}
             </div>
           )}
-          <p>{t("browser.detectionNote")}</p>
         </section>
         <section className="browser-setup">
           <div className="browser-setup-heading">
@@ -277,21 +245,20 @@ export default function BrowserPage({ active = true }) {
             </span>
             <div>
               <h2>
-                {t("browser.connectTitle", {
+                {browser?.connected ? browser.name : t("browser.connectTitle", {
                   name: browser?.name || t("browser.connectFallback"),
                 })}
               </h2>
-              <p>
-                {browser?.connected
-                  ? t(
-                      browser.transport === "native"
-                        ? "browser.verifiedNative"
-                        : "browser.verifiedWebsocket",
-                    )
-                  : t("browser.threeSteps")}
-              </p>
+              {browser?.connected && <p>{t("browser.connectedVerified")}</p>}
             </div>
           </div>
+          {browser?.connected && (
+            <Button className="connected-browser-action" icon={LuArrowRight} variant="primary" onClick={openDownloads}>
+              {t(settings.firstRunCompleted ? "browser.openDownloads" : "browser.startDownloading")}
+            </Button>
+          )}
+          <details key={selected + String(!!browser?.connected)} className="browser-setup-steps" open={!browser?.connected}>
+          <summary>{t("settings.browserSetup")}</summary>
           <div
             className={`setup-step ${browser?.prepared && browser?.directProvisioned ? "done" : ""}`}
           >
@@ -307,7 +274,7 @@ export default function BrowserPage({ active = true }) {
               <p>{t("browser.step1Text")}</p>
               <div className="step-actions">
                 <Button
-                  variant="primary"
+                  variant={!browser?.installed && !browser?.directProvisioned ? "primary" : "ghost"}
                   icon={LuPlug}
                   busy={busy}
                   disabled={!api.desktop || !settings.browserIntegrationEnabled}
@@ -348,13 +315,15 @@ export default function BrowserPage({ active = true }) {
                   >
                     <LuFolderOpen />
                   </IconButton>
-                  <Button
-                    icon={LuCircleHelp}
-                    className="install-guide-button"
-                    onClick={() => setShowInstallGuide(true)}
-                  >
-                    {t("browser.installGuide")}
-                  </Button>
+                  {selected !== "firefox" && (
+                    <Button
+                      icon={LuCircleHelp}
+                      className="install-guide-button"
+                      onClick={() => setShowInstallGuide(true)}
+                    >
+                      {t("browser.installGuide")}
+                    </Button>
+                  )}
                 </div>
               )}
               {prepared?.browserId === selected && prepared.nativeError && (
@@ -390,7 +359,11 @@ export default function BrowserPage({ active = true }) {
                     variant="primary"
                     icon={FaFirefoxBrowser}
                     busy={busy}
-                    disabled={!api.desktop}
+                    disabled={
+                      !api.desktop ||
+                      !settings.browserIntegrationEnabled ||
+                      !browser?.installed
+                    }
                     onClick={openFirefoxAddon}
                   >
                     {t("browser.installFromStore")}
@@ -451,30 +424,13 @@ export default function BrowserPage({ active = true }) {
                             date: new Date(browser.lastSeen).toLocaleString(),
                           })
                         : t("browser.unknownState")}
+                    {browser?.extensionVersion && ` · v${browser.extensionVersion}`}
                   </small>
                 </div>
               </div>
-              {browser?.connected && (
-                <Button
-                  icon={LuArrowRight}
-                  variant="primary"
-                  onClick={() =>
-                    run(async () => {
-                      if (!settings.firstRunCompleted)
-                        await save("firstRunCompleted", true);
-                      useUIStore.getState().setActiveTab("all");
-                    })
-                  }
-                >
-                  {t(
-                    settings.firstRunCompleted
-                      ? "browser.openDownloads"
-                      : "browser.startDownloading",
-                  )}
-                </Button>
-              )}
             </div>
           </div>
+          </details>
         </section>
       </div>
       <details className="pairing-panel">
@@ -484,6 +440,8 @@ export default function BrowserPage({ active = true }) {
           <LuChevronRight />
         </summary>
         <div>
+          <p>{t("browser.detectionNote")}</p>
+          <p className="mono">127.0.0.1:{bridge.port ?? "—"}</p>
           <p>{t("browser.altText")}</p>
           {pairing ? (
             <div className="path-box">
@@ -540,9 +498,6 @@ export default function BrowserPage({ active = true }) {
                 <strong>{t("browser.openFolder")}</strong>{" "}
                 {t("browser.openFolderHelp")}
               </p>
-              {selected === "firefox" && (
-                <p className="muted">{t("browser.firefoxTemporaryNote")}</p>
-              )}
             </div>
           </div>
         </Dialog>

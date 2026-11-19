@@ -24,17 +24,46 @@ const {
 } = require("./utils");
 
 const ACTIVE = new Set(["connecting", "downloading", "processing"]);
+const PRIORITIES = new Map([
+  ["low", -1],
+  ["normal", 0],
+  ["high", 1],
+]);
+const DETACHED_SEED_LIMIT = 2;
+
+function mediaDuplicateKey(media) {
+  if (!media) return null;
+  const { requestedContainer, videoCodec, audioCodec, ...selection } = media;
+  if (selection.type === "subtitle") delete selection.ext;
+  for (const flag of [
+    "mergeAudio",
+    "live",
+    "audioOnly",
+    "audioUnknown",
+    "seekableSection",
+  ]) {
+    if (selection[flag] === false) delete selection[flag];
+  }
+  return JSON.stringify(selection);
+}
 // External posters are only visual hints; never pass cookies or privileged
 // headers to renderer images. The completed file gets its own local preview.
 function safePoster(raw) {
   if (typeof raw !== "string" || raw.length > 2048) return undefined;
   try {
     const url = new URL(raw);
-    if (url.protocol !== "https:" || url.username || url.password ||
-        url.hostname === "localhost" || url.hostname.endsWith(".local"))
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.hostname === "localhost" ||
+      url.hostname.endsWith(".local")
+    )
       return undefined;
     return url.href;
-  } catch { return undefined; }
+  } catch {
+    return undefined;
+  }
 }
 // Daily local-time window. Equal endpoints mean the full day, avoiding a
 // configuration that could silently prevent every transfer forever.
@@ -186,6 +215,9 @@ class DownloadManager extends EventEmitter {
   }
   async add(input) {
     if (!input?.url) throw new Error("A download URL is required.");
+    const priority =
+      input.priority === undefined ? 0 : PRIORITIES.get(input.priority);
+    if (priority === undefined) throw new Error("Invalid queue priority.");
     const url =
       input.kind === "torrent"
         ? String(input.url).trim()
@@ -201,27 +233,35 @@ class DownloadManager extends EventEmitter {
         );
       if (remoteTorrent) validateUrl(url);
     }
+    const mediaKey = mediaDuplicateKey(input.media);
     const duplicate = [...this.items.values()].find(
       (other) =>
         !["cancelled", "failed"].includes(other.status) &&
         other.url === url &&
         Boolean(other.privateSession) === (input.privateSession === true) &&
         other.kind === (input.kind || "file") &&
-        JSON.stringify(other.media || null) ===
-          JSON.stringify(input.media || null),
+        mediaDuplicateKey(other.media) === mediaKey,
     );
     if (duplicate && !input.allowDuplicate)
       throw new Error(
         "This download is already in your library. Open its details to resume or retry it.",
       );
+    const routeByFinalFilename =
+      (input.kind === "file" || !input.kind) && !input.savePath;
     const destination = this.previewDestination(input);
     const savePath = destination.folder;
-    if (!input.savePath && (destination.rule || this.settings.organizeByType))
+    if (
+      !routeByFinalFilename &&
+      !input.savePath &&
+      (destination.rule || this.settings.organizeByType)
+    )
       input.savePath = savePath;
     if (!savePath || !path.isAbsolute(savePath))
       throw new Error("Choose a valid absolute destination folder.");
-    await fs.mkdir(savePath, { recursive: true });
-    await fs.access(savePath, fs.constants.W_OK);
+    if (!routeByFinalFilename) {
+      await fs.mkdir(savePath, { recursive: true });
+      await fs.access(savePath, fs.constants.W_OK);
+    }
     if (
       input.kind === "media" &&
       this.settings.organizeByType &&
@@ -298,6 +338,13 @@ class DownloadManager extends EventEmitter {
       filenameExplicit: !!input.filename,
       savePath: input.savePath || savePath,
       destinationExplicit: !!input.savePath,
+      destinationPolicy: routeByFinalFilename
+        ? {
+            defaultDownloadPath: this.settings.defaultDownloadPath,
+            organizeByType: this.settings.organizeByType,
+            destinationRules: this.settings.destinationRules,
+          }
+        : undefined,
       status:
         input.startImmediately === undefined
           ? this.settings.autoStartDownloads === false
@@ -310,7 +357,7 @@ class DownloadManager extends EventEmitter {
       downloadedSize: 0,
       speed: 0,
       eta: null,
-      priority: 0,
+      priority,
       queueOrder: Date.now(),
       downloadSpeedLimit: 0,
       attempt: 0,
@@ -361,9 +408,10 @@ class DownloadManager extends EventEmitter {
       browserPage: input.browserPage || undefined,
       // The originating webpage is distinct from a magnet link or CDN/file URL.
       // Keep it only for ordinary non-private downloads and validate it before persistence.
-      sourcePage: !input.privateSession && input.sourcePage
-        ? validateUrl(input.sourcePage)
-        : undefined,
+      sourcePage:
+        !input.privateSession && input.sourcePage
+          ? validateUrl(input.sourcePage)
+          : undefined,
       posterUrl: input.privateSession ? undefined : safePoster(input.posterUrl),
       browserPayloadPath,
       retainsBrowserCopy: input.retainsBrowserCopy === true || undefined,
@@ -399,7 +447,7 @@ class DownloadManager extends EventEmitter {
     this.pump();
     return item.id;
   }
-  previewDestination(input = {}) {
+  previewDestination(input = {}, settings = this.settings) {
     const category =
       input.kind === "torrent"
         ? "Torrents"
@@ -414,13 +462,13 @@ class DownloadManager extends EventEmitter {
                 getFilenameFromURL(input.url || "") ||
                 "download",
             );
-    const rule = !input.savePath && this.settings.destinationRules?.[category];
-    const base = input.savePath || rule || this.settings.defaultDownloadPath;
+    const rule = !input.savePath && settings.destinationRules?.[category];
+    const base = input.savePath || rule || settings.defaultDownloadPath;
     return {
       category,
       rule: !!rule,
       folder:
-        !input.savePath && !rule && this.settings.organizeByType
+        !input.savePath && !rule && settings.organizeByType
           ? path.join(base, category)
           : base,
     };
@@ -569,9 +617,20 @@ class DownloadManager extends EventEmitter {
     if (!item.targetReserved) {
       let filename = sanitizeFilename(info.filename);
       const category = categoryFor(filename);
-      if (this.settings.organizeByType && !item.destinationExplicit)
+      if (item.destinationPolicy && !item.destinationExplicit) {
+        item.savePath = this.previewDestination(
+          { filename, kind: "file" },
+          item.destinationPolicy,
+        ).folder;
+      } else if (
+        item.kind !== "file" &&
+        this.settings.organizeByType &&
+        !item.destinationExplicit
+      ) {
         item.savePath = path.join(item.savePath, category);
+      }
       await fs.mkdir(item.savePath, { recursive: true });
+      await fs.access(item.savePath, fs.constants.W_OK);
       const extension = path.extname(filename);
       const basename = path.basename(filename, extension);
       let counter = 0;
@@ -593,6 +652,7 @@ class DownloadManager extends EventEmitter {
       item.filename = filename;
       item.filenameExplicit = true;
       item.targetReserved = true;
+      item.destinationPolicy = undefined;
       item.category = category;
       this.persist(item);
     }
@@ -638,6 +698,7 @@ class DownloadManager extends EventEmitter {
       this.onStatusChange(item.id, status, data);
       this.emit("status", { id: item.id, status, ...data });
       this.snapshot();
+      if (status === "processing" && data.stage === "seeding") this.pump();
     });
     engine.on("complete", (_id, data) => {
       this.flushProgress();
@@ -648,6 +709,7 @@ class DownloadManager extends EventEmitter {
         speed: 0,
         eta: null,
         error: null,
+        errorCode: null,
       });
       this.persist(item);
       this.onComplete(item.id, data);
@@ -677,9 +739,13 @@ class DownloadManager extends EventEmitter {
       ["AUTH_REQUIRED", "SOURCE_PAGE", "SITE_BLOCKED"].includes(error.code),
     );
     item.status = item.awaitingBrowserConfirmation ? "paused" : "failed";
-    if (item.awaitingBrowserConfirmation)
-      item.error =
-        "Complete the site confirmation in your browser, then start the file download again.";
+    if (item.awaitingBrowserConfirmation) {
+      item.error = {
+        AUTH_REQUIRED: "This file requires a browser session. Open the original page and download it there.",
+        SOURCE_PAGE: "This link opened a webpage. Use the page’s download button or choose its video in GetANNY.",
+        SITE_BLOCKED: "The site refused the desktop download. Use the original browser to continue.",
+      }[error.code];
+    }
     this.persist(item);
     this.onError(item.id, error);
     this.emit("download-error", {
@@ -709,7 +775,14 @@ class DownloadManager extends EventEmitter {
           (this.items.get(b)?.queueOrder || 0),
     );
     const limit = Math.max(1, this.settings.maxConcurrentDownloads || 3);
-    while (this.running.size < limit && this.queue.length) {
+    const occupiedSlots = () => {
+      const seeding = [...this.running.keys()].filter((id) => {
+        const item = this.items.get(id);
+        return item?.status === "processing" && item.stage === "seeding";
+      }).length;
+      return this.running.size - Math.min(seeding, DETACHED_SEED_LIMIT);
+    };
+    while (occupiedSlots() < limit && this.queue.length) {
       const id = this.queue.shift();
       const item = this.items.get(id);
       if (!item || item.status !== "queued" || this.running.has(id)) continue;
@@ -794,7 +867,7 @@ class DownloadManager extends EventEmitter {
     if (ACTIVE.has(item.status)) {
       const engine = this.running.get(id);
       if (!engine) return false;
-      await engine.pause();
+      if ((await engine.pause()) === false) return false;
       // The engine has stopped at this point. Remove its queue slot before
       // returning so an immediate Resume cannot race the start promise's
       // later finally callback and lose the newly queued job.
@@ -835,14 +908,18 @@ class DownloadManager extends EventEmitter {
     return this.resume(id);
   }
   async pauseAll({ ids, kind = "all" } = {}) {
-    if (this.bulkPauseInProgress) throw new Error("Pause all is already running.");
+    if (this.bulkPauseInProgress)
+      throw new Error("Pause all is already running.");
     const selected = Array.isArray(ids) ? new Set(ids.map(String)) : null;
-    const targets = [...this.items.values()].filter((item) =>
-      (!selected || selected.has(item.id)) &&
-      (kind !== "torrent" || item.kind === "torrent") &&
-      (ACTIVE.has(item.status) || ["queued", "retrying"].includes(item.status)),
+    const targets = [...this.items.values()].filter(
+      (item) =>
+        (!selected || selected.has(item.id)) &&
+        (kind !== "torrent" || item.kind === "torrent") &&
+        (ACTIVE.has(item.status) ||
+          ["queued", "retrying"].includes(item.status)),
     );
-    let count = 0, failed = 0;
+    let count = 0,
+      failed = 0;
     this.bulkPauseInProgress = true;
     try {
       // Disarm the queue and retry timers before awaiting active engines.
@@ -866,14 +943,17 @@ class DownloadManager extends EventEmitter {
     return { count, total: targets.length, failed };
   }
   resumeAll({ ids, kind = "all" } = {}) {
-    if (this.bulkPauseInProgress) throw new Error("Cannot resume during Pause all.");
+    if (this.bulkPauseInProgress)
+      throw new Error("Cannot resume during Pause all.");
     const selected = Array.isArray(ids) ? new Set(ids.map(String)) : null;
-    const targets = [...this.items.values()].filter((item) =>
-      item.status === "paused" &&
-      (!selected || selected.has(item.id)) &&
-      (kind !== "torrent" || item.kind === "torrent"),
+    const targets = [...this.items.values()].filter(
+      (item) =>
+        item.status === "paused" &&
+        (!selected || selected.has(item.id)) &&
+        (kind !== "torrent" || item.kind === "torrent"),
     );
-    let count = 0, failed = 0;
+    let count = 0,
+      failed = 0;
     for (const item of targets) {
       try {
         if (this.resume(item.id)) count++;
@@ -891,7 +971,7 @@ class DownloadManager extends EventEmitter {
     this.queue = this.queue.filter((value) => value !== id);
     const engine = this.running.get(id) || this.pausedEngines.get(id);
     if (engine) {
-      await engine.cancel();
+      if ((await engine.cancel()) === false) return false;
       this.pausedEngines.delete(id);
     } else {
       item.status = "cancelled";
@@ -958,7 +1038,13 @@ class DownloadManager extends EventEmitter {
   }
   async remove(id, deleteFile = false) {
     const item = this.requireItem(id);
-    if (item.status !== "completed") await this.cancel(id);
+    if (!["completed", "cancelled"].includes(item.status)) {
+      const stopped = await this.cancel(id);
+      if (!stopped && !["completed", "cancelled"].includes(item.status))
+        throw new Error(
+          "Wait for the transfer to finish saving before removing it.",
+        );
+    }
     await this.cleanup(item);
     this.forgetSession(item);
     if (deleteFile && item.filePath && item.kind !== "torrent")
@@ -993,6 +1079,23 @@ class DownloadManager extends EventEmitter {
         speed: 0,
         eta: null,
       };
+      if (
+        item.kind === "torrent" &&
+        item.stage === "seeding" &&
+        item.filePath
+      ) {
+        const output = await fs.lstat(item.filePath).catch(() => null);
+        if (output?.isFile() || output?.isDirectory()) {
+          item.status = "completed";
+          item.completedAt ||= new Date().toISOString();
+        } else {
+          item.filePath = null;
+        }
+        item.stage = null;
+        item.stageProgress = null;
+        item.seedRemaining = null;
+        item.uploadSpeed = 0;
+      }
       if (
         this.sessionVault &&
         item.browserSource &&

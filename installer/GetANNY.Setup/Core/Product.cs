@@ -19,7 +19,17 @@ public static class Product
     public const string Tagline = "A fast, private download manager for files, video and audio.";
 
     /// <summary>electron-builder: "Uninstall ${PRODUCT_FILENAME}.exe".</summary>
-    public const string EngineUninstallerFileName = "Uninstall GetANNY Download Manager.exe";
+    public const string EngineUninstallerFileName = "Uninstall GetANNY.exe";
+
+    public static string? FindEngineUninstaller(string directory)
+    {
+        foreach (var name in new[] { EngineUninstallerFileName, "Uninstall GetANNY Download Manager.exe" })
+        {
+            var candidate = Path.Combine(directory, name);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
 
     /// <summary>The WPF shell copied by electron-builder (extraFiles) into the install root.</summary>
     public const string ShellUninstallerFileName = "GetANNY Uninstall.exe";

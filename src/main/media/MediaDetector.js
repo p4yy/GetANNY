@@ -35,23 +35,10 @@ class MediaDetector {
   }
   async getFormats(url, options) {
     url = validateUrl(url);
-    const requestId = options?.requestId;
-    const controller = requestId ? new AbortController() : null;
-    if (requestId) {
-      this.cancelAnalysis(requestId);
-      this.activeAnalyses.set(requestId, controller);
-    }
-    let result;
-    try {
-      result = await this.ytdlp.getFormats(url, {
-        ...options,
-        ...(controller ? { signal: controller.signal } : {}),
-      });
-      controller?.signal.throwIfAborted();
-    } finally {
-      if (requestId && this.activeAnalyses.get(requestId) === controller)
-        this.activeAnalyses.delete(requestId);
-    }
+    const { result, tools } = await this.runAnalysis(options, async (request) => ({
+      result: await this.ytdlp.getFormats(url, request),
+      tools: await this.ytdlp.availability(),
+    }));
     const analysisId = randomUUID();
     for (const [key, value] of this.analyses)
       if (Date.now() - value.createdAt > 30 * 60 * 1000)
@@ -63,7 +50,26 @@ class MediaDetector {
     });
     while (this.analyses.size > 20)
       this.analyses.delete(this.analyses.keys().next().value);
-    return { ...result, analysisId, tools: await this.ytdlp.availability() };
+    return { ...result, analysisId, tools };
+  }
+  async runAnalysis(options, extract) {
+    const requestId = options?.requestId;
+    const controller = requestId ? new AbortController() : null;
+    if (requestId) {
+      this.cancelAnalysis(requestId);
+      this.activeAnalyses.set(requestId, controller);
+    }
+    try {
+      const result = await extract({
+        ...options,
+        ...(controller ? { signal: controller.signal } : {}),
+      });
+      controller?.signal.throwIfAborted();
+      return result;
+    } finally {
+      if (requestId && this.activeAnalyses.get(requestId) === controller)
+        this.activeAnalyses.delete(requestId);
+    }
   }
   cancelAnalysis(requestId) {
     if (typeof requestId !== "string" || requestId.length > 64) return false;
@@ -74,7 +80,10 @@ class MediaDetector {
     return true;
   }
   async getPlaylist(url, options) {
-    return this.ytdlp.getPlaylist(validateUrl(url), options);
+    url = validateUrl(url);
+    return this.runAnalysis(options, (request) =>
+      this.ytdlp.getPlaylist(url, request),
+    );
   }
   analysis(analysisId) {
     const analysis = this.analyses.get(analysisId);
@@ -161,6 +170,12 @@ class MediaDetector {
       !["high", "balanced", "small"].includes(quality)
     )
       throw new Error("Unsupported export options.");
+    let requestedContainer = format.ext;
+    if (format.mergeAudio && !(
+      (format.ext === "mp4" && audio?.ext === "m4a") ||
+      (format.ext === "webm" && audio?.ext === "webm")
+    ))
+      requestedContainer = null;
     return {
       url: analysis.originalUrl,
       posterUrl: analysis.thumbnail,
@@ -172,6 +187,9 @@ class MediaDetector {
         live: analysis.live,
         audioOnly: format.group === "audio",
         ext: format.ext,
+        requestedContainer: validatedSegment ? container : requestedContainer,
+        videoCodec: format.vcodec || null,
+        audioCodec: audio?.acodec || format.acodec || null,
         quality: format.quality,
         estimatedTotalSize,
         estimatedSizeApproximate:
@@ -207,6 +225,8 @@ class MediaDetector {
       media: {
         type: "subtitle",
         title: analysis.title,
+        ext: format,
+        requestedContainer: format,
         quality: `${subtitle.language} · ${format.toUpperCase()}`,
         subtitle: {
           language: subtitle.language,

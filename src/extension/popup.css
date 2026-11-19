@@ -135,6 +135,18 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+.cookie-switch input:disabled + .cookie-slider {
+  opacity: 0.45;
+  cursor: default;
+}
+.capture-settings input {
+  width: auto;
+  margin: 0 5px 0 0;
+  accent-color: var(--accent);
+}
+.capture-settings [hidden] {
+  display: none;
+}
 header {
   display: flex;
   align-items: center;

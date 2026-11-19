@@ -223,3 +223,53 @@ test("seekable media uses only the selected interval and keeps captions aligned"
     assert.equal(engine.filename, "Selected interval_00m10s-00m12s.mp4");
   }
 });
+
+test("a clip only completes without requested captions when the user opts in", async (t) => {
+  const directory = await temporary(t);
+  for (const allowWithoutCaptions of [false, true]) {
+    const wrapper = {
+      async download({ outputTemplate, onFile }) {
+        const file = outputTemplate.replace("%(ext)s", "mp4");
+        await fs.writeFile(file, "fixture");
+        onFile(file);
+      },
+      async downloadSubtitles() {
+        throw new Error("HTTP Error 429: Too Many Requests");
+      },
+    };
+    const id = allowWithoutCaptions ? "optional" : "strict";
+    const engine = new MediaEngine({
+      id,
+      url: "https://" + id + ".example.test/video",
+      savePath: directory,
+      tempPath: path.join(directory, id),
+      media: {
+        title: id,
+        formatId: "18",
+        segment: { start: 1, end: 2 },
+        segmentSubtitle: { language: "en", allowWithoutCaptions },
+      },
+      timeout: 30000,
+    }, wrapper, {
+      validateOutput: async () => {},
+      trimOutput: async ({ source, subtitleSource }) => {
+        assert.equal(subtitleSource, undefined);
+        return source;
+      },
+    });
+    let failure;
+    let completion;
+    engine.on("error", (_id, error) => { failure = error; });
+    engine.on("complete", (_id, data) => { completion = data; });
+    await engine.start();
+    if (allowWithoutCaptions) {
+      assert.equal(engine.status, "completed");
+      assert.match(completion.warning, /saved without the requested subtitle/);
+      assert.ok(completion.captionRetryAt > Date.now());
+    } else {
+      assert.equal(engine.status, "failed");
+      assert.equal(failure.code, "CAPTION_RATE_LIMIT");
+      assert.equal(completion, undefined);
+    }
+  }
+});

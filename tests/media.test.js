@@ -759,6 +759,63 @@ test("caption conversion produces valid SRT and VTT documents", () => {
   assert.match(back, /00:00:01\.500 --> 00:00:03\.250/);
 });
 
+test("caption Retry-After handles both HTTP dates and delta seconds", () => {
+  const { captionRateLimit } = require("../src/main/media/subtitles");
+  const now = Date.parse("2026-11-19T00:00:00Z");
+  assert.equal(captionRateLimit("17", now).retryAt, now + 17000);
+  assert.equal(captionRateLimit("Thu, 19 Nov 2026 00:01:10 GMT", now).retryAt, now + 70000);
+  assert.equal(captionRateLimit(undefined, now).retryAt, now + 60000);
+});
+
+test("caption rate limiting prevents immediate extractor and network retries", async (t) => {
+  const http = require("node:http");
+  const dir = await temporary(t, "getanny-caption-limit-");
+  let requests = 0;
+  const server = http.createServer((_request, response) => {
+    requests++;
+    response.writeHead(429, { "retry-after": "120" }).end();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = "http://127.0.0.1:" + server.address().port;
+  let calls = 0;
+  const wrapper = {
+    async downloadSubtitles() {
+      calls++;
+      throw new Error("Unexpected extractor request");
+    },
+  };
+  const run = async (id, captionRetryAt) => {
+    const engine = new MediaEngine({
+      id,
+      url: base + "/watch",
+      savePath: path.join(dir, "out"),
+      tempPath: path.join(dir, id),
+      timeout: 30000,
+      captionRetryAt,
+      media: {
+        type: "subtitle",
+        title: "Caption",
+        subtitle: { language: id, sources: { vtt: base + "/captions" } },
+      },
+    }, wrapper);
+    let failure;
+    engine.on("status", (_id, status, data) => {
+      if (status === "failed") failure = data;
+    });
+    engine.on("error", (_id, error) => assert.equal(error.code, "CAPTION_RATE_LIMIT"));
+    await engine.start();
+    assert.equal(engine.status, "failed");
+    return failure.captionRetryAt;
+  };
+  const retryAt = await run("en");
+  assert.ok(retryAt > Date.now() + 100000);
+  assert.equal(await run("fr"), retryAt);
+  assert.equal(await run("en", retryAt), retryAt);
+  assert.equal(requests, 1);
+  assert.equal(calls, 0);
+});
+
 test("subtitle downloads use the analyzed track URL and convert locally without yt-dlp", async (t) => {
   const http = require("node:http");
   const dir = await temporary(t, "getanny-subtitle-");

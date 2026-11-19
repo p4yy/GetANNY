@@ -96,6 +96,52 @@ test("browser detection covers all catalog targets using executables, not profil
   assert.equal(found.find((b) => b.id === "chrome").installed, false);
   assert.ok(found.some((b) => b.id === "chromium"));
 });
+test("browser overview reports setup and live connections while detection is pending", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "browser-overview-"));
+  const services = await createServices({
+    userDataPath: dir,
+    downloadPath: path.join(dir, "downloads"),
+    binPath: path.resolve("bin"),
+    extensionPath: path.resolve("dist-extension"),
+    port: 0,
+    startTransfers: false,
+  });
+  t.after(async () => {
+    await services.close();
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+  await services.extensionInstaller.install("chrome");
+  const client = await connect(t, services.wsServer);
+  await message(client, {
+    type: "authenticate",
+    token: services.identity.clientTokens.chrome,
+  });
+  await message(client, { type: "hello", browserId: "chrome", extensionId: CHROMIUM_ID });
+  let finishDetection;
+  const pending = new Promise((resolve) => { finishDetection = resolve; });
+  t.mock.method(services.browserDetector, "detect", () => pending);
+  const checkNative = t.mock.method(services.nativeMessagingHost, "check", async () => ({
+    registered: false,
+    path: null,
+  }));
+  const fullStatus = services.browserStatus(false, { includeNative: false });
+  try {
+    const overview = await services.browserStatus(false, { overview: true });
+    assert.equal(overview.browsers.length, browsers.length);
+    const chrome = overview.browsers.find((browser) => browser.id === "chrome");
+    assert.equal(chrome.detection, "checking");
+    assert.equal(chrome.directProvisioned, true);
+    assert.equal(chrome.connected, true);
+    assert.equal(checkNative.mock.callCount(), 0);
+  } finally {
+    finishDetection([{ id: "chrome", installed: true }]);
+  }
+  assert.equal((await fullStatus).browsers[0].installed, true);
+  assert.equal(checkNative.mock.callCount(), 0);
+  assert.equal((await services.browserStatus()).browsers[0].registered, false);
+  assert.equal(checkNative.mock.callCount(), 1);
+});
+
 test("preparing extension packages never claims browser installation or activation", async (t) => {
   const dir = await temporary(t);
   const installer = new ExtensionInstaller({

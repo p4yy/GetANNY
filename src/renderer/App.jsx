@@ -4,6 +4,7 @@ import QueueActionBar from "./components/QueueActionBar";
 import WelcomeSetup from "./components/WelcomeSetup";
 import useSmartPaste from "./hooks/useSmartPaste";
 import React, { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   LuArrowDownToLine,
   LuArrowDown,
@@ -25,6 +26,10 @@ import {
   LuFolderOpen,
   LuChevronRight,
   LuLink,
+  LuLibraryBig,
+  LuWrench,
+  LuPanelLeftClose,
+  LuPanelLeftOpen,
   LuMonitor,
   LuWifiOff,
   LuLoaderCircle,
@@ -57,6 +62,8 @@ import { FaEdge } from "react-icons/fa";
 import chromiumLogo from "./assets/browser-icons/chromium.png";
 import { applyTheme } from "./utils/theme";
 import AddDownloadDialog from "./components/AddDownloadDialog";
+import BatchAddDialog from "./components/BatchAddDialog";
+import { BATCH_LIMIT, classifyLink, intakeLines, openLinkIntake } from "./utils/link-intake.mjs";
 import DownloadDetails from "./components/DownloadDetails";
 import { Button, IconButton, Toasts } from "./components/ui";
 import { active, bytes } from "./utils/format";
@@ -83,25 +90,58 @@ const Nav = React.memo(function Nav({
     <button
       className={`nav-item ${tab === id ? "selected" : ""} ${live ? "has-live-transfer" : ""}`}
       aria-current={tab === id ? "page" : undefined}
+      aria-label={label}
       title={label}
       onClick={() => setTab(id)}
     >
-      <Icon />
+      <Icon aria-hidden />
       <span>{label}</span>
       {amount > 0 && <b>{amount}</b>}
     </button>
   );
 });
-function Sidebar({ bridge, version, platform }) {
+function useSidebarLayout() {
+  const [compactWindow, setCompactWindow] = useState(
+    () => window.matchMedia("(max-width: 860px)").matches,
+  );
+  const [preference, setPreference] = useState(() => {
+    try {
+      const saved = localStorage.getItem("getanny.sidebar");
+      if (saved === "collapsed" || saved === "expanded") return saved;
+    } catch { /* Use the window size when storage is unavailable. */ }
+    return null;
+  });
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 860px)");
+    const update = () => setCompactWindow(query.matches);
+    query.addEventListener("change", update);
+    update();
+    return () => query.removeEventListener("change", update);
+  }, []);
+  const collapsed = preference ? preference === "collapsed" : compactWindow;
+  const toggleSidebar = () => {
+    const value = collapsed ? "expanded" : "collapsed";
+    setPreference(value);
+    try {
+      localStorage.setItem("getanny.sidebar", value);
+    } catch { /* The toggle still works for this window. */ }
+  };
+  return { collapsed, toggleSidebar };
+}
+function Sidebar({ version, platform, collapsed }) {
   const { t } = useI18n();
-  const tab = useUIStore((state) => state.activeTab),
-    setTab = useUIStore((state) => state.setActiveTab);
   const downloads = useDownloadStore((state) => state.downloads);
   const shortcuts = useSettingsStore((state) => state.settings.shortcuts);
+  const newDownloadLabel = t("shell.newDownload");
+  const newDownloadShortcut = binding(shortcuts, "global", "new").replace(
+    "Mod",
+    platform === "darwin" ? "⌘" : "Ctrl",
+  );
   const downloadPath = useSettingsStore((state) => state.settings.defaultDownloadPath);
   const counts = useMemo(() => {
-    const result = { all: downloads.length };
+    const result = { all: 0 };
     for (const item of downloads) {
+      if (item.status !== "paused") result.all++;
       result[item.status] = (result[item.status] || 0) + 1;
       if (!active(item)) continue;
       result.live = (result.live || 0) + 1;
@@ -111,48 +151,53 @@ function Sidebar({ bridge, version, platform }) {
     return result;
   }, [downloads]);
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-collapsed={collapsed}>
       <div className="sidebar-top">
         <Button
           icon={LuPlus}
           variant="primary"
           className="sidebar-add"
+          aria-label={newDownloadLabel}
+          title={newDownloadShortcut ? `${newDownloadLabel} (${newDownloadShortcut})` : newDownloadLabel}
           onClick={() => useUIStore.getState().setAddModal({})}
         >
-          {t("shell.newDownload")}
-          <kbd>
-            {binding(shortcuts, "global", "new").replace(
-              "Mod",
-              platform === "darwin" ? "⌘" : "Ctrl",
-            )}
-          </kbd>
+          <span>{newDownloadLabel}</span>
         </Button>
       </div>
-      <nav aria-label="Main navigation">
-        <div className="nav-group-label">{t("nav.library")}</div>
-        {navigation.map(([id, Icon, key]) => (
+      <nav id="main-navigation" aria-label="Main navigation">
+        <section className="nav-group" aria-label={t("nav.library")}>
+          <div className="nav-group-marker" title={t("nav.library")} aria-hidden>
+            <LuLibraryBig />
+          </div>
+          {navigation.map(([id, Icon, key]) => (
+            <Nav
+              key={id}
+              id={id}
+              icon={Icon}
+              label={t(key)}
+              count={counts[id] || 0}
+              live={Boolean(counts.live && (id === "all" || id === "active"))}
+            />
+          ))}
+        </section>
+        <section className="nav-group" aria-label={t("nav.tools")}>
+          <div className="nav-group-marker" title={t("nav.tools")} aria-hidden>
+            <LuWrench />
+          </div>
+          <Nav id="media" icon={LuFilm} label={t("nav.media")} />
           <Nav
-            key={id}
-            id={id}
-            icon={Icon}
-            label={t(key)}
-            count={counts[id] || 0}
-            live={Boolean(counts.live && (id === "all" || id === "active"))}
+            id="torrent"
+            icon={LuMagnet}
+            label={t("nav.torrents")}
+            count={counts.torrents || 0}
+            live={Boolean(counts.torrents)}
           />
-        ))}
-        <div className="nav-group-label tools-label">{t("nav.tools")}</div>
-        <Nav id="media" icon={LuFilm} label={t("nav.media")} />
-        <Nav
-          id="torrent"
-          icon={LuMagnet}
-          label={t("nav.torrents")}
-          count={counts.torrents || 0}
-          live={Boolean(counts.torrents)}
-        />
+        </section>
       </nav>
       <div className="sidebar-bottom">
         <button
           className="save-location"
+          aria-label={t("shell.defaultLocation")}
           onClick={async () => {
             try {
               const folder = await api.invoke("dialog:select-folder");
@@ -181,25 +226,6 @@ function Sidebar({ bridge, version, platform }) {
         <Nav id="browser" icon={LuGlobe} label={t("nav.browser")} />
         <Nav id="themes" icon={LuPalette} label={t("nav.themes")} />
         <Nav id="settings" icon={LuSettings2} label={t("nav.settings")} />
-        <button
-          className="sidebar-connection"
-          onClick={() => setTab("browser")}
-        >
-          <span className={`live-dot ${bridge.clients > 0 ? "live" : ""}`} />
-          <span>
-            {bridge.clients > 0
-              ? t(
-                  bridge.clients > 1
-                    ? "shell.browsersConnected"
-                    : "shell.browserConnected",
-                  { count: bridge.clients },
-                )
-              : bridge.running && bridge.enabled
-                ? t("shell.noBrowser")
-                : t("shell.bridgeOffline")}
-          </span>
-          <LuChevronRight />
-        </button>
         <div className="sidebar-version">
           GETANNY <span>{version}</span>
         </div>
@@ -334,53 +360,27 @@ function StatusBar({ version, bridge }) {
     }
     return { transferring, completed, queued };
   }, [downloads]);
-  const [rates, setRates] = useState({ speed: 0, uploadSpeed: 0 });
-  useEffect(() => {
-    let timer;
-    const refresh = () => {
-      const { progressById } = useDownloadStore.getState();
+  const { speed, uploadSpeed } = useDownloadStore(
+    useShallow(({ progressById }) => {
       let speed = 0;
       let uploadSpeed = 0;
       for (const item of totals.transferring) {
         const live = progressById[item.id];
-        if (item.status === "downloading") speed += live?.speed ?? item.speed ?? 0;
+        if ((live?.status ?? item.status) === "downloading")
+          speed += live?.speed ?? item.speed ?? 0;
         if (item.kind === "torrent") uploadSpeed += live?.uploadSpeed ?? item.uploadSpeed ?? 0;
       }
-      setRates((previous) =>
-        previous.speed === speed && previous.uploadSpeed === uploadSpeed
-          ? previous
-          : { speed, uploadSpeed },
-      );
-    };
-    const schedule = () => {
-      if (!totals.transferring.length || document.visibilityState !== "visible" || timer) return;
-      timer = setTimeout(() => {
-        timer = undefined;
-        refresh();
-      }, 1000);
-    };
-    const updateVisibility = () => {
-      clearTimeout(timer);
-      timer = undefined;
-      if (document.visibilityState === "visible") refresh();
-    };
-    const unsubscribe = useDownloadStore.subscribe(schedule);
-    updateVisibility();
-    document.addEventListener("visibilitychange", updateVisibility);
-    return () => {
-      unsubscribe();
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", updateVisibility);
-    };
-  }, [totals]);
+      return { speed, uploadSpeed };
+    }),
+  );
   const { transferring, completed, queued } = totals;
-  const { speed, uploadSpeed } = rates;
+  const transferCount = t(transferring.length === 1 ? "shell.activeTransfer" : "shell.activeTransfers", { count: transferring.length });
   return (
     <footer className="statusbar">
       <div className="statusbar-start">
         <span className={`live-dot ${transferring.length ? "live" : ""}`} />
         {transferring.length
-          ? t("shell.activeTransfers", { count: transferring.length })
+          ? transferCount
           : t("shell.ready")}
         <span className="status-separator">/</span>
         <span>
@@ -395,7 +395,7 @@ function StatusBar({ version, bridge }) {
           type="button"
           className="status-speed"
           title={t("shell.openActive")}
-          aria-label={`${t("shell.openActive")}: ${bytes(speed)}/s download, ${t("shell.activeTransfers", { count: transferring.length })}`}
+          aria-label={`${t("shell.openActive")} · ${bytes(speed)}/s`}
           onClick={() => useUIStore.getState().setActiveTab("active")}
         >
           <LuArrowDown />
@@ -407,9 +407,6 @@ function StatusBar({ version, bridge }) {
               {bytes(uploadSpeed)}/s
             </>
           )}
-          <span className="status-speed-count">
-            {t("shell.activeTransfers", { count: transferring.length })}
-          </span>
         </button>
         <span className="statusbar-completed">
           <LuCircleCheck />
@@ -539,6 +536,7 @@ export default function App() {
   );
   const hasDownloads = useDownloadStore((s) => s.downloads.length > 0);
   const { t, language, rtl } = useI18n();
+  const { collapsed, toggleSidebar } = useSidebarLayout();
   const [boot, setBoot] = useState(null),
     [error, setError] = useState(""),
     [bridge, setBridge] = useState({
@@ -670,25 +668,7 @@ export default function App() {
       ? "compact"
       : "comfortable";
   }, [settings.animationMode, settings.compactList, settings.interfaceSize, settings.interfaceFont]);
-  const routeCapture = (value) => {
-    const text = String(value || "").trim();
-    if (!text) return false;
-    if (/^magnet:\?/i.test(text) || /\.torrent(?:$|[?#])/i.test(text)) {
-      useUIStore.getState().setActiveTab("torrent");
-      useUIStore.getState().setAddModal({ torrent: true, torrentUrl: text });
-    } else if (
-      /^https?:\/\//i.test(text) &&
-      /(?:youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|soundcloud\.com|dailymotion\.com|tiktok\.com|instagram\.com|facebook\.com|twitter\.com|x\.com|bilibili\.com|reddit\.com|kick\.com)/i.test(
-        text,
-      )
-    ) {
-      useUIStore.getState().openMedia(text);
-      useUIStore.getState().setActiveTab("media");
-    } else if (/^https?:\/\//i.test(text)) {
-      useUIStore.getState().setAddModal({ url: text });
-    } else return false;
-    return true;
-  };
+  const routeCapture = (value) => openLinkIntake(value, useUIStore.getState());
   useEffect(() => {
     let previous = "";
     let timer;
@@ -708,8 +688,7 @@ export default function App() {
           if (
             current &&
             current !== previous &&
-            (/^(https?:\/\/|magnet:\?)/i.test(current) ||
-              /\.torrent$/i.test(current))
+            intakeLines(current).slice(0, BATCH_LIMIT).some(classifyLink)
           ) {
             previous = current;
             setClipboardNotice(current);
@@ -764,9 +743,11 @@ export default function App() {
     const handleDrop = async (event) => {
       if (event.dataTransfer?.types?.includes("application/x-getanny-queue"))
         return;
-      event.preventDefault();
       dragDepth.current = 0;
       setDropActive(false);
+      if (event.target.closest?.("#batch-links")) return;
+      event.preventDefault();
+      if (useUIStore.getState().addModal?.browserRequestId || useUIStore.getState().addModal?.batch) return;
       const file = event.dataTransfer?.files?.[0];
       if (file && /\.torrent$/i.test(file.name)) {
         let torrentPath;
@@ -870,6 +851,17 @@ export default function App() {
       )}
       <header className="titlebar">
         <div className="titlebar-left">
+          {boot && (
+            <IconButton
+              className="icon-button sidebar-toggle"
+              label={t(collapsed ? "nav.expandSidebar" : "nav.collapseSidebar")}
+              aria-expanded={!collapsed}
+              aria-controls="main-navigation"
+              onClick={toggleSidebar}
+            >
+              {collapsed ? <LuPanelLeftOpen aria-hidden /> : <LuPanelLeftClose aria-hidden />}
+            </IconButton>
+          )}
           <div className={`app-brand ${logoLive ? "brand-live" : ""}`}>
             <span className="brand-mark" aria-hidden="true" />
             <span className="brand-wordmark" role="img" aria-label="GetANNY" />
@@ -916,9 +908,9 @@ export default function App() {
         <>
           <div className="app-body">
             <Sidebar
-              bridge={bridge}
               version={boot.version}
               platform={boot.platform}
+              collapsed={collapsed}
             />
             <main className="main-content" id="main-content">
               <QueueActionBar banner />
@@ -949,7 +941,7 @@ export default function App() {
                         variant="primary"
                         onClick={() => updateAction("download")}
                       >
-                        {t("updates.downloadButton")}
+                        {t(update.manual ? "updates.openRelease" : "updates.downloadButton")}
                       </Button>
                     )}
                     {update.status === "downloaded" && (
@@ -1104,7 +1096,9 @@ export default function App() {
           )}
         </div>
       )}
-      {addModal && (
+      {addModal?.batch ? (
+        <BatchAddDialog initialText={addModal.text} onClose={closeAdd} />
+      ) : addModal && (
         <AddDownloadDialog
           key={`${addModal.torrent ? "torrent" : "file"}:${addModal.torrentUrl || addModal.url || addModal.browserRequestId || "new"}`}
           initial={addModal}

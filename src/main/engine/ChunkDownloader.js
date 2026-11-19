@@ -69,6 +69,11 @@ class ChunkDownloader extends DownloadEngine {
       this.downloadedSize += part.existing;
     }
 
+    const segmentAbort = new AbortController();
+    const segmentSignal = AbortSignal.any([
+      this.controller.signal,
+      segmentAbort.signal,
+    ]);
     const stopAll = () => {
       for (const response of this.segmentStreams) response.destroy();
     };
@@ -88,10 +93,11 @@ class ChunkDownloader extends DownloadEngine {
         ) {
           const part = pending[cursor++];
           try {
-            await this.runSegment(part);
+            await this.runSegment(part, segmentSignal);
           } catch (error) {
             if (!failure && !this.controller.signal.aborted) {
               failure = error;
+              segmentAbort.abort(error);
               stopAll();
             }
           }
@@ -127,7 +133,7 @@ class ChunkDownloader extends DownloadEngine {
     );
   }
 
-  async runSegment(part) {
+  async runSegment(part, signal = this.controller.signal) {
     const start = part.start + part.existing;
     const headers = {
       ...this.headers,
@@ -137,8 +143,9 @@ class ChunkDownloader extends DownloadEngine {
     const { response } = await request(this.url, {
       headers,
       timeout: this.timeout,
-      signal: this.controller.signal,
+      signal,
       requestOptions: this.requestOptions,
+      budget: this.requestBudget,
     });
     this.segmentStreams.add(response);
     try {
@@ -158,30 +165,28 @@ class ChunkDownloader extends DownloadEngine {
       let received = 0;
       const meter = new Transform({
         transform: (chunk, _encoding, callback) => {
-          this.limiter
-            .consume(chunk.length, this.controller.signal)
-            .then(() => {
-              try {
-                this.controller.signal.throwIfAborted();
-                received += chunk.length;
-                if (received > part.end - start + 1)
-                  throw new Error("Segment exceeds its requested byte range.");
-                if (!this.wantedState) {
-                  this.downloadedSize += chunk.length;
-                  this.tickBytes += chunk.length;
-                }
-                callback(null, chunk);
-              } catch (error) {
-                callback(error);
+          this.limiter.consume(chunk.length, signal).then(() => {
+            try {
+              signal.throwIfAborted();
+              received += chunk.length;
+              if (received > part.end - start + 1)
+                throw new Error("Segment exceeds its requested byte range.");
+              if (!this.wantedState) {
+                this.downloadedSize += chunk.length;
+                this.tickBytes += chunk.length;
               }
-            }, callback);
+              callback(null, chunk);
+            } catch (error) {
+              callback(error);
+            }
+          }, callback);
         },
       });
       await this.partials.write(
         part.file,
         part.index,
         part.existing,
-        this.controller.signal,
+        signal,
         response,
         meter,
       );

@@ -52,6 +52,7 @@ const channels = [
   "browser:detect",
   "browser:prepare",
   "browser:open-extensions",
+  "browser:open-store",
   "browser:open-package",
   "browser:locate",
   "browser:pairing-key",

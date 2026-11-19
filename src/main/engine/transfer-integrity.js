@@ -61,14 +61,16 @@ async function verifyChecksum(file, expected, signal) {
   }
 }
 
-async function publishFile(source, target, jobId) {
+async function publishFile(source, target, jobId, { copy = false } = {}) {
   let linked = false;
-  try {
-    await fs.link(source, target);
-    linked = true;
-  } catch (error) {
-    if (!["EXDEV", "EPERM", "ENOTSUP", "EACCES"].includes(error.code))
-      throw error;
+  if (!copy) {
+    try {
+      await fs.link(source, target);
+      linked = true;
+    } catch (error) {
+      if (!["EXDEV", "EPERM", "ENOTSUP", "EACCES"].includes(error.code))
+        throw error;
+    }
   }
   const destination = path.dirname(target);
   if (linked) {

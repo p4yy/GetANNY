@@ -9,6 +9,11 @@ const {
 } = require("./TorrentEngine");
 const { aria2Args } = require("./aria2");
 const { inspectTorrent } = require("./TorrentMetadata");
+const {
+  loadVerifiedTorrent,
+  publishTorrentOutput,
+  recordVerifiedTorrent,
+} = require("./torrent-output");
 const { temporary } = require("../../../tests/helpers");
 
 test(
@@ -64,6 +69,7 @@ test(
       torrentMetadataPath: metadata,
       savePath: destination,
       selectedFiles: [2, 4],
+      seedMinutes: 5,
       sharedTorrentClient: client,
     });
     let result;
@@ -71,7 +77,16 @@ test(
     engine.on("complete", (_, data) => {
       result = data;
     });
-    await engine.start();
+    const sharing = new Promise((resolve) => {
+      engine.on("status", (_id, _status, data) => {
+        if (data.stage === "seeding") resolve(data);
+      });
+    });
+    const task = engine.start();
+    const saved = await sharing;
+    assert.equal((await fs.stat(saved.filePath)).isDirectory(), true);
+    engine.finishSeeding();
+    await task;
     assert.equal(engine.status, "completed");
     assert.equal(result.totalSize, 131072);
     assert.ok(result.filePath.startsWith(destination + path.sep));
@@ -217,12 +232,25 @@ test("multi-file output keeps a torrent content folder without control files", a
   await fs.mkdir(season, { recursive: true });
   const episode = path.join(season, "episode-01.mkv");
   await fs.writeFile(episode, "video");
-  const engine = new TorrentEngine({ workPath });
-  const output = await engine.outputPath([
-    { path: episode, length: "5", selected: "true" },
-  ]);
-  assert.equal(output, episode);
+  const ready = await recordVerifiedTorrent(
+    workPath,
+    [{ path: episode, length: 5 }],
+    "Season 2",
+  );
+  await fs.writeFile(path.join(root, "episode-01.mkv"), "existing");
+  const output = await publishTorrentOutput({
+    workPath,
+    savePath: root,
+    id: "one",
+    ready,
+  });
+  assert.equal(output, path.join(root, "episode-01 (1).mkv"));
+  assert.equal(
+    await fs.readFile(path.join(root, "episode-01.mkv"), "utf8"),
+    "existing",
+  );
   assert.equal(await fs.readFile(output, "utf8"), "video");
+  assert.equal(await fs.readFile(episode, "utf8"), "video");
 });
 
 test("flat multi-file selection is collected into one clean output folder", async (t) => {
@@ -233,16 +261,64 @@ test("flat multi-file selection is collected into one clean output folder", asyn
   const second = path.join(workPath, "episode-02.mkv");
   await fs.writeFile(first, "one");
   await fs.writeFile(second, "two");
-  const engine = new TorrentEngine({ workPath });
-  const output = await engine.outputPath([
-    { path: first, length: "3", selected: "true" },
-    { path: second, length: "3", selected: "true" },
-  ]);
-  assert.equal(path.basename(output), ".getanny-output");
+  const ready = await recordVerifiedTorrent(
+    workPath,
+    [
+      { path: first, length: 3 },
+      { path: second, length: 3 },
+    ],
+    "Season 1.0",
+  );
+  await fs.mkdir(path.join(root, "Season 1.0"));
+  const output = await publishTorrentOutput({
+    workPath,
+    savePath: root,
+    id: "multi",
+    ready,
+  });
+  assert.equal(path.basename(output), "Season 1.0 (1)");
+  assert.deepEqual(await fs.readdir(path.join(root, "Season 1.0")), []);
   assert.deepEqual(await fs.readdir(output), [
     "episode-01.mkv",
     "episode-02.mkv",
   ]);
+  assert.equal(await fs.readFile(first, "utf8"), "one");
+});
+
+test("failed torrent save keeps verified files for a save-only retry", async (t) => {
+  const root = await temporary(t, "getanny-torrent-resave-");
+  const workPath = path.join(root, "work");
+  await fs.mkdir(workPath);
+  await fs.writeFile(path.join(workPath, "file.bin"), "verified");
+  const ready = await recordVerifiedTorrent(
+    workPath,
+    [{ path: "file.bin", length: 8 }],
+    "file.bin",
+  );
+  const options = {
+    id: "save",
+    url: "unavailable.torrent",
+    tempPath: workPath,
+  };
+  const blocked = path.join(root, "existing-file");
+  await fs.writeFile(blocked, "unrelated");
+  const first = new TorrentEngine({ ...options, savePath: blocked });
+  let failure;
+  first.on("error", (_id, error) => {
+    failure = error;
+  });
+  await first.start();
+  assert.equal(first.status, "failed");
+  assert.equal(failure.code, "TORRENT_SAVE_FAILED");
+  assert.deepEqual(await loadVerifiedTorrent(workPath), ready);
+  const second = new TorrentEngine({ ...options, savePath: root });
+  await second.start();
+  assert.equal(second.status, "completed");
+  assert.equal(
+    await fs.readFile(path.join(root, "file.bin"), "utf8"),
+    "verified",
+  );
+  assert.equal(await fs.readFile(blocked, "utf8"), "unrelated");
 });
 
 test("torrent inspection returns the complete multi-file list before queueing", async (t) => {

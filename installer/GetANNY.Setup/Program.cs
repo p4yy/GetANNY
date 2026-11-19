@@ -12,7 +12,7 @@ public enum SetupRole { Installer, Uninstaller }
 /// Role resolution, in order:
 ///   --mode=install | --mode=uninstall                      explicit (tests)
 ///   this EXE carries an NSIS overlay                       → Installer
-///   "Uninstall GetANNY Download Manager.exe" sits next to it, or _?= was passed → Uninstaller
+///   The NSIS uninstaller sits next to it, or _?= was passed   → Uninstaller
 ///   otherwise                                              → Installer without payload (shows a clear error)
 /// </summary>
 public static class Program
@@ -67,7 +67,7 @@ public static class Program
         if (EnginePayload is not null) return SetupRole.Installer;
         if (Args.UninstallDirectory is not null) return SetupRole.Uninstaller;
         var dir = Path.GetDirectoryName(exePath);
-        if (dir is not null && File.Exists(Path.Combine(dir, Product.EngineUninstallerFileName))) return SetupRole.Uninstaller;
+        if (dir is not null && Product.FindEngineUninstaller(dir) is not null) return SetupRole.Uninstaller;
         if (string.Equals(Path.GetFileName(exePath), Product.ShellUninstallerFileName, StringComparison.OrdinalIgnoreCase)) return SetupRole.Uninstaller;
         return SetupRole.Installer;
     }

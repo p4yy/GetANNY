@@ -16,6 +16,7 @@ const { MediaDetector } = require("./media/MediaDetector");
 const { PreviewService } = require("./previews/PreviewService");
 const { WebSocketServer } = require("./browser-integration/WebSocketServer");
 const { BrowserDetector } = require("./browser-integration/BrowserDetector");
+const { browsers: browserCatalog } = require("./browser-integration/catalog");
 const {
   ExtensionInstaller,
 } = require("./browser-integration/ExtensionInstaller");
@@ -548,34 +549,39 @@ async function createServices({
     }
     return { found: true, cancelled: true };
   }
-  async function browserStatus() {
-    const websocket = wsServer.status();
+  async function browserStatus(rescan = false, { overview = false, includeNative = true } = {}) {
     const evidence = settingsRepo.get("integrationEvidence") || {};
-    const detected = await browserDetector.detect();
-    const browsers = await Promise.all(
+    const detected = overview
+      ? browserCatalog.map(({ id, name, family, page }) => ({
+          id, name, family, extensionsPage: page, detection: "checking",
+        }))
+      : await browserDetector.detect(rescan);
+    const configuration = await Promise.all(
       detected.map(async (browser) => {
         const [prepared, host] = await Promise.all([
           extensionInstaller.check(browser.id),
-          nativeMessagingHost.check(browser.id),
+          !overview && includeNative ? nativeMessagingHost.check(browser.id) : null,
         ]);
-        const session = websocket.sessions.find(
-          (value) => value.browserId === browser.id,
-        );
-        return {
-          ...browser,
-          prepared: prepared.prepared,
-          directProvisioned: prepared.directProvisioned,
-          packagePath: prepared.path,
-          registered: host.registered,
-          nativeManifestPath: host.path,
-          connected: !!session,
-          extensionInstalled: session ? true : null,
-          extensionEnabled: session ? true : null,
-          transport: session?.transport || null,
-          lastSeen: session?.lastSeen || evidence[browser.id]?.lastSeen || null,
-        };
+        return { browser, prepared, host };
       }),
     );
+    const websocket = wsServer.status();
+    const browsers = configuration.map(({ browser, prepared, host }) => {
+      const session = websocket.sessions.find((value) => value.browserId === browser.id);
+      return {
+        ...browser,
+        prepared: prepared.prepared,
+        directProvisioned: prepared.directProvisioned,
+        packagePath: prepared.path,
+        ...(host && { registered: host.registered, nativeManifestPath: host.path }),
+        connected: !!session,
+        extensionInstalled: session ? true : null,
+        extensionEnabled: session ? true : null,
+        transport: session?.transport || null,
+        extensionVersion: session?.version || evidence[browser.id]?.version || null,
+        lastSeen: session?.lastSeen || evidence[browser.id]?.lastSeen || null,
+      };
+    });
     return { websocket, browsers };
   }
   async function prepareBrowser(id, onProgress = async () => {}) {
@@ -654,6 +660,24 @@ async function createServices({
   }
   return {
     events,
+    async resumeRetainedBrowserDownload(item) {
+      const session = ownerSessions.get(item.id);
+      if (!session || !item.browserTransferId)
+        throw new Error("Open the original browser and reconnect GetANNY to continue this download.");
+      // Record the owner before the command. A lost reply must never let
+      // GetANNY start writing a second copy of the same download.
+      item.returnedToBrowser = true;
+      manager.persist(item);
+      const result = await wsServer.downloadCommand(session, "resume", item.browserTransferId);
+      if (!result.success) throw new Error(result.error || "The browser could not resume this download.");
+      item.awaitingBrowserConfirmation = false;
+      item.error = null;
+      item.errorCode = null;
+      ownerSessions.delete(item.id);
+      manager.persist(item);
+      manager.snapshot();
+      return { success: true, browserManaged: true };
+    },
     db,
     manager,
     downloadsRepo,

@@ -44,13 +44,14 @@ let win,
   exiting = false,
   hiddenToTray = false,
   shutdownFinished = false;
-if (process.platform === "win32") app.setAppUserModelId("com.getanny.app");
 const selfTest = process.argv.includes("--self-test");
 const scheduledLaunch = process.argv.includes("--scheduled-downloads");
 if (selfTest) app.disableHardwareAcceleration();
 const setupOnly = process.argv.includes("--setup-browser-hosts");
 const unregisterOnly = process.argv.includes("--unregister-browser-hosts");
 const testDataIndex = process.argv.indexOf("--test-user-data");
+if (process.platform === "win32" && testDataIndex < 0)
+  app.setAppUserModelId("com.getanny.app");
 if (testDataIndex >= 0 && process.argv[testDataIndex + 1])
   app.setPath("userData", path.resolve(process.argv[testDataIndex + 1]));
 function send(channel, data) {
@@ -92,7 +93,7 @@ function releaseHandoffRaise() {
 }
 async function foregroundBrowserHandoff(request) {
   if (services?.settings.get("bringToFrontOnCapture") === false) {
-    if (Notification.isSupported()) {
+    if (testDataIndex < 0 && Notification.isSupported()) {
       const notice = new Notification({
         title: "Sent to GetANNY",
         body:
@@ -429,6 +430,7 @@ async function init() {
   services.events.on("event", (channel, data) => {
     if (
       channel === "download:complete" &&
+      testDataIndex < 0 &&
       services.settings.get("notifications") &&
       Notification.isSupported() &&
       !selfTest
@@ -459,6 +461,7 @@ async function init() {
       mainWindow: () => win,
       currentVersion: app.getVersion(),
       fetchAsset: net.fetch.bind(net),
+      openRelease: (url) => shell.openExternal(url),
       logger: log,
     });
   }

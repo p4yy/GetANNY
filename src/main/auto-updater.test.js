@@ -96,3 +96,30 @@ test("an equal version is reported as current without probing an installer", asy
   t.after(() => updater.removeAllListeners());
   assert.deepEqual(await client.check(), { status: "current" });
 });
+
+test("a stable published Setup EXE remains discoverable without the updater feed", async (t) => {
+  const updater = new EventEmitter();
+  updater.checkForUpdates = async () => { throw new Error("Missing latest.yml"); };
+  updater.downloadUpdate = () => assert.fail("Manual update must open GitHub");
+  const opened = [];
+  const client = configureAutoUpdater({
+    updater,
+    currentVersion: "2.6.0",
+    fetchAsset: async (url) => {
+      assert.equal(url, "https://api.github.com/repos/p4yy/GetANNY/releases/latest");
+      return {
+        ok: true,
+        json: async () => ({
+          tag_name: "v2.6.1",
+          assets: [{ name: "GetANNY.Setup.exe", state: "uploaded" }],
+        }),
+      };
+    },
+    openRelease: (url) => opened.push(url),
+    logger: { warn() {} },
+  });
+  t.after(() => updater.removeAllListeners());
+  assert.deepEqual(await client.check(), { status: "available", version: "2.6.1", manual: true });
+  await client.download();
+  assert.deepEqual(opened, ["https://github.com/p4yy/GetANNY/releases/tag/v2.6.1"]);
+});

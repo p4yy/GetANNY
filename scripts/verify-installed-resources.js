@@ -19,10 +19,10 @@ module.exports = async (context) => {
     updaterConfig &&
     (!/^provider:\s*github\s*$/m.test(updaterConfig) ||
       !/^owner:\s*p4yy\s*$/m.test(updaterConfig) ||
-      !/^repo:\s*GetANNY-Download-Manager\s*$/m.test(updaterConfig))
+      !/^repo:\s*GetANNY\s*$/m.test(updaterConfig))
   )
     throw new Error(
-      "Packaged updater configuration does not point to the public GetANNY Download Manager release feed",
+      "Packaged updater configuration does not point to the public p4yy/GetANNY release feed",
     );
   const asar = require("@electron/asar");
   for (const bundledAsset of ["assets/icon.png", "assets/tray-icon.png"]) {

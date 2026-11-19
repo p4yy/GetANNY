@@ -9,7 +9,7 @@ on:
   # Build candidate pull requests on Windows as well as branch pushes.
   # This allows installed-EXE verification to be associated with the review.
   pull_request:
-    branches: [next-version]
+    branches: [main, next-version]
     paths-ignore: ["**/*.md"]
   workflow_dispatch:
     inputs:
@@ -17,6 +17,9 @@ on:
         description: Publish the official release after every verification gate passes
         type: boolean
         default: false
+      candidate_sha256:
+        description: SHA-256 of GetANNY.Setup.exe already uploaded to the release draft
+        type: string
 permissions:
   contents: write
 concurrency:
@@ -107,10 +110,22 @@ jobs:
           if ($targets.Count -lt 10) { throw 'Desktop test selection is unexpectedly small.' }
           & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/backend-junit.xml @targets 2>&1 | Tee-Object test-results/windows/backend-tests.log
           exit $LASTEXITCODE
+      - name: Test browser handoff and authenticated local bridge
+        shell: pwsh
+        run: |
+          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js')
+          $targets += @(Get-ChildItem src/main/browser-integration -Filter '*.test.js' -File | ForEach-Object FullName)
+          & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/browser-junit.xml @targets 2>&1 | Tee-Object test-results/windows/browser-tests.log
+          exit $LASTEXITCODE
       - name: Dependency security audit
         run: npm audit --audit-level=high
       - name: Build renderer
         run: npm run build:renderer
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build the branded setup and uninstaller shell
+        run: npm run build:setup-ui
       - name: Build NSIS Setup EXE
         shell: pwsh
         run: |
@@ -119,6 +134,45 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      - name: Verify and select the exact installer from the release draft
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+        run: |
+          if ($env:CANDIDATE_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Invalid candidate SHA-256.' }
+          $tag = 'v' + (node -p "require('./package.json').version")
+          $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read release drafts.' }
+          $drafts = @($releases | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
+          if ($drafts.Count -ne 1 -or -not $drafts[0].draft -or $drafts[0].target_commitish -ne $env:GITHUB_SHA) {
+            throw 'Expected one release draft targeting this commit.'
+          }
+          $assets = @($drafts[0].assets | Where-Object { $_.name -ceq 'GetANNY.Setup.exe' -and $_.state -eq 'uploaded' })
+          if ($assets.Count -ne 1 -or $assets[0].digest -ne ('sha256:' + $env:CANDIDATE_SHA256)) {
+            throw 'The draft installer does not match the approved digest.'
+          }
+          $candidate = Join-Path $env:RUNNER_TEMP 'GetANNY Setup.exe'
+          & curl.exe --fail --silent --show-error --location --output $candidate `
+            --header "Authorization: Bearer $env:GH_TOKEN" --header 'Accept: application/octet-stream' `
+            "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/assets/$($assets[0].id)"
+          if ($LASTEXITCODE -ne 0 -or (Get-FileHash -LiteralPath $candidate).Hash -ne $env:CANDIDATE_SHA256) {
+            throw 'Downloaded installer digest does not match.'
+          }
+          Copy-Item -LiteralPath $candidate -Destination 'dist/GetANNY Setup.exe' -Force
+          Remove-Item -LiteralPath 'dist/GetANNY Setup.exe.blockmap' -ErrorAction SilentlyContinue
+      - name: Verify configured installer signature
+        shell: pwsh
+        env:
+          SIGNING_CONFIGURED: ${{ secrets.CSC_LINK != '' }}
+        run: |
+          if ($env:SIGNING_CONFIGURED -eq 'true') {
+            $signature = Get-AuthenticodeSignature -LiteralPath 'dist/GetANNY Setup.exe'
+            if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) {
+              throw "Configured signing did not produce a valid timestamped installer: $($signature.Status)"
+            }
+          }
       - name: Preserve built installers independently of later verification
         shell: pwsh
         run: |
@@ -131,7 +185,7 @@ jobs:
             'Source: ${{ github.sha }}',
             'Verification: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
             'Packaging succeeded. Installed-app and uninstall checks may still be running or fail.',
-            'Browser extension tests are intentionally skipped at owner request.',
+            'Browser handoff source tests are separate from testing real installed browsers.',
             'Consult EXE-only verification evidence before considering this installer verified.'
           ) | Set-Content (Join-Path $destination 'BUILD_STATUS.txt')
           Get-ChildItem $destination -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object { ('{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(),$_.Name) } | Set-Content (Join-Path $destination 'SHA256SUMS.txt')
@@ -206,13 +260,20 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 || '' }}
         run: |
           npm.cmd run audit:locales -- --strict
           if ($LASTEXITCODE -ne 0) { throw "Cannot publish: seven-language parity is incomplete." }
           $version = node -p "require('./package.json').version"
           $tag = "v$version"
-          gh release view $tag 2>$null
-          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Never silently replace an existing release." }
+          $publicDir = 'release-assets'
+          if ($env:CANDIDATE_SHA256) {
+            $publicDir = Join-Path $env:RUNNER_TEMP 'GetANNY-public-release'
+            New-Item -ItemType Directory -Path $publicDir -Force | Out-Null
+            Copy-Item 'release-assets/GetANNY.Setup.exe', 'release-assets/latest.yml' $publicDir
+            node scripts/checksums.js $publicDir
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot generate public checksums.' }
+          }
           $notesFile = Join-Path $env:RUNNER_TEMP 'GetANNY-release-notes.md'
           @(
             (Get-Content docs/RELEASE_NOTES.md -Raw),
@@ -225,25 +286,44 @@ jobs:
             '',
             '## SHA-256',
             '```text',
-            (Get-Content release-assets/SHA256SUMS.txt -Raw),
+            (Get-Content (Join-Path $publicDir 'SHA256SUMS.txt') -Raw),
             '```'
           ) -join "`n" | Set-Content $notesFile
           # Never expose a partially uploaded release if GitHub or the network
           # fails mid-transfer. Leave a draft for investigation instead.
-          gh release create $tag --draft --target '${{ github.sha }}' --title "GetANNY Download Manager" --notes-file $notesFile
-          if ($LASTEXITCODE -ne 0) { throw 'GitHub draft creation failed.' }
-          $labeledAssets = Get-ChildItem release-assets -File | ForEach-Object { "$($_.FullName)#$($_.Name)" }
-          gh release upload $tag @labeledAssets
-          if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed; release remains a draft.' }
+          if (-not $env:CANDIDATE_SHA256) {
+            gh release view $tag 2>$null
+            if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Never silently replace an existing release." }
+            gh release create $tag --draft --target $env:GITHUB_SHA --title "GetANNY Download Manager $version" --notes-file $notesFile
+            if ($LASTEXITCODE -ne 0) { throw 'GitHub draft creation failed.' }
+          }
+          $labeledAssets = Get-ChildItem $publicDir -File |
+            Where-Object { -not $env:CANDIDATE_SHA256 -or $_.Name -ne 'GetANNY.Setup.exe' } |
+            ForEach-Object { "$($_.FullName)#$($_.Name)" }
           $releaseFile = Join-Path $env:RUNNER_TEMP 'GetANNY-draft.json'
           $releaseJson = gh api "repos/${{ github.repository }}/releases?per_page=100"
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect draft; release remains a draft.' }
           $matching = @($releaseJson | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
           if ($matching.Count -ne 1) { throw 'Expected exactly one matching draft release.' }
-          $matching[0] | ConvertTo-Json -Depth 30 | Set-Content $releaseFile
-          node scripts/verify-release-assets.js $releaseFile release-assets $tag '${{ github.sha }}'
+          if (-not $matching[0].draft -or $matching[0].target_commitish -ne $env:GITHUB_SHA) {
+            throw 'Release changed before publication.'
+          }
+          if ($env:CANDIDATE_SHA256) {
+            foreach ($file in Get-ChildItem $publicDir -File | Where-Object Name -ne 'GetANNY.Setup.exe') {
+              $upload = "https://uploads.github.com/repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)/assets?name=$($file.Name)"
+              gh api --method POST --header 'Content-Type: application/octet-stream' --input $file.FullName $upload | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed; release remains a draft.' }
+            }
+          } else {
+            gh release upload $tag @labeledAssets
+            if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed; release remains a draft.' }
+          }
+          $refreshed = gh api "repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect uploaded assets; release remains a draft.' }
+          $refreshed | Set-Content $releaseFile
+          node scripts/verify-release-assets.js $releaseFile $publicDir $tag '${{ github.sha }}'
           if ($LASTEXITCODE -ne 0) { throw 'Asset verification failed; release remains a draft.' }
-          gh release edit $tag --draft=false
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)" -F draft=false -f make_latest=true -F "body=@$notesFile" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Draft promotion failed; inspect the release state.' }
           $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$tag" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0 -or $ref.object.sha -ne '${{ github.sha }}') { throw 'Published tag verification failed.' }

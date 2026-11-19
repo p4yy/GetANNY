@@ -173,20 +173,25 @@ class BrowserDetector {
   }
   async openExtensions(browserId) {
     const browser = getBrowser(browserId);
+    // A canonical trailing slash opens the Chromium extensions manager reliably.
+    const page = browser.family === "firefox"
+      ? browser.page
+      : `${browser.page.replace(/\/$/, "")}/`;
+    return this.openPage(browser, page);
+  }
+  async openStore(browserId) {
+    const browser = getBrowser(browserId);
+    if (!browser.storeUrl) throw new Error("This browser has no GetANNY store listing.");
+    return this.openPage(browser, browser.storeUrl);
+  }
+  async openPage(browser, page) {
     const detected = (await this.detect()).find(
-      (value) => value.id === browserId,
+      (value) => value.id === browser.id,
     );
-    if (!detected.executable)
+    if (!detected?.executable)
       throw new Error(
         "Browser executable not detected. Use Locate browser, or open its extensions page manually.",
       );
-    // Chromium derivatives can consume an internal URL as a launch request
-    // without navigating the existing window. Force a new window and use a
-    // canonical trailing slash so the extensions manager opens reliably.
-    const page =
-      browser.family === "firefox"
-        ? browser.page
-        : `${browser.page.replace(/\/$/, "")}/`;
     const args =
       browser.family === "firefox"
         ? ["-new-window", page]

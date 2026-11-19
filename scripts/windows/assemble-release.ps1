@@ -1,6 +1,8 @@
 # Fail-closed assembly from disposable Windows EXE verification only.
 $ErrorActionPreference='Stop'
 $evidenceRoot = 'test-results/windows'
+$version = node -p "require('./package.json').version"
+if ($LASTEXITCODE -ne 0 -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
 $overall = Get-Content "$evidenceRoot/installer-report.json" -Raw | ConvertFrom-Json
 if (-not $overall.passed) { throw 'Cannot assemble an installer from failed EXE evidence.' }
 if ($overall.installer -ne 'NSIS x64 Setup EXE only') { throw 'Unexpected installer target.' }
@@ -17,10 +19,16 @@ $skipped = $junit.SelectNodes('//skipped').Count
 if ($cases -eq 0 -or $failures -ne 0 -or $skipped -ne 0) {
   throw 'EXE core test evidence is missing, failed or skipped.'
 }
+[xml]$browserJUnit = Get-Content "$evidenceRoot/browser-junit.xml" -Raw
+$browserCases = $browserJUnit.SelectNodes('//testcase').Count
+if ($browserCases -eq 0 -or $browserJUnit.SelectNodes('//failure|//skipped').Count -ne 0) {
+  throw 'Browser handoff source test evidence is missing, failed or skipped.'
+}
 $measured = [System.Collections.Generic.List[string]]::new()
-$measured.Add('# GetANNY 2.6.0 - measured NSIS Setup EXE checks')
+$measured.Add("# GetANNY $version - measured NSIS Setup EXE checks")
 $measured.Add('')
 $measured.Add(('Desktop source tests: **{0} passed, 0 failed, 0 skipped**.' -f $cases))
+$measured.Add(('Browser handoff and bridge source tests: **{0} passed, 0 failed, 0 skipped**.' -f $browserCases))
 foreach ($name in @('exe-first-install','exe-upgrade-restart','exe-actual-default-profile','exe-desktop-lifecycle')) {
   $record = Get-Content "$evidenceRoot/$name.json" -Raw | ConvertFrom-Json
   $minimum = if ($name -eq 'exe-desktop-lifecycle') { 4 } else { 13 }
@@ -43,16 +51,20 @@ $measured.Add(('- Packaged tray idle 10s: **{0} CPU microseconds; {1} MiB workin
   $tray.trayLifecycle.idleCpuMicrosOver10Seconds,$tray.trayLifecycle.reportedWorkingSetMiB))
 $measured.Add('')
 $measured.Add('The real NSIS EXE was installed, reinstalled, self-tested, and uninstalled. Shortcuts, user-data retention, completed output and registration cleanup were checked.')
-$measured.Add('Browser extension tests were intentionally skipped at owner request. They are not part of this EXE verification.')
-$measured.Add('Unsigned Windows Setup package; Authenticode signing is not provided. The published evidence describes the exact checks performed and does not certify live cloud-provider compatibility.')
+$measured.Add('The installed real-browser matrix and cross-version upgrade are separate from these checks. Cloud-provider compatibility is not certified here.')
 foreach ($signature in $overall.signatures) {
   $measured.Add(('- Authenticode {0}: **{1}**.' -f $signature.file,$signature.status))
 }
 New-Item release-assets -ItemType Directory -Force | Out-Null
 Get-ChildItem release-assets -File -ErrorAction SilentlyContinue | Remove-Item -Force
 $measured | Set-Content 'release-assets/MEASURED_RESULTS.md'
-Copy-Item 'dist/GetANNY Setup.exe' 'release-assets/GetANNY Setup.exe'
+Copy-Item 'dist/GetANNY Setup.exe' 'release-assets/GetANNY.Setup.exe'
+if (Test-Path -LiteralPath 'dist/GetANNY Setup.exe.blockmap') {
+  Copy-Item 'dist/GetANNY Setup.exe.blockmap' 'release-assets/GetANNY.Setup.exe.blockmap'
+}
 Copy-Item 'docs/INSTALL_WINDOWS.md' 'release-assets/INSTALL_WINDOWS.md'
 Compress-Archive -Path test-results/windows/* -DestinationPath release-assets/Windows-test-evidence.zip -Force
+node scripts/write-update-metadata.js release-assets
+if ($LASTEXITCODE -ne 0) { throw 'Update metadata generation failed.' }
 node scripts/checksums.js
 if ($LASTEXITCODE -ne 0) { throw 'EXE checksum generation failed.' }

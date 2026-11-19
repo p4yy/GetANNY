@@ -8,13 +8,11 @@ const context = vm.createContext({
   crypto: require("node:crypto"),
   navigator: { userAgent: "Browser Test" },
 });
-vm.runInContext(
-  fs.readFileSync(
-    require.resolve("../src/extension/download-interceptor.js"),
-    "utf8",
-  ),
-  context,
-);
+for (const script of ["download-preferences.js", "download-interceptor.js"])
+  vm.runInContext(
+    fs.readFileSync(require.resolve(`../src/extension/${script}`), "utf8"),
+    context,
+  );
 const Interceptor = context.GetANNYDownloadInterceptor;
 
 function fixture(options = {}) {
@@ -25,7 +23,9 @@ function fixture(options = {}) {
     storage: {
       local: {
         get: async () => ({
-          includeSiteCookies: options.includeSiteCookies !== false,
+          "getannyAutomaticHandoff": options.automatic,
+          "getanny:downloads:keep:example.test": options.keepInBrowser,
+          "getanny:downloads:cookies:cdn.example.test": options.includeSiteCookies,
         }),
       },
       ...(options.session ? { session: options.session } : {}),
@@ -97,7 +97,7 @@ test("ordinary browser handoff covers documents, archives, images, media and unk
     "document.docx",
     "unknown.largefile",
   ].entries()) {
-    const f = fixture();
+    const f = fixture({ includeSiteCookies: true });
     await f.interceptor.created({
       ...item(index + 1, name),
       totalBytes: Number.MAX_SAFE_INTEGER,
@@ -263,7 +263,7 @@ test("browser download IDs reused across profiles or restarts get distinct hando
   assert.notEqual(a, "1");
 });
 
-test("cookie lookup is enabled by default, uses the download's browser cookie store, and honors an explicit opt-out", async () => {
+test("cookie lookup is opt-in per download host and uses the download's browser cookie store", async () => {
   const f = fixture({ includeSiteCookies: true });
   await f.interceptor.created({
     ...item(21),
@@ -272,7 +272,7 @@ test("cookie lookup is enabled by default, uses the download's browser cookie st
   const query = f.calls.find((call) => call.name === "cookies").value;
   assert.equal(query.storeId, "firefox-container-2");
   assert.equal(query.url, "https://cdn.example.test/file.bin");
-  const optedOut = fixture({ includeSiteCookies: false });
+  const optedOut = fixture();
   await optedOut.interceptor.created(item(22));
   const request = optedOut.calls.find((call) => call.name === "request").value;
   assert.equal(request.headers.Cookie, undefined);
@@ -281,6 +281,14 @@ test("cookie lookup is enabled by default, uses the download's browser cookie st
     optedOut.calls.some((call) => call.name === "cookies"),
     false,
   );
+});
+
+test("manual-only mode and a source-site exception leave browser downloads untouched", async () => {
+  for (const options of [{ automatic: false }, { keepInBrowser: true }]) {
+    const f = fixture(options);
+    await f.interceptor.created(item(24));
+    assert.deepEqual(f.calls, []);
+  }
 });
 
 function sessionStorage(initial = []) {
@@ -402,6 +410,7 @@ for (const browser of ["Chrome", "Edge", "Firefox"]) {
   test(`${browser} private handoff reads only the matched private cookie store`, async () => {
     let saved;
     const f = fixture({
+      includeSiteCookies: true,
       session: {
         get: async () => ({}),
         set: async (value) => {
@@ -465,6 +474,7 @@ test("ambiguous private cookie stores leave the original browser transfer untouc
 
 test("private cookie lookup failures resume the browser and never use another store", async () => {
   const f = fixture({
+    includeSiteCookies: true,
     session: { get: async () => ({}), set: async () => {} },
     cookies: async () => {
       throw new Error("lookup refused");

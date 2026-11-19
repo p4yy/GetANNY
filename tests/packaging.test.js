@@ -255,7 +255,7 @@ test("release checksums stream file contents and exclude their own output", asyn
   );
 });
 
-test("2.6.0 packages only the NSIS Setup EXE and verifies the installed application", async () => {
+test("the release packages the NSIS Setup EXE and verifies the installed application", async () => {
   const version = require("../package.json").version;
   assert.equal(require("../package-lock.json").version, version);
   for (const file of [
@@ -274,7 +274,8 @@ test("2.6.0 packages only the NSIS Setup EXE and verifies the installed applicat
   assert.doesNotMatch(installTest, /portable-first-launch|Installing the actual MSI package/);
   const assembly = await fs.readFile("scripts/windows/assemble-release.ps1", "utf8");
   assert.doesNotMatch(assembly, /portable-first-launch|GetANNY Setup\.msi|GetANNY Portable\.exe/);
-  assert.match(assembly, /GetANNY-v\$version-Windows/);
+  assert.match(assembly, /release-assets\/GetANNY\.Setup\.exe/);
+  assert.match(assembly, /node scripts\/write-update-metadata\.js release-assets/);
 });
 
 test("Windows packages carry the GitHub updater feed metadata used by the NSIS channel", async () => {
@@ -282,4 +283,38 @@ test("Windows packages carry the GitHub updater feed metadata used by the NSIS c
   assert.match(config, /owner: p4yy\s+repo: GetANNY\s+releaseType: release/);
   assert.doesNotMatch(config, /^publish: null\s*$/m);
   assert.match(config, /getanny-github-updates/);
+});
+
+test("update metadata names the public installer and uses its exact bytes", async (t) => {
+  const { updateMetadata, installerName } = require("../scripts/write-update-metadata");
+  const { verifyReleaseAssets } = require("../scripts/verify-release-assets");
+  const { parseUpdateInfo } = require("electron-updater/out/providers/Provider");
+  const dir = await temporary(t);
+  const installer = Buffer.from("fixture installer");
+  await fs.writeFile(path.join(dir, installerName), installer);
+  const digest = createHash("sha512").update(installer).digest("base64");
+  const contents = await updateMetadata(dir, "2.6.1");
+  const metadata = parseUpdateInfo(contents, "latest.yml", new URL("https://github.com/p4yy/GetANNY/releases/download/v2.6.1/latest.yml"));
+  assert.equal(metadata.version, "2.6.1");
+  assert.deepEqual(metadata.files, [{ url: installerName, sha512: digest, size: installer.length }]);
+  await fs.writeFile(path.join(dir, "latest.yml"), contents);
+  const asset = (name, bytes) => ({
+    name,
+    label: name,
+    state: "uploaded",
+    digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+  });
+  const source = "verified-source";
+  const tag = "v2.6.1";
+  const release = {
+    tag_name: tag,
+    target_commitish: source,
+    draft: true,
+    prerelease: false,
+    assets: [asset(installerName, installer), asset("latest.yml", contents)],
+  };
+  assert.equal(await verifyReleaseAssets(release, dir, { source, tag }), 2);
+  release.assets[0].name = "GetANNY-Setup.exe";
+  await assert.rejects(verifyReleaseAssets(release, dir, { source, tag }), /public update path/);
+  await assert.rejects(updateMetadata(dir, "2.6.1-beta.1"));
 });

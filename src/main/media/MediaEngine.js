@@ -2,7 +2,13 @@ const { EventEmitter } = require("node:events");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { sanitizeFilename } = require("../engine/utils");
-const { convertCaptions, fetchCaption } = require("./subtitles");
+const {
+  captionRateLimit,
+  checkCaptionCooldown,
+  convertCaptions,
+  fetchCaption,
+  recordCaptionCooldown,
+} = require("./subtitles");
 const { validateMediaOutput } = require("./media-integrity");
 const { publishFile } = require("../engine/transfer-integrity");
 const { trimVideo } = require("./VideoTrimmer");
@@ -73,6 +79,8 @@ class MediaEngine extends EventEmitter {
         path.join(this.workPath, stem).replaceAll("%", "%%") + ".%(ext)s";
       let filePath;
       let downloadedSection = false;
+      let warning = null;
+      let captionRetryAt = null;
       const sourceKey = require("node:crypto")
         .createHash("sha256")
         .update(JSON.stringify([this.url, media.formatId, media.audioFormatId]))
@@ -99,17 +107,7 @@ class MediaEngine extends EventEmitter {
         this.setStatus("processing", { stage: "trimming", stageProgress: 0 });
       } else if (media.type === "subtitle") {
         this.setStatus("downloading", { phase: "Downloading subtitles" });
-        // Prefer the caption track URL captured during analysis: one request,
-        // no second page scrape, and conversions happen locally.
-        filePath = await this.downloadCaption(stem);
-        if (!filePath)
-          filePath = await this.wrapper.downloadSubtitles({
-            url: this.url,
-            ...media.subtitle,
-            outputTemplate,
-            timeout: this.timeout / 1000,
-            signal: this.controller.signal,
-          });
+        filePath = await this.downloadCaption(stem, media.subtitle);
       } else {
         const downloadSource = (template, section) =>
           this.wrapper.download({
@@ -304,21 +302,17 @@ class MediaEngine extends EventEmitter {
             stage: "subtitles",
             stageProgress: null,
           });
-          subtitleSource = await this.downloadCaption(
-            stem + ".captions",
-            media.segmentSubtitle,
-          );
-          if (!subtitleSource)
-            subtitleSource = await this.wrapper.downloadSubtitles({
-              url: this.url,
-              ...media.segmentSubtitle,
-              outputTemplate: path.join(
-                this.workPath,
-                stem + ".captions.%(ext)s",
-              ),
-              timeout: this.timeout / 1000,
-              signal: this.controller.signal,
-            });
+          try {
+            subtitleSource = await this.downloadCaption(
+              stem + ".captions",
+              media.segmentSubtitle,
+            );
+          } catch (error) {
+            this.controller.signal.throwIfAborted();
+            if (!media.segmentSubtitle.allowWithoutCaptions) throw error;
+            warning = "The clip was saved without the requested subtitle track.";
+            captionRetryAt = error.retryAt || null;
+          }
           this.setStatus("processing", { stage: "trimming", stageProgress: 0 });
         }
         filePath = await this.trimOutput({
@@ -396,42 +390,74 @@ class MediaEngine extends EventEmitter {
         totalSize: published.size,
         downloadedSize: published.size,
         approximateSize: false,
+        warning,
+        captionRetryAt,
       });
     } catch (error) {
       if (this.wantedState) {
         if (this.wantedState === "cancelled") await this.cleanup();
         this.setStatus(this.wantedState);
       } else {
-        this.setStatus("failed", { error: error.message });
+        this.setStatus("failed", {
+          error: error.message,
+          captionRetryAt: error.retryAt || null,
+        });
         this.emit("error", this.id, error);
       }
     }
   }
-  async downloadCaption(stem, subtitle = this.media?.subtitle || {}) {
+  async downloadCaption(stem, subtitle) {
     const sources = subtitle.sources || {};
     const wanted = subtitle.format === "srt" ? "srt" : "vtt";
     const source = [wanted, "vtt", "srt"].find((ext) => sources[ext]);
-    if (!source) return null;
-    try {
-      const raw = await fetchCaption(sources[source], {
-        signal: this.controller.signal,
-        timeout: this.timeout,
-      });
-      const text = convertCaptions(raw, source, wanted);
-      if (!text) return null;
+    const urls = [this.url, sources[source]];
+    const signal = this.controller.signal;
+    signal.throwIfAborted();
+    checkCaptionCooldown(urls, this.captionRetryAt);
+    let text;
+    if (source) {
+      // A current track URL avoids scraping the page again and converts locally.
+      // The extractor is still useful after the analyzed URL expires.
+      try {
+        const raw = await fetchCaption(sources[source], {
+          signal,
+          timeout: this.timeout,
+        });
+        text = convertCaptions(raw, source, wanted);
+      } catch (error) {
+        signal.throwIfAborted();
+        if (error.code === "CAPTION_RATE_LIMIT") {
+          recordCaptionCooldown(urls, error);
+          throw error;
+        }
+      }
+    }
+    if (text) {
       const target = path.join(
         this.workPath,
         `${stem}.${sanitizeFilename(subtitle.language || "subtitle")}.${wanted}`,
       );
       await fs.writeFile(target, text, "utf8");
       return target;
-    } catch (error) {
-      // A cancelled transfer must stop; anything else falls back to yt-dlp so
-      // a track that needs its cookies or referrer still has a path.
-      if (this.controller.signal.aborted) throw error;
-      this.subtitleFallbackReason = error.message;
-      return null;
     }
+    checkCaptionCooldown(urls);
+    return this.wrapper.downloadSubtitles({
+      url: this.url,
+      ...subtitle,
+      outputTemplate: path.join(
+        this.workPath,
+        stem.replaceAll("%", "%%") + ".%(ext)s",
+      ),
+      timeout: this.timeout / 1000,
+      signal,
+    }).catch((error) => {
+      signal.throwIfAborted();
+      if (!/\b(?:HTTP(?: Error)?\s+429|429 Too Many Requests)\b/i.test(error.message))
+        throw error;
+      const limited = captionRateLimit();
+      recordCaptionCooldown(urls, limited);
+      throw limited;
+    });
   }
   async publish(source, target) {
     await fs.mkdir(this.savePath, { recursive: true });

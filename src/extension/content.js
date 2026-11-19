@@ -6,10 +6,29 @@
   const observedMedia = new Map();
   const socialLinks = new Set();
   if (globalThis.GetANNYSiteDownloads.providerFor(location.href)) {
+    let captureDownloads = false;
+    let preferenceRead = 0;
+    const refreshCapture = async () => {
+      const read = ++preferenceRead;
+      captureDownloads = false;
+      try {
+        const { automatic, keepInBrowser } = await globalThis.GetANNYDownloadPreferences.get(api, location.href);
+        if (read === preferenceRead) captureDownloads = automatic && !keepInBrowser;
+      } catch {
+        /* Leave downloads in the browser when settings are unavailable. */
+      }
+    };
+    void refreshCapture();
+    api.storage?.onChanged?.addListener((changes, area) => {
+      const prefs = globalThis.GetANNYDownloadPreferences;
+      if (area === "local" && (changes[prefs.automaticKey] || changes[prefs.siteKey("keep", location.href)]))
+        void refreshCapture();
+    });
     document.addEventListener(
       "click",
       (event) => {
         if (
+          !captureDownloads ||
           !event.isTrusted ||
           event.defaultPrevented ||
           event.button !== 0 ||
@@ -24,21 +43,24 @@
         const url = new URL(link.href);
         if (url.origin !== location.origin) return;
         event.preventDefault();
-        transferBlob(url.href, link.download || "browser-file").catch(() => {
+        let browserBlob;
+        transferBlob(url.href, link.download || "browser-file", (blob) => { browserBlob = blob; }).catch(() => {
           // A rejected or oversized payload is still available to the browser.
           const native = document.createElement("a");
-          native.href = url.href;
+          const fallbackUrl = browserBlob && URL.createObjectURL?.(browserBlob);
+          native.href = fallbackUrl || url.href;
           native.download = link.download || "browser-file";
           document.body.append(native);
           native.click();
           native.remove();
+          if (fallbackUrl) setTimeout(() => URL.revokeObjectURL(fallbackUrl), 30000).unref?.();
         });
       },
       true,
     );
   }
 
-  async function transferBlob(url, filename) {
+  async function transferBlob(url, filename, onRead) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Browser file is no longer available.");
     // Blob URLs frequently omit Content-Length. Number(null) is zero, which
@@ -56,6 +78,7 @@
         throw new Error("This file exceeds GetANNY’s browser handoff limit.");
     }
     const blob = await response.blob();
+    if (blob instanceof Blob) onRead(blob);
     const length = blob.size;
     if (!Number.isSafeInteger(length) || length > 64 * 1024 * 1024)
       throw new Error("This file exceeds GetANNY’s browser handoff limit.");
@@ -94,6 +117,87 @@
     window === window.top &&
     globalThis.GetANNYSocialLinks.socialSite(location.href);
   let socialPage = location.href;
+  const cardLinks = globalThis.GetANNYSocialLinks;
+  let contextTarget;
+  if (["youtube", "tiktok", "dribbble"].includes(social)) {
+    document.addEventListener("contextmenu", (event) => {
+      contextTarget = { node: event.composedPath()[0], page: location.href, time: Date.now() };
+    }, true);
+  }
+
+  function showCardVideos(urls, page, message) {
+    const dialog = document.createElement("dialog");
+    dialog.id = "getanny-card-videos";
+    document.getElementById(dialog.id)?.remove();
+    Object.assign(dialog.style, {
+      color: "#f5f5f5", background: "#181818", border: "1px solid #666",
+      borderRadius: "12px", padding: "20px", maxWidth: "min(400px, 90vw)",
+      font: "15px system-ui", zIndex: "2147483647",
+    });
+    dialog.setAttribute("aria-label", "GetANNY video download");
+    const status = document.createElement("p");
+    status.textContent = message;
+    status.setAttribute("role", "status");
+    dialog.append(status);
+    const button = (label, action) => {
+      const element = document.createElement("button");
+      Object.assign(element.style, { display: "block", marginTop: "10px", padding: "8px 12px", color: "#171717", background: "#fff", borderRadius: "6px", cursor: "pointer" });
+      element.textContent = label;
+      element.addEventListener("click", action);
+      dialog.append(element);
+    };
+    for (const [index, url] of urls.entries()) {
+      const extension = new URL(url).pathname.split(".").at(-1).toUpperCase();
+      button(`Download video ${index + 1} (${extension})`, async () => {
+        status.textContent = "Sending video to GetANNY…";
+        try {
+          await sendCardVideo(url, page);
+          dialog.close();
+        } catch (error) { status.textContent = error.message; }
+      });
+    }
+    button("Close", () => dialog.close());
+    dialog.addEventListener("close", () => dialog.remove(), { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  }
+
+  async function sendCardVideo(url, page) {
+    const result = await api.runtime.sendMessage({ type: "getanny:dribbble-video", url, page });
+    if (!result?.success) throw new Error(result?.error || "GetANNY could not accept this video.");
+  }
+
+  async function downloadDribbbleCard(shot, target, mediaUrl) {
+    const urls = new Set();
+    const add = (value) => {
+      const url = cardLinks.dribbbleAsset(value, shot);
+      if (url && urls.size < 12) urls.add(url);
+    };
+    const scanVideo = (root) => {
+      for (const video of root.querySelectorAll("video")) {
+        add(video.currentSrc);
+        add(video.getAttribute("src"));
+        for (const source of video.querySelectorAll("source[src]")) add(source.getAttribute("src"));
+      }
+    };
+    const shotId = new URL(shot).pathname.match(/^\/shots\/(\d+)/)[1];
+    const card = target?.closest?.(`[data-shot-id="${shotId}"],a[href*="/shots/${shotId}-"]`);
+    if (card) scanVideo(card);
+    add(mediaUrl);
+    try {
+      const local = new URL(new URL(shot).pathname, location.origin);
+      const response = await fetch(local.href, { mode: "same-origin", signal: AbortSignal.timeout(5000) });
+      if (response.ok && cardLinks.postLink(response.url, location.href) === shot) {
+        const document = new DOMParser().parseFromString(await response.text(), "text/html");
+        for (const meta of document.querySelectorAll('meta[property="og:video"],meta[property="og:video:url"],meta[property="og:video:secure_url"]')) add(meta.content);
+        const shotContent = document.querySelector(`[data-shot-id="${shotId}"]`);
+        if (shotContent) scanVideo(shotContent);
+        else for (const gallery of document.querySelectorAll(".shot-media, .shot-images, [data-testid='shot-media']")) scanVideo(gallery);
+      }
+    } catch { /* A loaded card can still offer a public source. */ }
+    if (urls.size === 1) await sendCardVideo([...urls][0], shot);
+    else showCardVideos([...urls], shot, urls.size ? "Choose a video from this Dribbble shot." : "GetANNY couldn’t find a downloadable video on this Dribbble shot.");
+  }
   function rememberPosts(root) {
     if (!social) return;
     if (location.href !== socialPage) {
@@ -286,6 +390,24 @@
   // media report was dropped. Do not service messages from other extensions.
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id) return;
+    if (message?.type === "getanny:card-context") {
+      const target = contextTarget?.page === location.href && Date.now() - contextTarget.time < 60000 ? contextTarget.node : null;
+      let post = null;
+      try { if (target) post = cardLinks.postForCard(target, location.href); } catch {}
+      respond({ post });
+      return;
+    }
+    if (message?.type === "getanny:card-dribbble" && social === "dribbble" && cardLinks.postLink(message.url, location.href) === message.url) {
+      const target = contextTarget?.page === location.href && Date.now() - contextTarget.time < 60000 ? contextTarget.node : null;
+      respond({ accepted: true });
+      void downloadDribbbleCard(message.url, target, message.mediaUrl).catch((error) => showCardVideos([], message.url, error.message));
+      return;
+    }
+    if (message?.type === "getanny:card-error") {
+      showCardVideos([], null, "GetANNY couldn’t identify the video on this card.");
+      respond({ accepted: true });
+      return;
+    }
     if (message?.type === "getanny:active-post") {
       respond({ url: isTikTok ? activeTikTokPost() : null });
       return;

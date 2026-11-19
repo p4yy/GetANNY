@@ -1,4 +1,5 @@
 const api = globalThis.browser || globalThis.chrome;
+const downloadPreferences = globalThis.GetANNYDownloadPreferences;
 const $ = (id) => document.getElementById(id);
 const status = $("status"),
   message = $("message");
@@ -41,27 +42,10 @@ async function submit(url, kind) {
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
     const privateSession = tab?.incognito === true;
-    const includeSiteCookies =
-      $("include-site-cookies").checked && kind === "file" && !privateSession;
-    let headers;
-    if (includeSiteCookies) {
-      const target = new URL(url);
-      if (!/^https?:$/.test(target.protocol))
-        throw new Error("Cookies are only available for HTTP or HTTPS links.");
-      const cookies = await api.cookies.getAll({ url: target.href });
-      if (cookies.length)
-        headers = {
-          Cookie: cookies
-            .map(({ name, value }) => `${name}=${value}`)
-            .join("; "),
-        };
-    }
     const response = await send({
       type: "download",
       url,
       kind,
-      headers,
-      includeSiteCookies,
       privateSession,
     });
     feedback(
@@ -99,6 +83,7 @@ $("tab").onclick = async () => {
     }
     $("url").value = url;
     $("kind").value = "media";
+    $("url").dispatchEvent(new Event("input"));
   } else feedback("This browser page cannot be downloaded.", true);
 };
 $("reconnect").onclick = async () => {
@@ -126,6 +111,51 @@ $("pair").onclick = async () => {
     refresh();
   }
 };
+async function bindCapturePreferences(tab) {
+  const automatic = $("automatic-capture");
+  const keep = $("keep-site");
+  const cookie = $("include-site-cookies");
+  const keepKey = !tab?.incognito && downloadPreferences.siteKey("keep", tab?.url);
+  const saved = await downloadPreferences.get(api, keepKey ? tab.url : null);
+  automatic.checked = saved.automatic;
+  automatic.onchange = () => savePreference(automatic, downloadPreferences.automaticKey);
+  if (keepKey) {
+    $("capture-site-row").hidden = false;
+    $("capture-site").textContent = new URL(tab.url).hostname;
+    keep.checked = saved.keepInBrowser;
+    keep.onchange = () => savePreference(keep, keepKey);
+  }
+
+  let currentKey = null;
+  async function showCookieChoice() {
+    const url = $("url").value.trim() || tab?.url;
+    const key = !tab?.incognito && downloadPreferences.siteKey("cookies", url);
+    currentKey = key;
+    cookie.disabled = true;
+    cookie.checked = false;
+    $("cookie-site").textContent = key ? new URL(url).hostname : "";
+    if (!key) return;
+    const site = await api.storage.local.get(key);
+    if (key !== currentKey) return;
+    cookie.checked = site[key] === true;
+    cookie.disabled = false;
+  }
+  cookie.onchange = () => savePreference(cookie, currentKey);
+  $("url").addEventListener("input", () =>
+    showCookieChoice().catch((error) => feedback(error.message, true)),
+  );
+  await showCookieChoice();
+}
+async function savePreference(input, key) {
+  if (!key) return;
+  const value = input.checked;
+  try {
+    await api.storage.local.set({ [key]: value });
+  } catch (error) {
+    if (input.checked === value) input.checked = !value;
+    feedback(error.message, true);
+  }
+}
 (async () => {
   try {
     applyTheme(await send({ type: "theme" }));
@@ -135,15 +165,12 @@ $("pair").onclick = async () => {
   const saved = await api.storage.local.get([
     "browserId",
     "pairingKey",
-    "includeSiteCookies",
   ]);
   $("browser").value =
     saved.browserId || globalThis.GETANNY_BROWSER || "chrome";
   $("pairing").value = saved.pairingKey || "";
-  // Default to enabled so cloud/private downloads work without a surprise
-  // failure. An explicit opt-out (false) is preserved across popup sessions.
-  $("include-site-cookies").checked = saved.includeSiteCookies !== false;
   const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+  await bindCapturePreferences(tab);
   const overlayKey = globalThis.GetANNYOverlayPreferences.siteKey(tab?.url);
   if (overlayKey) {
     const storage = api.storage.sync || api.storage.local;
@@ -222,10 +249,5 @@ $("pair").onclick = async () => {
     $("detected").appendChild(button);
   }
 })().catch((error) => feedback(error.message, true));
-$("include-site-cookies").addEventListener("change", () => {
-  api.storage.local
-    .set({ includeSiteCookies: $("include-site-cookies").checked })
-    .catch(() => {});
-});
 refresh();
 setInterval(refresh, 2000);

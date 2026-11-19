@@ -49,6 +49,11 @@
           Send to GetANNY <span>↗</span>
         </button>
       </form>
+      <details class="capture-settings">
+        <summary>Browser download preferences</summary>
+        <label><input id="automatic-capture" type="checkbox" /> Automatically send browser downloads to GetANNY</label>
+        <label id="capture-site-row" hidden><input id="keep-site" type="checkbox" /> Keep downloads from <span id="capture-site"></span> in the browser</label>
+      </details>
       <div class="cookie-optin">
         <span class="cookie-icon" aria-hidden="true">
           <svg
@@ -67,19 +72,21 @@
         </span>
         <div class="cookie-copy">
           <label class="cookie-title" for="include-site-cookies"
-            >Include site cookies (Required for Cloud/Private files)</label
+            >Include cookies for this download site</label
           >
+          <p class="cookie-privacy" id="cookie-site"></p>
           <p class="cookie-privacy" id="cookie-privacy">
-            When enabled, matching site cookies go only to your local GetANNY
-            app to authorize downloads. Saved sessions are protected locally.
+            Enable this for sites that require sign-in. GetANNY uses matching
+            cookies locally to authorize a download from that site.
           </p>
         </div>
-        <label class="cookie-switch" aria-label="Include site cookies">
+        <label class="cookie-switch">
           <input
             id="include-site-cookies"
             type="checkbox"
             role="switch"
-            aria-describedby="cookie-privacy"
+            aria-describedby="cookie-site cookie-privacy"
+            disabled
           />
           <span class="cookie-slider" aria-hidden="true"></span>
         </label>
@@ -128,6 +135,7 @@
     </main>
     <footer>Real downloads. Your control.</footer>
     <script src="config.js"></script>
+    <script src="download-preferences.js"></script>
     <script src="overlay-preferences.js"></script>
     <script src="social-links.js"></script>
     <script src="popup.js"></script>

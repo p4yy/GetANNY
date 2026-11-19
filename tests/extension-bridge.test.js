@@ -9,7 +9,7 @@ test("native GetANNY bootstrap upgrades to direct credential only after durable 
   assert.match(source,/directUpgradeRounds\+\+/);
   assert.match(source,/pairingKey === provisionedKey/);
   assert.match(source,/pending\.size > 0 \|\| \(interceptor\?\.entries\?\.size \|\| 0\) > 0/);
-  assert.match(source,/resetConnection\("Switching from native bootstrap/);
+  assert.match(source,/resetConnection\(\s*"Switching from native bootstrap/);
   assert.match(source,/connect\(\)\.catch/);
   assert.match(source,/if \(pairingKey\) startWebSocket\(generation\)/);
   assert.match(source,/api\.storage\.local[\s\S]*\.set\([\s\S]*\.then\(\(\) =>/);

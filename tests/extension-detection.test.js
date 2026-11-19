@@ -176,7 +176,7 @@ test("TikTok content, overlay and popup never submit a generic feed URL", async 
   const overlay = await fs.readFile("src/extension/injector.js", "utf8");
   const popup = await fs.readFile("src/extension/popup.js", "utf8");
   const html = await fs.readFile("src/extension/popup.html", "utf8");
-  assert.match(content, /postForMediaElement\(root, location\.href\)/);
+  assert.match(content, /postForMediaElement\(\s*main\.video,\s*location\.href/);
   assert.match(content, /getanny:active-post/);
   assert.match(overlay, /if \(isTikTok && !post\)/);
   assert.match(overlay, /url: post \|\|/);
@@ -188,5 +188,5 @@ test("TikTok source elements do not replace a canonical post with a transient re
   const fs = require("node:fs");
   const source = fs.readFileSync("src/extension/content.js", "utf8");
   assert.match(source, /if \(isTikTok && root\.parentElement\.matches\("video"\)\) return/);
-  assert.match(source, /postForMediaElement\(root, location\.href\)/);
+  assert.match(source, /send\(\{ url: post, kind: "media" \}\)/);
 });

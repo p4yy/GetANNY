@@ -14,6 +14,7 @@ import {
   LuMusic2,
   LuCheck,
   LuListChecks,
+  LuListPlus,
 } from "react-icons/lu";
 import { api, errorMessage } from "../api";
 import {
@@ -27,10 +28,14 @@ import {
 import useSettingsStore from "../stores/useSettingsStore";
 import useUIStore from "../stores/useUIStore";
 import { useI18n } from "../i18n/useI18n";
+import { classifyLink, intakeLines, openLinkIntake } from "../utils/link-intake.mjs";
+
+const videoFile = /\.(mp4|mkv|mov|avi|webm|m4v|ts)$/i;
+const audioFile = /\.(mp3|m4a|flac|wav|aac|ogg|opus)$/i;
 
 function TorrentFileIcon({ name }) {
-  if (/\.(mp4|mkv|mov|avi|webm|m4v)$/i.test(name)) return <LuFilm />;
-  if (/\.(mp3|m4a|flac|wav|aac|ogg)$/i.test(name)) return <LuMusic2 />;
+  if (videoFile.test(name)) return <LuFilm />;
+  if (audioFile.test(name)) return <LuMusic2 />;
   return <LuFile />;
 }
 
@@ -45,6 +50,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
   const [torrentInfo, setTorrentInfo] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState(() => new Set());
   const [fileQuery, setFileQuery] = useState("");
+  const [fileSort, setFileSort] = useState("name");
   const [autoStart, setAutoStart] = useState(
     settings.autoStartDownloads !== false,
   );
@@ -55,6 +61,8 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
   const [freeSpace, setFreeSpace] = useState(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const detected = intercepted ? null : classifyLink(url);
+  const submitKind = kind === "torrent" ? "torrent" : detected?.kind || "file";
   // The Downloads list can hand over a completed .torrent immediately. Show
   // the existing inspected file picker; never start a transfer implicitly.
   useEffect(() => {
@@ -89,10 +97,16 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
     try {
       if (intercepted && (kind !== "file" || url.trim() !== initial.url))
         throw new Error(t("add.handoffMismatch"));
-      if (kind === "file" && !/^(?:https?|ftps?):\/\//i.test(url.trim()))
+      if (submitKind === "media") {
+        onClose();
+        useUIStore.getState().openMedia(detected.url);
+        return;
+      }
+      if (submitKind === "file" && !(detected || (intercepted && classifyLink(url))))
         throw new Error(t("add.invalidUrl"));
       let info = torrentInfo;
-      if (kind === "torrent" && !info) {
+      if (submitKind === "torrent" && !info) {
+        setKind("torrent");
         info = await api.invoke("torrent:inspect", { torrent: url.trim() });
         if (info.files.length > 0) {
           setTorrentInfo(info);
@@ -102,8 +116,8 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
         }
       }
       const downloadId = await api.invoke(
-        kind === "torrent" ? "download:add-torrent" : "download:add",
-        kind === "torrent"
+        submitKind === "torrent" ? "download:add-torrent" : "download:add",
+        submitKind === "torrent"
           ? {
               torrent: url.trim(),
               savePath:
@@ -122,7 +136,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
               torrentPriorities,
             }
           : {
-              url: url.trim(),
+              url: detected?.url || url.trim(),
               filename: filename || undefined,
               headers: initial.headers,
               browserTransferId: initial.browserTransferId,
@@ -135,7 +149,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
       // Only clear the completed .torrent metadata entry AFTER the real torrent
       // was accepted. Never delete the small source file from disk: it may
       // be needed again for inspection or recovery.
-      if (kind === "torrent" && initial.sourceTorrentDownloadId) {
+      if (submitKind === "torrent" && initial.sourceTorrentDownloadId) {
         try {
           await api.invoke("download:remove", {
             id: initial.sourceTorrentDownloadId,
@@ -169,13 +183,13 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
       useUIStore
         .getState()
         .notify(
-          (kind === "torrent" ? autoStart : settings.autoStartDownloads)
+          (submitKind === "torrent" ? autoStart : settings.autoStartDownloads)
             ? t("add.queuedNotice")
             : t("add.pausedNotice"),
         );
       useUIStore
         .getState()
-        .setActiveTab(kind === "torrent" ? "torrent" : "all");
+        .setActiveTab(submitKind === "torrent" ? "torrent" : "all");
       onClose(true);
     } catch (error) {
       setError(errorMessage(error));
@@ -184,6 +198,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
     }
   };
   useEffect(() => {
+    setFreeSpace(null);
     if (!torrentInfo || !api.desktop) return;
     let cancelled = false;
     api
@@ -204,12 +219,21 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
     return torrentInfo.files
       .filter((file) => !query || file.path.toLocaleLowerCase().includes(query))
       .sort((a, b) =>
-        a.path.localeCompare(b.path, undefined, {
+        (fileSort === "size" ? b.length - a.length : 0) || a.name.localeCompare(b.name, undefined, {
           numeric: true,
           sensitivity: "base",
         }),
       );
-  }, [torrentInfo, fileQuery]);
+  }, [torrentInfo, fileQuery, fileSort]);
+  const mainMedia = useMemo(() => {
+    const files = torrentInfo?.files.filter(({ name }) => videoFile.test(name) || audioFile.test(name)) || [];
+    return files.reduce((best, file) => {
+      if (!best) return file;
+      if (videoFile.test(file.name) !== videoFile.test(best.name))
+        return videoFile.test(file.name) ? file : best;
+      return file.length > best.length ? file : best;
+    }, null);
+  }, [torrentInfo]);
   const toggleFile = (index) =>
     setSelectedFiles((current) => {
       const next = new Set(current);
@@ -221,6 +245,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
       (sum, file) => sum + (selectedFiles.has(file.index) ? file.length : 0),
       0,
     ) || 0;
+  const insufficientSpace = !!torrentInfo && freeSpace !== null && selectedBytes > freeSpace;
   const formatSize = (value) => {
     if (!value) return "0 B";
     const units = ["B", "KB", "MB", "GB", "TB"];
@@ -243,13 +268,14 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
       onClose={() => !busy && onClose()}
       wide={!!torrentInfo}
       busy={busy}
+      fixedActions
     >
       <form onSubmit={submit}>
         <div
           className={`dialog-body ${torrentInfo ? "torrent-picker-body" : ""}`}
         >
           {!torrentInfo && <DestinationPreview
-            kind={kind}
+            kind={submitKind}
             url={url}
             filename={filename}
             savePath={
@@ -304,12 +330,16 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
                 <div className="input-group">
                   <LuLink />
                   <input
-                    autoFocus
+                    data-autofocus
                     id="download-url"
                     required
                     readOnly={intercepted}
                     type={kind === "file" ? "url" : "text"}
                     value={url}
+                    onPaste={(event) => {
+                      const text = event.clipboardData.getData("text/plain");
+                      if (!intercepted && intakeLines(text).length > 1 && openLinkIntake(text, useUIStore.getState())) event.preventDefault();
+                    }}
                     onChange={(event) => {
                       setUrl(event.target.value);
                       setTorrentInfo(null);
@@ -502,6 +532,11 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
                     >
                       {t("torrentPicker.selectNone")}
                     </Button>
+                    {mainMedia && <Button onClick={() => setSelectedFiles(new Set([mainMedia.index]))}>{t("torrentPicker.mainMediaOnly")}</Button>}
+                    <select aria-label={t("torrentPicker.sort")} value={fileSort} onChange={(event) => setFileSort(event.target.value)}>
+                      <option value="name">{t("torrentPicker.sortName")}</option>
+                      <option value="size">{t("torrentPicker.sortSize")}</option>
+                    </select>
                   </div>
                   <div className="torrent-file-heading">
                     <span>{t("torrentPicker.fileName")}</span>
@@ -513,6 +548,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
                       items={visibleTorrentFiles}
                       getKey={(file) => file.index}
                       estimate={34}
+                      scrollParent=".dialog-body"
                       renderItem={(file) => (
                         <div
                           className={`torrent-file-row ${selectedFiles.has(file.index) ? "selected" : ""}`}
@@ -526,7 +562,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
                           />
                           <span className="torrent-file-name">
                             <TorrentFileIcon name={file.name} />
-                            <span title={file.path}>{file.path}</span>
+                            <span title={file.path}>{file.name}</span>
                           </span>
                           <select
                             className="torrent-file-priority"
@@ -564,10 +600,9 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
             <div className="form-note">
               <LuArrowDownToLine />
               <span>
-                {t("add.connections", {
+                {submitKind === "file" ? t("add.connections", {
                   count: settings.maxConnectionsPerDownload || 8,
-                })}{" "}
-                ·{" "}
+                }) : t(submitKind === "media" ? "add.mediaLink" : "add.torrentHint")}{" · "}
                 {settings.autoStartDownloads
                   ? t("add.autoStart")
                   : t("add.paused")}
@@ -588,6 +623,8 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
               {t("add.mediaLink")} <LuArrowUpRight />
             </button>
           )}
+          {!torrentInfo && !intercepted && <Button icon={LuListPlus} variant="ghost" onClick={() => useUIStore.getState().setAddModal({ batch: true, text: url })}>{t("batch.title")}</Button>}
+          {insufficientSpace && <ErrorBanner>{t("torrentPicker.insufficientSpace")}</ErrorBanner>}
         </div>
         <footer className="dialog-footer">
           {torrentInfo && (
@@ -596,7 +633,7 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
               {t("torrentPicker.selectedCount", {
                 selected: selectedFiles.size,
                 total: torrentInfo.files.length,
-              })}
+              })} · {formatSize(selectedBytes)}
             </span>
           )}
           <Button
@@ -610,14 +647,14 @@ export default function AddDownloadDialog({ initial = {}, onClose }) {
             variant="primary"
             icon={torrentInfo ? LuMagnet : LuArrowDownToLine}
             busy={busy}
-            disabled={!!torrentInfo && selectedFiles.size === 0}
+            disabled={!!torrentInfo && (selectedFiles.size === 0 || insufficientSpace)}
           >
             {torrentInfo
               ? t("torrentPicker.downloadSelected")
-              : kind === "torrent"
-                ? autoStart
-                  ? t("add.start")
-                  : t("add.add")
+              : submitKind === "torrent"
+                ? t("torrentPicker.review")
+                : submitKind === "media"
+                  ? t("media.analyze")
                 : settings.autoStartDownloads
                   ? t("add.start")
                   : t("add.add")}

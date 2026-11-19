@@ -164,7 +164,7 @@
       }
     }
 
-    async metadata(item, url, privateContext) {
+    async metadata(item, url, privateContext, siteCookies) {
       const headers = {};
       if (!privateContext && !item.referrer && this.api.tabs?.query) {
         try {
@@ -184,12 +184,6 @@
         headers.Referer = privateContext.tab.url;
       if (globalThis.navigator?.userAgent)
         headers["User-Agent"] = globalThis.navigator.userAgent;
-      const cookiePreference = await this.api.storage.local.get([
-        "includeSiteCookies",
-      ]);
-      // Cloud/private downloads need this by default. Only an explicit opt-out
-      // disables forwarding, and the choice persists between popup sessions.
-      const siteCookies = cookiePreference.includeSiteCookies !== false;
       if (siteCookies && this.api.cookies?.getAll) {
         try {
           // Firefox containers and other cookie stores must not silently use
@@ -227,9 +221,17 @@
         (item.state && item.state !== "in_progress")
       )
         return;
+      const prefs = await globalThis.GetANNYDownloadPreferences.get(
+        this.api,
+        validUrl(item.referrer) ? item.referrer : item.url,
+        url,
+      );
+      if (!prefs.automatic || prefs.keepInBrowser) return;
+      if (globalThis.GetANNYSiteDownloads?.prefersBrowser(item.referrer, url, prefs.includeSiteCookies)) return;
       const isPrivate = item.incognito === true;
       const privateContext = isPrivate ? await this.privateContext(item) : null;
       if (isPrivate && !privateContext) return;
+      if ([...this.entries.values()].some((entry) => entry.downloadId === id)) return;
       const entry = this.entry(id);
       try {
         // Save the identity before pausing, so a restarted worker can return
@@ -241,6 +243,7 @@
           item,
           url,
           privateContext,
+          prefs.includeSiteCookies,
         );
         if (entry.connectionLost)
           throw new Error("Desktop disconnected before the handoff began.");

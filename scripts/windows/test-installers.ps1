@@ -203,7 +203,8 @@ try {
   Write-Warning "Native owner restore/verification failed. Continue real uninstall then fail: $nativeRestoreError"
 }
 $exeDefaultBefore=Profile-Snapshot $defaultData
-$uninstaller = Get-ChildItem $exeDir -Filter '*Uninstall*.exe' | Select-Object -First 1
+$uninstaller = Get-Item -LiteralPath (Join-Path $exeDir 'GetANNY Uninstall.exe') -ErrorAction SilentlyContinue
+if (-not $uninstaller) { $uninstaller = Get-ChildItem $exeDir -Filter 'Uninstall *.exe' | Select-Object -First 1 }
 if (-not $uninstaller) { throw 'EXE uninstaller not found.' }
 Run-Checked $uninstaller.FullName @('/S')
 $exeCleanupError=$null;$exeDefaultRetained=$null

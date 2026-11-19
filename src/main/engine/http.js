@@ -3,22 +3,23 @@ const http = require("node:http");
 const https = require("node:https");
 const { validateUrl } = require("./utils");
 const {
-  MAX_FILE_CONNECTIONS,
-  MAX_CONCURRENT_DOWNLOADS,
-} = require("./transfer-integrity");
+  HttpConnectionBudget,
+  MAX_CONNECTIONS_PER_ORIGIN,
+} = require("./http-connection-budget");
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
+const connectionBudget = new HttpConnectionBudget();
 // Bounded keep-alive agents reuse probe/transfer and sequential-download
 // connections without retaining an unbounded pool per history item.
 const AGENTS = {
   "http:": new http.Agent({
     keepAlive: true,
-    maxSockets: MAX_FILE_CONNECTIONS * MAX_CONCURRENT_DOWNLOADS,
+    maxSockets: MAX_CONNECTIONS_PER_ORIGIN,
     maxFreeSockets: 4,
     scheduling: "lifo",
   }),
   "https:": new https.Agent({
     keepAlive: true,
-    maxSockets: MAX_FILE_CONNECTIONS * MAX_CONCURRENT_DOWNLOADS,
+    maxSockets: MAX_CONNECTIONS_PER_ORIGIN,
     maxFreeSockets: 4,
     scheduling: "lifo",
   }),
@@ -31,6 +32,16 @@ function httpError(status, detail = "", retryAfterMs = 0) {
   error.retryAfterMs = retryAfterMs;
   return error;
 }
+function retryDelay(value) {
+  if (!value) return 0;
+  const seconds = /^\d+$/.test(value)
+    ? Number(value)
+    : (Date.parse(value) - Date.now()) / 1000;
+  return Number.isFinite(seconds)
+    ? Math.max(0, Math.min(3600000, seconds * 1000))
+    : 0;
+}
+
 async function request(
   url,
   {
@@ -40,6 +51,7 @@ async function request(
     signal,
     requestOptions = {},
     sameOriginOnly = false,
+    budget = connectionBudget,
   } = {},
 ) {
   let current = validateUrl(url);
@@ -47,6 +59,7 @@ async function request(
   for (let redirects = 0; redirects <= 10; redirects++) {
     signal?.throwIfAborted();
     const parsed = new URL(current);
+    const release = await budget.acquire(parsed.origin, signal);
     const response = await new Promise((resolve, reject) => {
       const transport = parsed.protocol === "https:" ? https : http;
       const req = transport.request(
@@ -102,7 +115,13 @@ async function request(
         reject(error);
       });
       req.end();
+    }).catch((error) => {
+      release();
+      throw error;
     });
+    response.retryAfterMs = retryDelay(response.headers["retry-after"]);
+    if (response.closed) release(response);
+    else response.once("close", () => release(response));
     if (REDIRECTS.has(response.statusCode) && response.headers.location) {
       const next = validateUrl(
         new URL(response.headers.location, current).href,
@@ -119,14 +138,6 @@ async function request(
       }
       current = next;
       continue;
-    }
-    const retryAfter = response.headers["retry-after"];
-    if (retryAfter) {
-      const seconds = /^\d+$/.test(retryAfter)
-        ? Number(retryAfter)
-        : (Date.parse(retryAfter) - Date.now()) / 1000;
-      if (Number.isFinite(seconds))
-        response.retryAfterMs = Math.max(0, Math.min(3600000, seconds * 1000));
     }
     return { response, url: current, headers: forwarded };
   }

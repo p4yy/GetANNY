@@ -1,6 +1,6 @@
 {
   "name": "getanny",
-  "version": "2.6.0",
+  "version": "2.6.5",
   "description": "GetANNY Download Manager for Windows: manage file, media, torrent and browser downloads.",
   "main": "src/main/main.js",
   "author": "GetANNY Team",
@@ -64,10 +64,10 @@
   "overrides": {
     "ip": "npm:@webpod/ip@^0.6.1"
   },
-  "homepage": "https://github.com/p4yy/GetANNY-Download-Manager",
+  "homepage": "https://github.com/p4yy/GetANNY",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/p4yy/GetANNY-Download-Manager.git"
+    "url": "git+https://github.com/p4yy/GetANNY.git"
   },
   "keywords": [
     "download-manager",

@@ -2,7 +2,7 @@
 
 ## What can actually be detected
 
-GetANNY checks executable locations and Windows App Paths registrations. Portable or nonstandard installations may need **Locate browser**. Detection never reads history or personal profile files. During an ordinary download handoff, the extension uses the browser cookies API for that specific URL; it does not read cookie databases directly.
+GetANNY checks executable locations and Windows App Paths registrations. Use **Refresh status** to scan again. Portable or nonstandard installations may need **Locate browser**. Detection uses executable paths and registry entries. The extension uses the browser cookie API for the specific download URL when the user enables it for that hostname.
 
 Browsers do not provide an external trustworthy installed/enabled query to this application. Therefore:
 
@@ -22,7 +22,7 @@ Browser ID is supplied by the selected browser-targeted configuration; it is not
 | Google Chrome | Chromium MV3 (Chrome 116+) | `chrome://extensions` | Google key, both x64 views | Developer-mode Load unpacked. No signed CRX/store listing is supplied. |
 | Chromium | Chromium MV3 | `chrome://extensions` | Chromium and Chrome-compatibility keys, both views | Load unpacked. Portable installs may need Locate browser. |
 | Brave | Chromium MV3 | `brave://extensions` | Brave and Chrome-compatibility keys, both views | Load unpacked; Shields/site-access settings can affect page detection. |
-| Mozilla Firefox | Separate MV2 background, Gecko ID and native permission | `about:debugging#/runtime/this-firefox` | Mozilla key, both x64 views | Unsigned temporary development add-on. Permanent installation requires Mozilla signing. |
+| Mozilla Firefox | Separate MV2 background, Gecko ID and native permission | Firefox Add-ons | Mozilla key, both x64 views | Install from Firefox Add-ons and receive updates through Firefox. |
 | Vivaldi | Chromium MV3 | `vivaldi://extensions` | Vivaldi and Chrome-compatibility keys, both views | Developer-mode Load unpacked; reload on update. |
 | Opera | Chromium MV3 | `opera://extensions` | Opera and Chrome-compatibility keys, both views | Load unpacked; explicit extension/site access may be required. No Opera Add-ons listing is supplied. |
 | Microsoft Edge | Chromium MV3 | `edge://extensions` | Edge and Chrome-compatibility keys, both views | Developer-mode Load unpacked; reload on update. |
@@ -45,15 +45,18 @@ Forks may change native-host lookup behavior. That no longer blocks a prepared e
 3. Click **Open extensions page**, or enter the management URL above manually. **Locate browser** is needed only to launch a nonstandard/portable executable, not to provision communication.
 4. Enable **Developer mode**, click **Load unpacked**, and choose the exact folder displayed by GetANNY. Confirm the requested permissions and pin the toolbar icon. Browser approval remains explicit.
 5. Open the GetANNY popup and click **Reconnect**. The expected status is **Direct bridge**. Both popup and desktop must show a verified connection; folder/registry existence alone is not success.
-6. Start an ordinary HTTP(S) download, or right-click a direct download link → **Download with GetANNY**. Ordinary downloads are paused before handoff; depending on your desktop preference the request is queued or opened for review. After acknowledgement, the paused native entry is cancelled and erased without using the browser's delete-file action.
-7. If confirmation is enabled, dismissing the review returns the native download to the browser. Accepting it keeps the desktop job associated with the browser transfer ID so reconnection cannot queue it twice.
-8. For a video page choose **Analyze media in GetANNY**, use the popup's media action, or the compact video overlay. Select a real format and destination in Media studio. “Sent for review” / “media page opened” does not mean a file has already downloaded. The overlay's X dismisses it for that video during the current page session. Drag its move handle to save a position for the current hostname. Use **Hide GetANNY on this site** in the popup to disable the overlay for that hostname. These preferences use extension sync storage when available.
+6. Start a supported HTTP(S) download or use **Download with GetANNY** from the context menu. The desktop queue applies your start and scheduling preferences. Once GetANNY completes a retained handoff, the extension clears the paused browser copy from the native download list.
+7. For a video page choose **Analyze media in GetANNY**, use the popup's media action, or use the compact video overlay. Select a format and destination in Media Studio. The overlay's close button dismisses it for that video during the current page session. Drag its move handle to save a position for the current hostname, or use **Hide GetANNY on this site** to hide the overlay.
 
-Alternatively extract the corresponding `GetANNY-<browser>-<version>.zip` from a Release to a permanent folder and load it there. Generic release ZIPs intentionally contain no private credential. Run desktop setup first: on the first connection the generic extension securely requests its browser-specific direct credential through native bootstrap, persists it, and then uses the direct path. If native bootstrap is unavailable, enter the browser-specific recovery key shown by GetANNY. Keep the folder in place. Each ZIP shares the same reviewed scripts but carries the correct target-browser configuration and instructions.
+GetANNY prepares the extension folder from the installed Setup EXE. Generic ZIPs built from source can also connect through native bootstrap or the browser-specific recovery key.
+
+### Download and cookie choices
+
+In the 2.6.1 extension popup, expand **Browser download preferences** to turn automatic handoff off or keep automatic downloads from the current site in the browser. Explicit **Download with GetANNY** actions still work. **Include cookies for this download site** is off until enabled for the displayed hostname. Enter a direct file URL in the popup to select its download host when it differs from the tab's site. Earlier versions' global cookie toggle does not carry forward to the new site permissions. Check the extension version in GetANNY if these controls are missing from a store installation.
 
 ### Updating
 
-Install the new desktop package, rerun browser setup to refresh its stable prepared directory, then click **Reload** on the browser extension management page. If using a Release ZIP, replace files in the existing extracted directory and Reload. Do not change directory unnecessarily; profiles may track the unpacked location. There is **no configured store update endpoint**, and the application does not pretend to update an add-on without browser approval.
+Install the new desktop package, refresh the setup files for your browser, then choose **Reload** on the extensions page. Keep the existing unpacked folder path so the browser can reload it. The desktop connection lists the version reported during the last handshake.
 
 ## Manual acceptance on Windows
 
@@ -61,7 +64,7 @@ Use the standard installed Setup EXE. In GetANNY, select the browser under **Bro
 
 1. Open the extension from the browser toolbar and confirm **Connected · Secure local bridge**.
 2. Start a small non-sensitive HTTP(S) file download through the browser. Confirm one completed file in GetANNY, compare it to the source with SHA-256, and check that the browser has no duplicate active download. Use a file large enough for the extension to pause it before it finishes.
-3. Quit GetANNY, relaunch it, and reopen the toolbar popup. Verify that the popup reconnects and repeat the same transfer check.
+3. Quit GetANNY, relaunch it, and reopen the toolbar popup. Repeat the transfer check. Test a full browser restart during a handoff as a separate case and record whether the browser entry and GetANNY queue reconcile.
 4. Open an ordinary page with a playable, non-DRM video and play it. Check that the extension detects it and that sending it to Media Studio opens the correct item.
 5. Record the browser version and the outcome of each step. Record any unexercised step as **UNVERIFIED**.
 
