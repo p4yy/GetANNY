@@ -234,7 +234,7 @@ test("multi-file output keeps a torrent content folder without control files", a
   await fs.writeFile(episode, "video");
   const ready = await recordVerifiedTorrent(
     workPath,
-    [{ path: episode, length: 5 }],
+    [{ path: path.relative(workPath, episode), length: 5 }],
     "Season 2",
   );
   await fs.writeFile(path.join(root, "episode-01.mkv"), "existing");
@@ -264,8 +264,8 @@ test("flat multi-file selection is collected into one clean output folder", asyn
   const ready = await recordVerifiedTorrent(
     workPath,
     [
-      { path: first, length: 3 },
-      { path: second, length: 3 },
+      { path: path.relative(workPath, first), length: 3 },
+      { path: path.relative(workPath, second), length: 3 },
     ],
     "Season 1.0",
   );
