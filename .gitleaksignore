@@ -1,0 +1,3 @@
+# Public RSA key in the Chromium manifest. This historical value derives the
+# allowlisted extension ID and contains no private key material.
+cd7ea77257fc412082cd125e3ea9b85fb28a06b3:src/extension/manifest.json:generic-api-key:30
