@@ -24,7 +24,7 @@ async function writeChecksums(dir = path.resolve("release-assets")) {
 }
 
 if (require.main === module) {
-  writeChecksums()
+  writeChecksums(process.argv[2])
     .then((lines) => console.log(lines.join("\n")))
     .catch((error) => {
       console.error(error);
