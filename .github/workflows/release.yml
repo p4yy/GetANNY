@@ -72,7 +72,8 @@ jobs:
           $draftJson = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:CANDIDATE_RELEASE_ID"
           if ($LASTEXITCODE -ne 0) { throw 'The workflow could not read the specified release draft.' }
           $draft = $draftJson | ConvertFrom-Json
-          if ($draft.tag_name -cne "v$version" -or -not $draft.draft -or $draft.target_commitish -ne $env:GITHUB_SHA) {
+          $validDraftTag = $draft.tag_name -ceq "v$version" -or $draft.tag_name -cmatch '^untagged-[0-9a-f]+$'
+          if (-not $validDraftTag -or -not $draft.draft -or $draft.target_commitish -ne $env:GITHUB_SHA) {
             throw "Draft state, tag or target differs. Tag=$($draft.tag_name) Draft=$($draft.draft) Target=$($draft.target_commitish) Runner=$env:GITHUB_SHA"
           }
           $assets = @($draft.assets | Where-Object { $_.name -ceq 'GetANNY.Setup.exe' -and $_.state -eq 'uploaded' })
@@ -324,7 +325,10 @@ jobs:
             $releaseJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
           }
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect draft; release remains a draft.' }
-          $matching = @($releaseJson | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
+          $matching = @($releaseJson | ConvertFrom-Json | Where-Object {
+            $_.tag_name -ceq $tag -or
+              ($env:CANDIDATE_SHA256 -and $_.id -eq $env:CANDIDATE_RELEASE_ID -and $_.tag_name -cmatch '^untagged-[0-9a-f]+$')
+          })
           if ($matching.Count -ne 1) { throw 'Expected exactly one matching draft release.' }
           if (-not $matching[0].draft -or $matching[0].target_commitish -ne $env:GITHUB_SHA) {
             throw 'Release changed before publication.'
@@ -342,9 +346,11 @@ jobs:
           $refreshed = gh api "repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)"
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect uploaded assets; release remains a draft.' }
           $refreshed | Set-Content $releaseFile
-          node scripts/verify-release-assets.js $releaseFile $publicDir $tag '${{ github.sha }}'
+          $verificationArgs = @($releaseFile, $publicDir, $tag, $env:GITHUB_SHA)
+          if ($env:CANDIDATE_SHA256) { $verificationArgs += '--allow-draft-placeholder' }
+          node scripts/verify-release-assets.js @verificationArgs
           if ($LASTEXITCODE -ne 0) { throw 'Asset verification failed; release remains a draft.' }
-          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)" -F draft=false -f make_latest=true -F "body=@$notesFile" | Out-Null
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/releases/$($matching[0].id)" -F draft=false -f make_latest=true -f "tag_name=$tag" -f "target_commitish=$env:GITHUB_SHA" -F "body=@$notesFile" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Draft promotion failed; inspect the release state.' }
           $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$tag" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0 -or $ref.object.sha -ne '${{ github.sha }}') { throw 'Published tag verification failed.' }

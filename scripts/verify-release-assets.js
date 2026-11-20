@@ -5,8 +5,10 @@ const path = require("node:path");
 const { hashFile } = require("./checksums");
 const { installerName, updateMetadataName, updateMetadata } = require("./write-update-metadata");
 
-async function verifyReleaseAssets(release, directory, { tag, source }) {
-  assert.equal(release.tag_name, tag, "Wrong release tag");
+async function verifyReleaseAssets(release, directory, { tag, source, allowDraftPlaceholder = false }) {
+  const placeholder = allowDraftPlaceholder &&
+    release.draft === true && /^untagged-[0-9a-f]+$/.test(release.tag_name);
+  if (!placeholder) assert.equal(release.tag_name, tag, "Wrong release tag");
   assert.equal(release.target_commitish, source, "Wrong release source");
   assert.equal(
     release.draft,
@@ -57,13 +59,15 @@ async function verifyReleaseAssets(release, directory, { tag, source }) {
 
 if (require.main === module) {
   (async () => {
-    const [file, dir, tag, source] = process.argv.slice(2);
+    const [file, dir, tag, source, option] = process.argv.slice(2);
     assert.ok(
       file && dir && tag && source,
       "Usage: verify-release-assets <release.json> <dir> <tag> <source>",
     );
     const release = JSON.parse(await fs.readFile(file, "utf8"));
-    const count = await verifyReleaseAssets(release, dir, { tag, source });
+    const count = await verifyReleaseAssets(release, dir, {
+      tag, source, allowDraftPlaceholder: option === "--allow-draft-placeholder",
+    });
     console.log(
       `Verified ${count} uploaded draft assets against local SHA-256 digests.`,
     );
