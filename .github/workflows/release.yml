@@ -20,6 +20,9 @@ on:
       candidate_sha256:
         description: SHA-256 of GetANNY.Setup.exe already uploaded to the release draft
         type: string
+      candidate_release_id:
+        description: GitHub ID of the draft containing the exact candidate
+        type: string
 permissions:
   contents: write
 concurrency:
@@ -54,6 +57,35 @@ jobs:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
       - uses: actions/checkout@v5
+      - name: Verify and select the exact installer from the release draft
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
+          CANDIDATE_RELEASE_ID: ${{ inputs.candidate_release_id }}
+        run: |
+          if ($env:CANDIDATE_SHA256 -notmatch '^[0-9a-fA-F]{64}$' -or $env:CANDIDATE_RELEASE_ID -notmatch '^[0-9]+$') {
+            throw 'Invalid candidate SHA-256 or draft ID.'
+          }
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $draftJson = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:CANDIDATE_RELEASE_ID"
+          if ($LASTEXITCODE -ne 0) { throw 'The workflow could not read the specified release draft.' }
+          $draft = $draftJson | ConvertFrom-Json
+          if ($draft.tag_name -cne "v$version" -or -not $draft.draft -or $draft.target_commitish -ne $env:GITHUB_SHA) {
+            throw "Draft state, tag or target differs. Tag=$($draft.tag_name) Draft=$($draft.draft) Target=$($draft.target_commitish) Runner=$env:GITHUB_SHA"
+          }
+          $assets = @($draft.assets | Where-Object { $_.name -ceq 'GetANNY.Setup.exe' -and $_.state -eq 'uploaded' })
+          if ($assets.Count -ne 1 -or $assets[0].digest -ne ('sha256:' + $env:CANDIDATE_SHA256)) {
+            throw 'The draft installer does not match the approved digest.'
+          }
+          $candidate = Join-Path $env:RUNNER_TEMP 'GetANNY Setup.exe'
+          & curl.exe --fail --silent --show-error --location --output $candidate `
+            --header "Authorization: Bearer $env:GH_TOKEN" --header 'Accept: application/octet-stream' `
+            "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/assets/$($assets[0].id)"
+          if ($LASTEXITCODE -ne 0 -or (Get-FileHash -LiteralPath $candidate).Hash -ne $env:CANDIDATE_SHA256) {
+            throw 'Downloaded installer digest does not match.'
+          }
       - name: Validate Windows PowerShell harness syntax
         shell: pwsh
         run: |
@@ -134,31 +166,15 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      - name: Verify and select the exact installer from the release draft
+      - name: Use the verified draft installer for Windows setup tests
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '' }}
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CANDIDATE_SHA256: ${{ inputs.candidate_sha256 }}
         run: |
-          if ($env:CANDIDATE_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'Invalid candidate SHA-256.' }
-          $tag = 'v' + (node -p "require('./package.json').version")
-          $releases = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot read release drafts.' }
-          $drafts = @($releases | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
-          if ($drafts.Count -ne 1 -or -not $drafts[0].draft -or $drafts[0].target_commitish -ne $env:GITHUB_SHA) {
-            throw 'Expected one release draft targeting this commit.'
-          }
-          $assets = @($drafts[0].assets | Where-Object { $_.name -ceq 'GetANNY.Setup.exe' -and $_.state -eq 'uploaded' })
-          if ($assets.Count -ne 1 -or $assets[0].digest -ne ('sha256:' + $env:CANDIDATE_SHA256)) {
-            throw 'The draft installer does not match the approved digest.'
-          }
           $candidate = Join-Path $env:RUNNER_TEMP 'GetANNY Setup.exe'
-          & curl.exe --fail --silent --show-error --location --output $candidate `
-            --header "Authorization: Bearer $env:GH_TOKEN" --header 'Accept: application/octet-stream' `
-            "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/assets/$($assets[0].id)"
-          if ($LASTEXITCODE -ne 0 -or (Get-FileHash -LiteralPath $candidate).Hash -ne $env:CANDIDATE_SHA256) {
-            throw 'Downloaded installer digest does not match.'
+          if ((Get-FileHash -LiteralPath $candidate).Hash -ne $env:CANDIDATE_SHA256) {
+            throw 'Candidate changed between download and setup verification.'
           }
           Copy-Item -LiteralPath $candidate -Destination 'dist/GetANNY Setup.exe' -Force
           Remove-Item -LiteralPath 'dist/GetANNY Setup.exe.blockmap' -ErrorAction SilentlyContinue
@@ -261,6 +277,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CANDIDATE_SHA256: ${{ inputs.candidate_sha256 || '' }}
+          CANDIDATE_RELEASE_ID: ${{ inputs.candidate_release_id || '' }}
         run: |
           npm.cmd run audit:locales -- --strict
           if ($LASTEXITCODE -ne 0) { throw "Cannot publish: seven-language parity is incomplete." }
@@ -301,7 +318,11 @@ jobs:
             Where-Object { -not $env:CANDIDATE_SHA256 -or $_.Name -ne 'GetANNY.Setup.exe' } |
             ForEach-Object { "$($_.FullName)#$($_.Name)" }
           $releaseFile = Join-Path $env:RUNNER_TEMP 'GetANNY-draft.json'
-          $releaseJson = gh api "repos/${{ github.repository }}/releases?per_page=100"
+          if ($env:CANDIDATE_SHA256) {
+            $releaseJson = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:CANDIDATE_RELEASE_ID"
+          } else {
+            $releaseJson = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100"
+          }
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect draft; release remains a draft.' }
           $matching = @($releaseJson | ConvertFrom-Json | Where-Object { $_.tag_name -ceq $tag })
           if ($matching.Count -ne 1) { throw 'Expected exactly one matching draft release.' }
