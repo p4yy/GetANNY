@@ -146,7 +146,7 @@ jobs:
       - name: Test browser handoff and authenticated local bridge
         shell: pwsh
         run: |
-          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js', 'tests/extension-preference-master.test.js', 'tests/extension-popup-layout.test.js', 'tests/extension-recent-downloads.test.js')
+          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-blob-fallback.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js', 'tests/extension-preference-master.test.js', 'tests/extension-popup-layout.test.js', 'tests/extension-recent-downloads.test.js')
           $targets += @(Get-ChildItem src/main/browser-integration -Filter '*.test.js' -File | ForEach-Object FullName)
           & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/browser-junit.xml @targets 2>&1 | Tee-Object test-results/windows/browser-tests.log
           exit $LASTEXITCODE
@@ -159,6 +159,11 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Build the branded setup and uninstaller shell
         run: npm run build:setup-ui
+      - name: Run the complete npm test suite
+        shell: pwsh
+        run: |
+          npm test 2>&1 | Tee-Object test-results/windows/full-npm-test.log
+          exit $LASTEXITCODE
       - name: Build NSIS Setup EXE
         shell: pwsh
         run: |
