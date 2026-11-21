@@ -76,7 +76,9 @@ test("adaptive budget reduces concurrency after sustained measured throughput co
     releases[1](); releases[2]();
   };
   await feedback(100);
-  for(let i=0;i<6;i++)await feedback(4500);
+  // Five observations warm up the baseline; six subsequent slow samples
+  // are required before a reduction. A single slowdown must never tune it.
+  for(let i=0;i<10;i++)await feedback(4500);
   const state=budget.origins.get(origin);
   assert.equal(state.limit,3);
   assert.equal(state.active,0);
