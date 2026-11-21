@@ -286,6 +286,24 @@ test("queue order stays monotonic when reordered jobs are followed by new downlo
   );
 });
 
+test("torrent metadata enforces the encoded and decoded 16 MB limits", async (t) => {
+  const { manager } = await managerFixture(t, { autoStartDownloads: false });
+  const magnet = `magnet:?xt=urn:btih:${"0".repeat(40)}`;
+  for (const bytes of [
+    Buffer.alloc(16 * 1024 * 1024 + 1),
+    Buffer.alloc(16 * 1024 * 1024 + 3),
+  ]) {
+    await assert.rejects(
+      manager.addTorrent({
+        torrent: magnet,
+        torrentFileBase64: bytes.toString("base64"),
+      }),
+      /16 MB limit/,
+    );
+  }
+  assert.equal(manager.getAll().length, 0);
+});
+
 test("queue slots, retries, history and collision-safe naming are real", async (t) => {
   const server = await fixtureServer(t, { size: 1024 * 1024, delay: 10 });
   const { manager, repo } = await managerFixture(t);

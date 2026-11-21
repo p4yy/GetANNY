@@ -30,6 +30,8 @@ const PRIORITIES = new Map([
   ["high", 1],
 ]);
 const DETACHED_SEED_LIMIT = 2;
+const MAX_TORRENT_METADATA_BYTES = 16 * 1024 * 1024;
+const MAX_TORRENT_BASE64_CHARS = Math.ceil(MAX_TORRENT_METADATA_BYTES / 3) * 4;
 
 function mediaDuplicateKey(media) {
   if (!media) return null;
@@ -306,7 +308,7 @@ class DownloadManager extends EventEmitter {
           "Torrent metadata is invalid or exceeds the 16 MB limit.",
         );
       const data = Buffer.from(input.torrentFileBase64, "base64");
-      if (!data.length || data.length > 16 * 1024 * 1024)
+      if (!data.length || data.length > MAX_TORRENT_METADATA_BYTES)
         throw new Error(
           "Torrent metadata is invalid or exceeds the 16 MB limit.",
         );
