@@ -179,6 +179,7 @@ jobs:
           }
           Copy-Item -LiteralPath $candidate -Destination 'dist/GetANNY Setup.exe' -Force
           Remove-Item -LiteralPath 'dist/GetANNY Setup.exe.blockmap' -ErrorAction SilentlyContinue
+      # Never publish the raw white NSIS wizard: the dark WPF shell is the user-facing installer.
       - name: Wrap NSIS engine with the original dark GetANNY setup shell
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '') }}
         run: node scripts/windows/wrap-installer-release.js
