@@ -27,6 +27,7 @@ const {
 } = require("./settings/WindowsWakeSchedule");
 const { translate } = require("./translate");
 const { Logger } = require("./utils/logger");
+const { ResponsivenessWatchdog } = require("./utils/responsiveness-watchdog");
 const { configureAutoUpdater } = require("./auto-updater");
 const { validateUrl } = require("./engine/utils");
 const {
@@ -36,6 +37,10 @@ const {
   markDesktopExited,
 } = require("./browser-integration/DesktopExitMarker");
 const log = new Logger("Main");
+// Diagnose UI starvation without restarting, aborting, or modifying transfers.
+const responsivenessWatchdog = new ResponsivenessWatchdog({
+  onStall: ({ lagMs }) => log.warn("Main event loop responsiveness", { lagMs }),
+});
 const traySelfTest = process.argv.includes("--tray-self-test");
 let win,
   services,
@@ -185,6 +190,15 @@ async function createWindow({ forceShow = false } = {}) {
       backgroundThrottling: true,
     },
   });
+  win.on("unresponsive", () =>
+    log.warn("Renderer stopped responding", { visible: !win?.isDestroyed() && win.isVisible() }),
+  );
+  win.webContents.on("render-process-gone", (_event, details) =>
+    log.error("Renderer process exited", {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    }),
+  );
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
       shell.openExternal(validateUrl(url));
@@ -700,6 +714,8 @@ async function init() {
       app.exit(1);
     }
   }
+  if (!selfTest && !setupOnly && !unregisterOnly)
+    responsivenessWatchdog.start();
   log.info("Ready", {
     version: app.getVersion(),
     bridge: services.wsServer.status(),
@@ -759,6 +775,7 @@ else {
     });
   app.on("before-quit", (event) => {
     exiting = true;
+    responsivenessWatchdog.stop();
     if (shutdownFinished || !services) return;
     event.preventDefault();
     if (services.closing) return;
