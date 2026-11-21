@@ -245,16 +245,18 @@ class DownloadManager extends EventEmitter {
     if (input.kind === "torrent" && input.torrentFileBase64) {
       if (
         typeof input.torrentFileBase64 !== "string" ||
-        input.torrentFileBase64.length > 24 * 1024 * 1024 ||
-        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-          input.torrentFileBase64,
-        )
+        input.torrentFileBase64.length > MAX_TORRENT_BASE64_CHARS ||
+        input.torrentFileBase64.length % 4 !== 0
       )
         throw new Error(
           "Torrent metadata is invalid or exceeds the 16 MB limit.",
         );
       const data = Buffer.from(input.torrentFileBase64, "base64");
-      if (!data.length || data.length > MAX_TORRENT_METADATA_BYTES)
+      if (
+        !data.length ||
+        data.length > MAX_TORRENT_METADATA_BYTES ||
+        data.toString("base64") !== input.torrentFileBase64
+      )
         throw new Error(
           "Torrent metadata is invalid or exceeds the 16 MB limit.",
         );
