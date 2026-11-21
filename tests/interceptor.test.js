@@ -34,9 +34,19 @@ function fixture(options = {}) {
     cookies: {
       getAll: async (query) => {
         record("cookies", query);
-        if (options.cookies) return options.cookies();
+        if (options.cookies) return options.cookies(query);
         return [{ name: "session", value: "abc" }];
       },
+      ...(options.partitionKey || options.partitionKeyError
+        ? {
+            getPartitionKey: async (details) => {
+              record("partition-key", details);
+              if (options.partitionKeyError)
+                throw new Error("partition lookup unavailable");
+              return options.partitionKey;
+            },
+          }
+        : {}),
     },
     downloads: {
       onCreated: { addListener() {}, removeListener() {} },
@@ -288,6 +298,59 @@ test("cookie lookup is opt-in per download host and uses the download's browser 
     optedOut.calls.some((call) => call.name === "cookies"),
     false,
   );
+});
+
+test("CHIPS cookies are fetched from the initiating frame partition and merged with ordinary cookies", async () => {
+  const partitionKey = {
+    topLevelSite: "https://example.test",
+    hasCrossSiteAncestor: false,
+  };
+  const f = fixture({
+    includeSiteCookies: true,
+    partitionKey: { partitionKey },
+    cookies: async (query) =>
+      query.partitionKey
+        ? [{
+            name: "chip",
+            value: "partitioned",
+            domain: "cdn.example.test",
+            path: "/",
+            partitionKey,
+          }]
+        : [{
+            name: "session",
+            value: "ordinary",
+            domain: "cdn.example.test",
+            path: "/",
+          }],
+  });
+  await f.interceptor.created({ ...item(23), tabId: 41 });
+  assert.deepEqual(
+    f.calls.find((call) => call.name === "partition-key").value,
+    { tabId: 41, frameId: 0 },
+  );
+  const cookieQueries = f.calls
+    .filter((call) => call.name === "cookies")
+    .map((call) => call.value);
+  assert.equal(cookieQueries.length, 2);
+  assert.equal(cookieQueries[1].partitionKey.topLevelSite, "https://example.test");
+  assert.equal(
+    f.calls.find((call) => call.name === "request").value.headers.Cookie,
+    "session=ordinary; chip=partitioned",
+  );
+});
+
+test("an unavailable CHIPS frame key falls back to ordinary cookies without blocking handoff", async () => {
+  const f = fixture({
+    includeSiteCookies: true,
+    partitionKeyError: true,
+  });
+  await f.interceptor.created({ ...item(24), tabId: 42 });
+  assert.equal(
+    f.calls.find((call) => call.name === "request").value.headers.Cookie,
+    "session=abc",
+  );
+  assert.equal(f.errors.length, 0);
 });
 
 test("manual-only mode and a source-site exception leave browser downloads untouched", async () => {

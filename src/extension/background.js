@@ -50,7 +50,14 @@ const TIKTOK_MEDIA_HOSTS = [
 // Passive observation only: never initiate a video transfer or wake the desktop.
 // When the user's cookie toggle is enabled, keep the matching stream request
 // headers with the short-lived capture so TikTok's CDN can authorize the click.
-async function forwardPlayback({ url, pageUrl, mimeType, title }) {
+async function forwardPlayback({
+  url,
+  pageUrl,
+  mimeType,
+  title,
+  tabId,
+  frameId = 0,
+}) {
   if (
     !extensionEnabled ||
     !state.connected ||
@@ -84,7 +91,11 @@ async function forwardPlayback({ url, pageUrl, mimeType, title }) {
         api, pageUrl, url,
       )).includeSiteCookies
     )
-      headers = await withSiteCookies(url, headers);
+      headers = await withSiteCookies(url, headers, {
+        pageUrl,
+        tabId,
+        frameId,
+      });
     if (state.connected)
       sendRaw({
         type: "media-detected",
@@ -125,6 +136,8 @@ async function captureVideoResponse(details, mimeType) {
       pageUrl: playback.postUrl,
       mimeType,
       title: String(tab.title || "TikTok video").slice(0, 160),
+      tabId: details.tabId,
+      frameId: details.frameId,
     });
   } catch {
     /* Tabs may navigate while the response arrives. */
@@ -163,20 +176,26 @@ const validUrl = (value) => {
 const validPairingKey = (value) => /^[a-f0-9]{64}$/i.test(value || "");
 const hasHeader = (headers, name) =>
   Object.keys(headers || {}).some((key) => key.toLowerCase() === name);
-async function withSiteCookies(url, headers = {}) {
+async function withSiteCookies(url, headers = {}, context = {}) {
   if (hasHeader(headers, "cookie") || !api.cookies?.getAll) return headers;
   try {
-    const { includeSiteCookies } = await globalThis.GetANNYDownloadPreferences.get(api, url);
+    const { includeSiteCookies } = await globalThis.GetANNYDownloadPreferences.get(
+      api,
+      context.pageUrl || url,
+      url,
+    );
     if (!includeSiteCookies) return headers;
-    const cookies = await api.cookies.getAll({ url });
-    if (!cookies.length) return headers;
-    return {
-      ...headers,
-      Cookie: cookies.map(({ name, value }) => `${name}=${value}`).join("; "),
-    };
+    const cookies = await globalThis.GetANNYDownloadInterceptor.getCookies(
+      api,
+      url,
+      context,
+    );
+    const cookie = globalThis.GetANNYDownloadInterceptor.cookieHeader(cookies);
+    if (!cookie) return headers;
+    return { ...headers, Cookie: cookie };
   } catch {
-    // Private windows, restricted stores and missing permission fall back to
-    // the browser copy instead of failing the handoff.
+    // Restricted stores and missing permissions fall back to ordinary browser
+    // handling instead of failing the handoff.
     return headers;
   }
 }
@@ -622,6 +641,26 @@ async function request(message) {
     !message.privateSession &&
     message.includeSiteCookies !== false
   ) {
+    const cookieContext = {
+      pageUrl: message.page || message.url,
+      tabId: Number.isInteger(message.tabId) ? message.tabId : undefined,
+      frameId:
+        Number.isInteger(message.frameId) && message.frameId >= 0
+          ? message.frameId
+          : 0,
+    };
+    if (!Number.isInteger(cookieContext.tabId) && api.tabs?.query) {
+      try {
+        const [activeTab] = await api.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (Number.isInteger(activeTab?.id) && activeTab.id >= 0)
+          cookieContext.tabId = activeTab.id;
+      } catch {
+        // Older or restricted browser contexts retain unpartitioned cookies.
+      }
+    }
     // Every manual send honours the destination host's cookie opt-out.
     // The popup cannot accidentally override the persisted privacy setting.
     const site = await globalThis.GetANNYDownloadPreferences.get(
@@ -630,10 +669,14 @@ async function request(message) {
     if (site.includeSiteCookies)
       outgoing = {
         ...outgoing,
-        headers: await withSiteCookies(message.url, outgoing.headers),
+        headers: await withSiteCookies(
+          message.url,
+          outgoing.headers,
+          cookieContext,
+        ),
       };
   }
-  const { includeSiteCookies, ...payload } = outgoing;
+  const { includeSiteCookies, tabId, frameId, ...payload } = outgoing;
   await connect();
   return new Promise((resolve, reject) => {
     const id = requestId();
@@ -729,8 +772,13 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       const url = links.dribbbleAsset(message.url, page);
       if (!page || links.socialSite(page) !== "dribbble" || !url)
         throw new Error("Choose a video from the Dribbble shot.");
-      return request({ type: "download", kind: "file", url,
+      return request({
+        type: "download",
+        kind: "file",
+        url,
         ...(sender.tab.incognito ? { privateSession: true } : { page }),
+        tabId: sender.tab.id,
+        frameId: sender.frameId,
         headers: { Referer: page },
       });
     }
@@ -752,6 +800,8 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
           pageUrl: post,
           mimeType: message.mimeType || "video/mp4",
           title: message.title,
+          tabId: sender.tab.id,
+          frameId: sender.frameId,
         });
       return { success: true };
     }
@@ -769,7 +819,12 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
         !globalThis.GetANNYSiteDownloads.providerFor(sender.url)
       )
         throw new Error("This page cannot send a browser file to GetANNY.");
-      return request({ ...message, page: sender.url });
+      return request({
+        ...message,
+        page: sender.url,
+        tabId: sender.tab.id,
+        frameId: sender.frameId,
+      });
     }
     if (message.type === "social-batch" && ui) {
       const tab = await api.tabs.get(message.tabId);
@@ -778,6 +833,8 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
       return request({
         type: "social-batch",
         page: tab.url,
+        tabId: tab.id,
+        frameId: 0,
         urls: message.urls,
       });
     }
@@ -823,6 +880,8 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
           validUrl(sender.tab?.url) && !sender.tab?.incognito
             ? sender.tab.url
             : undefined,
+        tabId: sender.tab?.id,
+        frameId: sender.frameId,
         headers: {
           "User-Agent": globalThis.navigator.userAgent,
           ...(validUrl(sender.tab?.url) ? { Referer: sender.tab.url } : {}),
@@ -940,6 +999,8 @@ async function downloadFromContext(info, tab) {
           ? info.pageUrl || tab.url
           : undefined,
       privateSession: tab?.incognito === true,
+      tabId: tab?.id,
+      frameId: info.frameId ?? 0,
       headers: {
         "User-Agent": globalThis.navigator.userAgent,
         ...(validUrl(info.pageUrl || tab?.url)

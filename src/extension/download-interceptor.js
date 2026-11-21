@@ -7,6 +7,71 @@
       return false;
     }
   };
+  async function getCookies(api, url, { tabId, frameId = 0, storeId } = {}) {
+    if (!api?.cookies?.getAll) return [];
+    const query = { url };
+    if (storeId) query.storeId = storeId;
+    const ordinary = await api.cookies.getAll(query);
+    let partitioned = [];
+    if (
+      Number.isInteger(tabId) &&
+      tabId >= 0 &&
+      typeof api.cookies.getPartitionKey === "function"
+    ) {
+      try {
+        const result = await api.cookies.getPartitionKey({
+          tabId,
+          frameId: Number.isInteger(frameId) && frameId >= 0 ? frameId : 0,
+        });
+        const partitionKey = result?.partitionKey || result;
+        if (
+          partitionKey &&
+          typeof partitionKey.topLevelSite === "string" &&
+          partitionKey.topLevelSite
+        ) {
+          partitioned = await api.cookies.getAll({ ...query, partitionKey });
+        }
+      } catch {
+        // Older browsers may not expose frame partition keys. Ordinary cookies
+        // remain usable; a CHIPS lookup must never break a safe handoff.
+      }
+    }
+    const seen = new Set();
+    return [
+      ...(Array.isArray(ordinary) ? ordinary : []),
+      ...(Array.isArray(partitioned) ? partitioned : []),
+    ]
+      .filter((cookie) => {
+        if (
+          !cookie ||
+          typeof cookie.name !== "string" ||
+          typeof cookie.value !== "string"
+        )
+          return false;
+        const key = JSON.stringify([
+          cookie.storeId || storeId || "",
+          cookie.name,
+          cookie.domain || "",
+          cookie.path || "/",
+          cookie.partitionKey?.topLevelSite || "",
+          cookie.partitionKey?.hasCrossSiteAncestor ?? null,
+        ]);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          String(b.path || "/").length - String(a.path || "/").length,
+      );
+  }
+
+  function cookieHeader(cookies) {
+    return (Array.isArray(cookies) ? cookies : [])
+      .map(({ name, value }) => `${name}=${value}`)
+      .join("; ");
+  }
+
   const filename = (item, url) => {
     // Chrome normally supplies an absolute path; Firefox may supply a name.
     const nativeName = String(item.filename || "")
@@ -186,16 +251,16 @@
         headers["User-Agent"] = globalThis.navigator.userAgent;
       if (siteCookies && this.api.cookies?.getAll) {
         try {
-          // Firefox containers and other cookie stores must not silently use
-          // a different account's default-store cookies.
-          const query = { url };
+          // Firefox containers and private profiles stay isolated. Chromium
+          // also exposes the exact partition key for the initiating frame.
           const storeId = privateContext?.storeId || item.cookieStoreId;
-          if (storeId) query.storeId = storeId;
-          const cookies = await this.api.cookies.getAll(query);
-          if (cookies.length)
-            headers.Cookie = cookies
-              .map((cookie) => `${cookie.name}=${cookie.value}`)
-              .join("; ");
+          const cookies = await getCookies(this.api, url, {
+            tabId: item.tabId,
+            frameId: Number.isInteger(item.frameId) ? item.frameId : 0,
+            storeId,
+          });
+          const cookie = cookieHeader(cookies);
+          if (cookie) headers.Cookie = cookie;
         } catch (error) {
           if (privateContext)
             throw new Error(
@@ -440,5 +505,8 @@
     }
   }
 
-  globalThis.GetANNYDownloadInterceptor = GetANNYDownloadInterceptor;
+  globalThis.GetANNYDownloadInterceptor = Object.assign(
+    GetANNYDownloadInterceptor,
+    { getCookies, cookieHeader },
+  );
 })();
