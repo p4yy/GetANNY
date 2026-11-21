@@ -8,12 +8,29 @@ if (-not $overall.passed) { throw 'Cannot assemble an installer from failed EXE 
 # Keep the release gate aligned with the installer identity and browser-test
 # scope written by test-installers.ps1. Do not silently certify an older target.
 $expectedInstaller = 'Dark WPF setup shell with embedded NSIS x64 engine'
-$expectedBrowserScope = 'Extension source regression tests run in the separate browser-handoff workflow gate; real-browser matrix remains owner validation.'
+$expectedBrowserScope = 'Extension source regression tests run in the browser-handoff workflow gate; real-browser matrix remains owner validation.'
 if ($overall.installer -cne $expectedInstaller) {
   throw 'Unexpected installer target; expected the branded WPF shell with its embedded NSIS x64 engine.'
 }
 if ($overall.browserExtensionTests -cne $expectedBrowserScope) {
   throw 'Browser-test scope was not recorded accurately.'
+}
+if ($overall.sourceCommit -ne $env:GITHUB_SHA) {
+  throw 'Installer evidence belongs to a different source commit.'
+}
+$installerPath = [string]$overall.installerWrapper.installer
+if (-not $overall.installerWrapper.wrapped -or
+    [System.IO.Path]::GetFileName($installerPath) -ne 'GetANNY Setup.exe' -or
+    $overall.installerWrapper.engineBytes -le 0 -or
+    $overall.installerWrapper.shellBytes -le 0 -or
+    $overall.installerWrapper.logicalEnd -ne $overall.installerWrapper.fileBytes -or
+    -not $overall.uninstallerShell.customWpf -or
+    $overall.uninstallerShell.path -ne 'GetANNY Uninstall.exe') {
+  throw 'The branded NSIS x64 Setup EXE and matching WPF uninstaller were not verified.'
+}
+if (-not $overall.exe.installed -or -not $overall.exe.reinstalled -or
+    -not $overall.exe.uninstalled -or -not $overall.exe.applicationFilesRemoved) {
+  throw 'The actual Setup EXE install/reinstall/uninstall evidence is incomplete.'
 }
 $retention = $overall.defaultProfileRetention.exe
 if (-not $retention.retained -or -not $retention.nativeCleanupVerified -or
