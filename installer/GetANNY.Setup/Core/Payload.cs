@@ -6,7 +6,7 @@ using System.Text;
 namespace GetANNY.Setup.Core;
 
 /// <summary>
-/// Reads the NSIS engine appended to this executable by scripts/windows/wrap-installer.js.
+/// Reads the NSIS engine appended to this executable by scripts/windows/wrap-installer-release.js.
 ///
 /// Overlay layout (appended after the published single-file EXE):
 ///   [ engine bytes ]

@@ -56,7 +56,20 @@
       <button type="button" data-view="settings" role="tab" aria-selected="false" aria-controls="view-settings">Settings</button>
     </nav>
     <section id="view-downloads" class="view-panel" role="tabpanel">
-      <div class="section-heading"><div><h1>Recent downloads</h1><p>Local browser history · open GetANNY for desktop transfers</p></div><button id="refresh-recent" type="button" class="icon refresh" aria-label="Refresh browser downloads" title="Refresh list">↻</button></div>
+      <div class="section-heading">
+        <div><h1>Recent downloads</h1><p>Local browser history · open GetANNY for desktop transfers</p></div>
+        <div class="recent-actions">
+          <button id="clear-recent" type="button" class="text-button">Clear recent</button>
+          <button id="refresh-recent" type="button" class="icon refresh" aria-label="Refresh browser downloads" title="Refresh list">↻</button>
+        </div>
+      </div>
+      <div id="clear-recent-confirm" class="clear-confirm" role="group" aria-label="Confirm clearing recent downloads" hidden>
+        <div class="clear-confirm-copy"><strong>Clear this list?</strong><small>Files on disk stay untouched.</small></div>
+        <div class="clear-confirm-actions">
+          <button id="cancel-clear-recent" type="button" class="text-button">Cancel</button>
+          <button id="confirm-clear-recent" type="button" class="clear-confirm-button">Clear list</button>
+        </div>
+      </div>
       <div id="recent-downloads" class="recent-list" aria-live="polite"><p class="empty">Loading your browser downloads…</p></div>
     </section>
     <section id="view-capture" class="view-panel" role="tabpanel" hidden>
@@ -102,6 +115,7 @@
   <script src="overlay-preferences.js"></script>
   <script src="social-links.js"></script>
   <script src="popup.js"></script>
+  <script src="recent-downloads.js"></script>
   <script src="popup-enhancements.js"></script>
 </body>
 </html>

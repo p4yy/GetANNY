@@ -60,7 +60,17 @@ main { padding:16px 18px 4px; }
 .section-heading { display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px; }
 h1 { margin:0;color:var(--text);font-size:14px;font-weight:670;letter-spacing:-.012em; }
 .section-heading p { margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.4;max-width:310px; }
+.recent-actions { display:flex;align-items:center;gap:5px;flex:0 0 auto; }
+.recent-actions #clear-recent { padding:6px 4px;font-size:10px; }
 .refresh { flex:0 0 auto; }
+.clear-confirm { display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 9px;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--raised); }
+.clear-confirm-copy { display:flex;flex-direction:column;gap:2px;min-width:0; }
+.clear-confirm-copy strong { color:var(--text);font-size:11px;font-weight:650; }
+.clear-confirm-copy small { color:var(--muted);font-size:10px; }
+.clear-confirm-actions { display:flex;align-items:center;gap:8px;flex:0 0 auto; }
+.clear-confirm-actions .text-button { margin:0;padding:5px 2px; }
+.clear-confirm-button { min-height:29px;padding:5px 10px;border:1px solid var(--line);border-radius:7px;background:var(--accent);color:var(--accent-text);font-size:10px;font-weight:700; }
+.clear-confirm-button:hover { background:var(--accent-hover); }
 label[for="url"],label[for="kind"],label[for="browser"],label[for="pairing"] { display:block;margin:14px 0 6px;font-size:10px;font-weight:630;letter-spacing:.075em;color:var(--secondary); }
 #url,#kind,#browser,#pairing { display:block;width:100%;min-height:37px;padding:9px 11px;color:var(--text);background:var(--input);border:1px solid var(--line);border-radius:8px;outline:none; }
 #url:focus,#kind:focus,#browser:focus,#pairing:focus { border-color:var(--secondary);outline:1px solid var(--secondary); }
@@ -72,15 +82,22 @@ label[for="url"],label[for="kind"],label[for="browser"],label[for="pairing"] { d
 .text-button { background:transparent;border:0;color:var(--text);font-size:11px;font-weight:640;padding:6px;white-space:nowrap; }
 .text-button:hover { text-decoration:underline; }
 .recent-list { display:flex;flex-direction:column;gap:6px;max-height:234px;overflow:auto;padding:0 2px 2px; }
-.download-row { display:flex;align-items:center;gap:11px;width:100%;min-height:65px;padding:9px 10px;text-align:left;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text); }
-.download-row:hover,.download-row:focus-visible { background:var(--raised);border-color:var(--secondary); }
+.download-row { display:flex;align-items:center;gap:3px;width:100%;min-height:65px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text);overflow:hidden; }
+.download-row:hover,.download-row:focus-within { background:var(--raised);border-color:var(--secondary); }
+.download-open { display:flex;align-items:center;gap:11px;flex:1;min-width:0;min-height:65px;padding:9px 7px 9px 10px;border:0;background:transparent;color:inherit;text-align:left; }
+.download-open:hover { background:transparent; }
 .download-icon { flex:0 0 auto;display:grid;place-items:center;width:37px;height:37px;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--secondary);font-weight:750;font-size:10px;letter-spacing:.03em; }
 .download-content { display:flex;flex-direction:column;gap:3px;min-width:0;flex:1; }
 .download-name { overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:625; }
 .download-meta { color:var(--muted);font-size:10px; }
 .download-hover { color:var(--secondary);font-size:10px;display:none;overflow-wrap:anywhere; }
-.download-row:hover .download-hover,.download-row:focus-visible .download-hover { display:block; }
-.download-chevron { color:var(--muted);font-size:19px; }
+.download-row:hover .download-hover,.download-row:focus-within .download-hover { display:block; }
+.download-progress { display:block;height:3px;width:100%;margin-top:2px;border-radius:3px;background:var(--line);overflow:hidden; }
+.download-progress span { display:block;height:100%;border-radius:3px;background:var(--secondary); }
+.download-chevron { flex:0 0 auto;color:var(--muted);font-size:19px;padding:0 2px; }
+.download-remove { flex:0 0 auto;width:26px;height:30px;margin-right:7px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:19px;line-height:1;opacity:.6; }
+.download-remove:hover { color:var(--text);background:var(--accent-soft);opacity:1; }
+.download-open:focus-visible,.download-remove:focus-visible { outline:2px solid var(--accent);outline-offset:-2px; }
 .empty { margin:0;padding:19px 13px;text-align:center;background:var(--panel);border:1px dashed var(--line);border-radius:9px;color:var(--muted);font-size:11px; }
 .detected-section { margin-top:18px;padding-top:13px;border-top:1px solid var(--line-soft); }
 h2 { font-size:11px;font-weight:650;color:var(--secondary); }

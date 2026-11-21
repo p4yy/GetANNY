@@ -167,16 +167,27 @@ function Assert-Uninstalled([string] $InstalledExe, $Shortcuts, [string] $Data, 
   if ($after.history -lt 1 -or $Before.sha256 -cne $after.sha256) { throw 'Uninstallation changed or removed actual default-profile history/settings.' }
   return @{history=$after.history;settings=$after.settings;sha256=$after.sha256;retained=$true;missingCompletedFiles=$after.missingCompletedFiles;ownedNativeEntries=$NativeEntries.Count;nativeCleanupVerified=($NativeEntries.Count -gt 0)}
 }
-if (-not (Test-Path $exePackage)) { throw 'Required NSIS GetANNY Setup.exe was not built.' }
+if (-not (Test-Path $exePackage)) { throw 'Required branded GetANNY Setup.exe was not built.' }
+$wrapperReport = Join-Path $results 'installer-wrapper.json'
+if (-not (Test-Path $wrapperReport)) { throw 'The branded installer wrapper was not verified before installation.' }
+$wrapper = Get-Content $wrapperReport -Raw | ConvertFrom-Json
+if (-not $wrapper.wrapped -or -not $wrapper.shellSha256 -or -not $wrapper.engineSha256) {
+  throw 'The installer is missing the verified dark WPF shell or NSIS payload.'
+}
 $defaultData = Join-Path $env:APPDATA 'getanny'
 $exeDir = Join-Path $installRoot 'exe-app'
 $exeData = Join-Path $installRoot 'exe-data'
 Write-Host 'Checking the unpacked browser-setup helper before NSIS installation...'
 $setupReport = Join-Path $results 'setup-helper.json'
 Run-Checked (Join-Path $root 'dist\win-unpacked\GetANNY.exe') @('--setup-browser-hosts','--quiet','--enable-logging','--report',"`"$setupReport`"") 90000 -CaptureOutput
-Write-Host 'Installing the actual NSIS EXE package...'
+Write-Host 'Installing the branded GetANNY shell (NSIS remains the installation engine)...'
 Run-Checked $exePackage @('/S','/currentuser',"/D=$exeDir")
 $installedExe = Join-Path $exeDir 'GetANNY.exe'
+$uninstallerShellPath = Join-Path $exeDir 'GetANNY Uninstall.exe'
+if (-not (Test-Path -LiteralPath $uninstallerShellPath)) { throw 'The matching custom GetANNY uninstaller shell was not installed.' }
+$expectedShellVersion = (Get-Item -LiteralPath (Join-Path $root 'installer\publish\GetANNY.Setup.exe')).VersionInfo.ProductVersion
+$actualShellVersion = (Get-Item -LiteralPath $uninstallerShellPath).VersionInfo.ProductVersion
+if ($actualShellVersion -ne $expectedShellVersion) { throw "Uninstaller shell version mismatch: $actualShellVersion != $expectedShellVersion" }
 $exeShortcuts=@(Assert-Shortcuts $installedExe)
 Self-Test $installedExe 'exe-first-install' $exeData
 Write-Host 'Reinstalling EXE (upgrade / repair preservation test)...'
@@ -190,8 +201,8 @@ Self-Test $installedExe 'exe-actual-default-profile' $defaultData
 Self-Test $installedExe 'exe-tray-idle' (Join-Path $installRoot 'exe-tray-data') -Tray
 Run-Checked $installedExe @('--setup-browser-hosts','--quiet')
 Desktop-Lifecycle $installedExe 'exe' $defaultData $exeShortcuts
-# Owner direction: no browser-extension or real-browser matrix tests.
-# Keep installer-owned registration and uninstall-cleanup verification.
+# Live browser installation matrix remains an owner-PC check.
+# Extension source regression tests run in the separate browser-handoff workflow gate.
 $nativeRestoreError=$null
 $exeNativeEntries=@()
 try {
@@ -227,10 +238,12 @@ $verified = ($null -eq $exeCleanupError -and $null -eq $nativeRestoreError)
   passed=$verified
   date=(Get-Date -Format o)
   exeCleanupError=$exeCleanupError
-  browserExtensionTests='Skipped per owner request (tested on owner PC)'
+  browserExtensionTests='Extension source regression tests run in the browser-handoff workflow gate; real-browser matrix remains owner validation.'
   nativeRestoreError=$nativeRestoreError
   nativeEntriesVerified=$exeNativeEntries.Count
-  installer='NSIS x64 Setup EXE only'
+  installer='Dark WPF setup shell with embedded NSIS x64 engine'
+  installerWrapper=$wrapper
+  uninstallerShell=@{path='GetANNY Uninstall.exe';version=$actualShellVersion;customWpf=$true;animatedLogoResource='getanny-logo-animation.gif'}
   sourceCommit=$env:GITHUB_SHA
   exe=@{installed=$true;reinstalled=$true;uninstalled=($null -eq $exeCleanupError);applicationFilesRemoved=$exeFilesRemoved}
   signatures=$signatures
@@ -239,12 +252,12 @@ $verified = ($null -eq $exeCleanupError -and $null -eq $nativeRestoreError)
   limitations=@(
     'Hosted Windows runner is not a pristine consumer Windows installation.',
     'Same-version reinstall tested; 2.5.0-to-2.6.0 migration remains a dedicated gate.',
-    'Interactive installer, multiple DPI scales, notification and tray appearance need human validation.',
-    'Browser extension tests skipped per owner request; cloud-provider flows not certified.',
+    'All seven installer and uninstaller pages captured at 100%, 125%, 150% and 200% DPI; human validation of live GIF smoothness remains necessary.',
+    'Live browser matrix and cloud-provider flows are not certified by the hosted Windows runner.',
     'Microsoft Store readiness remains separate.'
   )
 } | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $results 'installer-report.json')
 if ($exeCleanupError) { throw "NSIS uninstall/retention gate failed: $exeCleanupError" }
 if ($nativeRestoreError) { throw "NSIS native registration gate failed: $nativeRestoreError" }
-Write-Host 'NSIS Setup EXE, actual transfers, tray idle, restart retention and uninstall passed. Browser extension tests skipped.'
+Write-Host 'Branded GetANNY setup shell, embedded NSIS engine, WPF uninstaller, actual transfers, tray idle, restart retention and uninstall passed.'
 exit 0

@@ -146,7 +146,7 @@ jobs:
       - name: Test browser handoff and authenticated local bridge
         shell: pwsh
         run: |
-          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js', 'tests/extension-preference-master.test.js', 'tests/extension-popup-layout.test.js')
+          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js', 'tests/extension-preference-master.test.js', 'tests/extension-popup-layout.test.js', 'tests/extension-recent-downloads.test.js')
           $targets += @(Get-ChildItem src/main/browser-integration -Filter '*.test.js' -File | ForEach-Object FullName)
           & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/browser-junit.xml @targets 2>&1 | Tee-Object test-results/windows/browser-tests.log
           exit $LASTEXITCODE
@@ -179,6 +179,40 @@ jobs:
           }
           Copy-Item -LiteralPath $candidate -Destination 'dist/GetANNY Setup.exe' -Force
           Remove-Item -LiteralPath 'dist/GetANNY Setup.exe.blockmap' -ErrorAction SilentlyContinue
+      - name: Wrap NSIS engine with the original dark GetANNY setup shell
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '') }}
+        run: node scripts/windows/wrap-installer-release.js
+      - name: Sign branded GetANNY setup wrapper when a certificate is configured
+        if: ${{ secrets.CSC_LINK != '' }}
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: ./scripts/windows/sign-installer-wrapper.ps1 -InstallerPath 'dist/GetANNY Setup.exe'
+      - name: Verify branded setup and matching uninstaller shell
+        run: node scripts/windows/verify-installer-wrapper.js
+      - name: Capture installer and uninstaller UI at four DPI scales
+        shell: pwsh
+        run: |
+          $capture = Join-Path $PWD 'test-results/windows/setup-ui'
+          New-Item -ItemType Directory -Path $capture -Force | Out-Null
+          & (Resolve-Path 'dist/GetANNY Setup.exe').Path --capture $capture
+          if ($LASTEXITCODE -ne 0) { throw "Branded setup UI capture failed with exit code $LASTEXITCODE." }
+          $images = @(Get-ChildItem $capture -Filter '*.png' -File)
+          if ($images.Count -ne 28) { throw "Expected 28 installer/uninstaller screenshots at four DPI scales; found $($images.Count)." }
+          foreach ($name in @('install-welcome-100.png','install-options-100.png','install-progress-100.png','install-complete-100.png','uninstall-confirm-100.png','uninstall-progress-100.png','uninstall-complete-100.png')) {
+            if (-not (Test-Path (Join-Path $capture $name))) { throw "Missing branded UI capture: $name" }
+          }
+          if ((Get-Item 'test-results/windows/installer-wrapper.json').Length -lt 100) { throw 'Installer wrapper verification report is missing.' }
+      - name: Preserve branded installer UI evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: GetANNY-branded-installer-ui
+          path: |
+            test-results/windows/setup-ui/*.png
+            test-results/windows/installer-wrapper.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Verify configured installer signature
         shell: pwsh
         env:
@@ -198,11 +232,12 @@ jobs:
           Copy-Item 'dist/GetANNY Setup.exe' $destination
           Copy-Item 'docs/INSTALL_WINDOWS.md' $destination
           @(
-            'UNSIGNED DEVELOPMENT TEST BUILD — NOT A VERIFIED FINAL RELEASE',
+            'DEVELOPMENT TEST BUILD — NOT A VERIFIED FINAL RELEASE',
             'Source: ${{ github.sha }}',
             'Verification: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}',
             'Packaging succeeded. Installed-app and uninstall checks may still be running or fail.',
             'Browser handoff source tests are separate from testing real installed browsers.',
+            ('Installer Authenticode status: ' + (Get-AuthenticodeSignature -LiteralPath 'dist/GetANNY Setup.exe').Status),
             'Consult EXE-only verification evidence before considering this installer verified.'
           ) | Set-Content (Join-Path $destination 'BUILD_STATUS.txt')
           Get-ChildItem $destination -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name | ForEach-Object { ('{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(),$_.Name) } | Set-Content (Join-Path $destination 'SHA256SUMS.txt')
@@ -210,7 +245,7 @@ jobs:
         id: built-installers
         uses: actions/upload-artifact@v7
         with:
-          name: GetANNY-unsigned-test-build
+          name: GetANNY-development-test-build
           path: ${{ runner.temp }}/GetANNY-test-build/
           if-no-files-found: error
           retention-days: 30

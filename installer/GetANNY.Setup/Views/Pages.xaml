@@ -140,6 +140,13 @@
             </Grid.RowDefinitions>
 
             <StackPanel>
+                <Border Width="164" Height="92" Background="{StaticResource Brush.Background}" HorizontalAlignment="Left"
+                        Margin="0,0,0,8" Visibility="{Binding IsUninstallerFlow, Converter={StaticResource VisibleWhen}}"
+                        AutomationProperties.Name="Animated GetANNY uninstaller logo">
+                    <v:AnimatedGifImage ResourceUri="pack://application:,,,/Assets/brand/getanny-logo-animation.gif"
+                                        Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        AutomationProperties.Name="GetANNY animated logo" />
+                </Border>
                 <TextBlock Style="{StaticResource Text.Title}" Text="{Binding Title}" AutomationProperties.HeadingLevel="Level1" />
                 <TextBlock Style="{StaticResource Text.Secondary}" Text="{Binding Subtitle}" Margin="0,8,0,0" />
             </StackPanel>
@@ -312,10 +319,12 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-                <CheckBox IsChecked="{Binding RemoveAppData}" Margin="0,16,0,12"
-                          HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                <CheckBox IsChecked="{Binding RemoveAppData}" Margin="0,16,0,12" Padding="0,4"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          VerticalAlignment="Top" VerticalContentAlignment="Top" MinHeight="54"
+                          AutomationProperties.Name="Also remove GetANNY application data"
                           AutomationProperties.HelpText="{Binding DataNote}">
-                    <StackPanel>
+                    <StackPanel MinWidth="0" MaxWidth="480">
                         <TextBlock Text="Also remove application data" TextWrapping="Wrap" />
                         <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding DataNote}"
                                    Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="440" />
@@ -341,7 +350,12 @@
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Image Style="{StaticResource Brand.Lockup}" Margin="0,6,0,0" />
+            <Border Width="164" Height="92" Background="{StaticResource Brush.Background}" HorizontalAlignment="Left"
+                    Margin="0,0,0,8" AutomationProperties.Name="Animated GetANNY uninstaller logo">
+                <v:AnimatedGifImage ResourceUri="pack://application:,,,/Assets/brand/getanny-logo-animation.gif"
+                                    Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    AutomationProperties.Name="GetANNY animated logo" />
+            </Border>
             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" MaxWidth="520">
                 <Control Template="{StaticResource SuccessMark}" HorizontalAlignment="Left" Focusable="False" AutomationProperties.Name="Done" />
                 <TextBlock Style="{StaticResource Text.Title}" Text="{Binding Title}" Margin="0,20,0,0" AutomationProperties.HeadingLevel="Level1" />

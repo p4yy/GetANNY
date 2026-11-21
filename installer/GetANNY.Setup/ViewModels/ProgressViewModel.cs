@@ -67,6 +67,7 @@ public sealed class ProgressViewModel : ObservableObject
 
     public string Title { get; }
     public string Subtitle { get; }
+    public bool IsUninstallerFlow => !_isInstallerFlow;
     public ObservableCollection<StageItemViewModel> Stages { get; }
     public RelayCommand CloseCommand { get; }
     public RelayCommand OpenLogCommand { get; }

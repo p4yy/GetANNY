@@ -5,7 +5,7 @@
 
     One executable, two roles:
       * "GetANNY Setup.exe"      : the published EXE with the NSIS engine appended as an
-                                   overlay by scripts/windows/wrap-installer.js.
+                                   overlay by scripts/windows/wrap-installer-release.js.
       * "GetANNY Uninstall.exe"  : the same published EXE, copied into the install
                                    directory by electron-builder (extraFiles) and
                                    registered as UninstallString by installer.nsh.
