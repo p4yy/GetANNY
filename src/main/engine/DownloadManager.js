@@ -1170,8 +1170,14 @@ class DownloadManager extends EventEmitter {
       )
         this.queue.push(item.id);
     }
-    if (this.settings.resumeOnStartup)
-      for (const id of this.queue) this.items.get(id).status = "queued";
+    if (this.settings.resumeOnStartup) {
+      for (const id of this.queue) {
+        const item = this.items.get(id);
+        if (!item) continue;
+        item.status = "queued";
+        this.persist(item);
+      }
+    }
     this.pump();
   }
   limitFor(item) {

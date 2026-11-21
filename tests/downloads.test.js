@@ -399,6 +399,30 @@ test("restart restores interrupted history as paused with zero stale speed", asy
   assert.equal(item.filenameExplicit, true);
   assert.equal(repo.get("old").connections, 4);
 });
+test("resume-on-startup persists the queued state before the scheduler runs", async (t) => {
+  const now = new Date();
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const start = (minute + 10) % 1440;
+  const { manager, repo } = await managerFixture(t, {
+    resumeOnStartup: true,
+    scheduleEnabled: true,
+    scheduleStartMinute: start,
+    scheduleEndMinute: (start + 5) % 1440,
+  });
+  repo.save({
+    id: "resume-on-startup",
+    url: "https://example.test/resume.bin",
+    filename: "resume.bin",
+    savePath: manager.settings.defaultDownloadPath,
+    status: "paused",
+    queueOrder: 10,
+  });
+  await manager.restoreDownloads();
+  assert.equal(manager.requireItem("resume-on-startup").status, "queued");
+  assert.equal(repo.get("resume-on-startup").status, "queued");
+  assert.equal(manager.running.size, 0);
+});
+
 test("session headers stay in memory, are omitted from persistence, and expire on restart", async (t) => {
   const { manager, repo } = await managerFixture(t, {
     autoStartDownloads: false,
