@@ -68,7 +68,9 @@ test("the NSIS release pipeline launches the dark WPF shell, not the raw wizard"
   const builder=fsSync.readFileSync(path.join(root,"electron-builder.yml"),"utf8");
   assert.match(workflow,/wrap-installer-release\.js/);
   assert.match(workflow,/verify-installer-wrapper\.js/);
-  assert.match(workflow,/--capture \$capture/);
+  assert.match(workflow,/\$arguments = '--capture "/);
+  assert.match(workflow,/\+ \$capture \+ '"/);
+  assert.match(workflow,/Start-Process -FilePath \$setupExe -ArgumentList \$arguments/);
   assert.match(workflow,/GetANNY-branded-installer-ui/);
   assert.match(builder,/from: installer\/publish\/GetANNY\.Setup\.exe/);
   assert.match(nsis,/GetANNY Uninstall\.exe/);
