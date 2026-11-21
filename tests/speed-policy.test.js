@@ -46,6 +46,36 @@ test(
   },
 );
 
+test("changing a speed limit charges only the bytes not already waited", async () => {
+  let now = 0;
+  let currentWait;
+  const limiter = new RateLimiter(1000, {
+    now: () => now,
+    wait: (milliseconds, _value, { signal }) =>
+      new Promise((resolve, reject) => {
+        currentWait = { milliseconds, resolve };
+        signal.addEventListener(
+          "abort",
+          () => {
+            const error = new Error("policy changed");
+            error.name = "AbortError";
+            reject(error);
+          },
+          { once: true },
+        );
+      }),
+  });
+  const pending = limiter.consume(1000);
+  assert.equal(currentWait.milliseconds, 1000);
+  now = 500;
+  limiter.setLimit(2000);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(currentWait.milliseconds, 250);
+  now = 750;
+  currentWait.resolve();
+  await pending;
+});
+
 test("live global limits preserve a stricter per-download cap", () => {
   const manager = new DownloadManager({ settings: { speedLimit: 1000 } });
   const limits = [];
