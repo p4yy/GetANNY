@@ -11,13 +11,13 @@ const methods = {
     const { sessionHeaders, browserPayloadPath, ...safe } = item;
     safe.headers = persistentHeaders(safe.headers);
     return safe;
-  }
+  },
 
   persist(item) {
     this.progressDirty.delete(item.id);
     if (this.repo && !item.privateSession)
       Object.assign(item, this.repo.save(item, item));
-  }
+  },
 
   queueProgress(id, progress) {
     this.pendingProgress.set(id, progress);
@@ -30,7 +30,7 @@ const methods = {
       this.persistenceTimer = setTimeout(() => this.flushPersistence(), 2000);
       this.persistenceTimer.unref?.();
     }
-  }
+  },
 
   flushProgress() {
     clearTimeout(this.progressTimer);
@@ -42,7 +42,7 @@ const methods = {
       this.onProgress(id, progress);
       this.emit("progress", { id, ...progress });
     }
-  }
+  },
 
   flushPersistence() {
     clearTimeout(this.persistenceTimer);
@@ -52,12 +52,12 @@ const methods = {
       if (item) this.persist(item);
     }
     this.progressDirty.clear();
-  }
+  },
 
   discardProgress(id) {
     this.pendingProgress.delete(id);
     this.progressDirty.delete(id);
-  }
+  },
 
   reserve(item, info) {
     const next = this.reservationQueue.then(() =>
@@ -65,7 +65,7 @@ const methods = {
     );
     this.reservationQueue = next.catch(() => {});
     return next;
-  }
+  },
 
   async reserveTarget(item, info) {
     if (!item.targetReserved) {
@@ -111,11 +111,11 @@ const methods = {
       this.persist(item);
     }
     return { filename: item.filename, savePath: item.savePath };
-  }
+  },
 
   workPath(item) {
     return this.tempPath ? path.join(this.tempPath, item.id) : null;
-  }
+  },
 
   async cleanup(item) {
     // Work files live outside the destination now. The destination scan keeps
@@ -139,7 +139,7 @@ const methods = {
           force: true,
         })
         .catch(() => {});
-  }
+  },
 
   async clearHistory({ scope = "all", ids = [], stopUnfinished = false } = {}) {
     const selected = new Set(ids.map(String));
@@ -169,7 +169,7 @@ const methods = {
     }
     this.snapshot();
     return targets.length;
-  }
+  },
 
   async remove(id, deleteFile = false) {
     const item = this.requireItem(id);
@@ -189,7 +189,7 @@ const methods = {
     this.repo?.remove(id);
     this.snapshot();
     return true;
-  }
+  },
 
   async clearCompleted() {
     const ids = [...this.items.values()]
@@ -202,7 +202,7 @@ const methods = {
     }
     this.snapshot();
     return ids.length;
-  }
+  },
 
   async restoreDownloads() {
     for (const saved of this.repo?.getAll() || []) {
@@ -292,7 +292,7 @@ const methods = {
       }
     }
     this.pump();
-  }
+  },
 
   getAll() {
     return [...this.items.values()]

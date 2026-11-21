@@ -11,7 +11,7 @@ const methods = {
     }
     this.queueSequence = maximum + 1;
     return this.queueSequence;
-  }
+  },
 
   reorder(ids) {
     if (
@@ -42,7 +42,7 @@ const methods = {
     this.snapshot();
     this.pump();
     return true;
-  }
+  },
 
   pump() {
     // Do not replace a paused engine with a queued job mid-batch.
@@ -128,18 +128,18 @@ const methods = {
           this.pump();
         });
     }
-  }
+  },
 
   requireItem(id) {
     const item = this.items.get(id);
     if (!item) throw new Error("This download no longer exists.");
     return item;
-  }
+  },
 
   clearRetry(id) {
     clearTimeout(this.retryTimers.get(id));
     this.retryTimers.delete(id);
-  }
+  },
 
   enqueue(item, front = false) {
     this.clearRetry(item.id);
@@ -153,7 +153,7 @@ const methods = {
     this.snapshot();
     this.pump();
     return true;
-  }
+  },
 
   async pause(id) {
     const item = this.requireItem(id);
@@ -179,7 +179,7 @@ const methods = {
       this.snapshot();
     } else return false;
     return true;
-  }
+  },
 
   resume(id) {
     const item = this.requireItem(id);
@@ -197,11 +197,11 @@ const methods = {
     item.attempt = 0;
     item.pendingBrowserReconciliation = false;
     return this.enqueue(item, this.pausedEngines.has(id));
-  }
+  },
 
   retry(id) {
     return this.resume(id);
-  }
+  },
 
   async pauseAll({ ids, kind = "all" } = {}) {
     if (this.bulkPauseInProgress)
@@ -237,7 +237,7 @@ const methods = {
       this.pump();
     }
     return { count, total: targets.length, failed };
-  }
+  },
 
   resumeAll({ ids, kind = "all" } = {}) {
     if (this.bulkPauseInProgress)
@@ -260,7 +260,7 @@ const methods = {
       }
     }
     return { count, total: targets.length, failed };
-  }
+  },
 
   async cancel(id) {
     const item = this.requireItem(id);
@@ -281,7 +281,7 @@ const methods = {
       this.snapshot();
     }
     return true;
-  }
+  },
 
   limitFor(item) {
     const limit = Math.min(
@@ -289,7 +289,7 @@ const methods = {
       this.globalSpeedLimit || Infinity,
     );
     return Number.isFinite(limit) ? limit : 0;
-  }
+  },
 
   setGlobalSpeedLimit(limit) {
     if (this.globalSpeedLimit === limit) return;
@@ -298,13 +298,13 @@ const methods = {
       const item = this.items.get(id);
       if (item) engine.limiter?.setLimit(this.limitFor(item));
     }
-  }
+  },
 
   updateSettings(settings, { applySpeed = true } = {}) {
     this.settings = { ...settings };
     if (applySpeed) this.setGlobalSpeedLimit(settings.speedLimit || 0);
     this.pump();
-  }
+  },
 
   async shutdown() {
     this.stopped = true;

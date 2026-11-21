@@ -39,7 +39,7 @@ const methods = {
     this.persist(item);
     this.resume(id);
     return id;
-  }
+  },
 
   async recover(id, { url, savePath } = {}) {
     const item = this.requireItem(id);
@@ -90,13 +90,13 @@ const methods = {
     this.persist(item);
     this.snapshot();
     return this.publicItem(item);
-  }
+  },
 
   forgetSession(item) {
     this.burnSession(item);
     if (this.rememberedSessions.delete(item.id))
       this.sessionVault.remove(item.id).catch(() => {});
-  }
+  },
 
   burnSession(item) {
     if (!item?.sessionHeaders) return;
