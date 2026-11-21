@@ -25,6 +25,30 @@ test("unauthenticated WebSocket ping is not proof of an extension connection", a
   assert.equal(bridge.status().clients, 0);
 });
 
+test("invalid pairing closes the connection on the first rejected credential", async (t) => {
+  const bridge = new WebSocketServer({ port: 0, token: "a".repeat(64) });
+  await new Promise((resolve, reject) => {
+    bridge.server.once("listening", resolve);
+    bridge.server.once("error", reject);
+  });
+  const client = await openClient(bridge);
+  t.after(async () => {
+    client.terminate();
+    await bridge.close();
+  });
+  const reply = await exchange(client, {
+    type: "authenticate",
+    token: "b".repeat(64),
+    transport: "websocket",
+  });
+  assert.equal(reply.type, "authentication-error");
+  const [code, reason] = await new Promise((resolve) =>
+    client.once("close", (status, message) => resolve([status, message.toString()])),
+  );
+  assert.equal(code, 1008);
+  assert.equal(reason, "Invalid pairing");
+});
+
 async function openClient(bridge, origin) {
   const client = new WebSocket(
     `ws://127.0.0.1:${bridge.status().port}`,

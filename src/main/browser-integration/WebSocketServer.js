@@ -140,7 +140,6 @@ class WebSocketServer {
       const state = {
         sessionId: randomUUID(),
         authenticated: false,
-        authFailures: 0,
         lastSeen: Date.now(),
         origin: request.headers.origin || null,
         pendingRequests: new Set(),
@@ -216,14 +215,13 @@ class WebSocketServer {
           );
         const authorization = this.authenticate(state, message);
         if (!authorization) {
-          state.authFailures++;
           this.reply(socket, {
             type: "authentication-error",
             success: false,
             error:
               "This extension is not paired with this GetANNY installation. Refresh its package in Browser integration, or use the recovery key.",
           });
-          if (state.authFailures >= 1) socket.close(1008, "Invalid pairing");
+          socket.close(1008, "Invalid pairing");
           return;
         }
         state.authenticated = true;
