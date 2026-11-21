@@ -5,12 +5,10 @@ on:
     # of retaining stale one-off branch names, so candidate PRs get the same
     # Windows installer/browser evidence as main.
     branches: [main, next-version, "arena/**"]
-    paths-ignore: ["**/*.md"]
   # Build candidate pull requests on Windows as well as branch pushes.
   # This allows installed-EXE verification to be associated with the review.
   pull_request:
     branches: [main, next-version]
-    paths-ignore: ["**/*.md"]
   workflow_dispatch:
     inputs:
       publish:
