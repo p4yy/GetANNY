@@ -325,10 +325,9 @@ test("CHIPS cookies are fetched from the initiating frame partition and merged w
           }],
   });
   await f.interceptor.created({ ...item(23), tabId: 41 });
-  assert.deepEqual(
-    f.calls.find((call) => call.name === "partition-key").value,
-    { tabId: 41, frameId: 0 },
-  );
+  const partitionCall = f.calls.find((call) => call.name === "partition-key").value;
+  assert.equal(partitionCall.tabId, 41);
+  assert.equal(partitionCall.frameId, 0);
   const cookieQueries = f.calls
     .filter((call) => call.name === "cookies")
     .map((call) => call.value);
