@@ -58,8 +58,7 @@ const methods = {
       const next =
         item.kind === "file" ? validateDownloadUrl(url) : validateUrl(url);
       if (next !== item.url) {
-        // A new link may identify different bytes. Never splice old fragments
-        // into a replacement source without a validated identity.
+        // A replacement URL can mean different bytes; don't reuse old partials.
         const work = this.workPath(item);
         if (!work)
           throw new Error("Add the replacement source as a new download.");

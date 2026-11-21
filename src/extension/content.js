@@ -74,10 +74,7 @@
   async function transferBlob(url, filename, onRead) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Browser file is no longer available.");
-    // Blob URLs frequently omit Content-Length. Number(null) is zero, which
-    // previously produced an empty desktop file for a nonempty browser Blob.
-    // Reject a declared oversize response early, then trust the actual Blob
-    // length before allocating an upload or sending any chunks.
+    // Blob URLs often omit Content-Length; check the actual Blob before upload.
     const declared = response.headers.get("content-length");
     if (declared !== null) {
       const reported = Number(declared);
