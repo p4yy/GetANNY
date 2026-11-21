@@ -95,7 +95,7 @@ class HttpConnectionBudget {
       response?.complete &&
       response.statusCode >= 200 &&
       response.statusCode < 300 &&
-      Number(response.headers["content-length"]) >= RECOVERY_BYTES &&
+      Number(response.headers?.["content-length"]) >= RECOVERY_BYTES &&
       state.limit < this.maximum &&
       ++state.healthy >= state.limit
     ) {

@@ -131,3 +131,16 @@ test("duplicate lease release cannot corrupt global or per-origin capacity", asy
   assert.equal(budget.active, 0);
   assert.equal(budget.origins.get(origin).active, 0);
 });
+
+test("successful completion without headers cannot throw or strand a lease", async () => {
+  const budget = new HttpConnectionBudget({ global: 1, initial: 1, maximum: 3 });
+  const origin = "https://headerless.example";
+  const release = await budget.acquire(origin);
+  assert.doesNotThrow(() => release({ statusCode: 200, complete: true }));
+  assert.equal(budget.active, 0);
+  assert.equal(budget.origins.get(origin).active, 0);
+  assert.equal(budget.origins.get(origin).limit, 1);
+  const next = await budget.acquire(origin);
+  next();
+  assert.equal(budget.active, 0);
+});
