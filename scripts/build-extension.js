@@ -21,6 +21,7 @@ const files = [
   "popup.html",
   "popup.css",
   "popup.js",
+  "recent-downloads.js",
   "popup-enhancements.js",
   "icons/icon16.png",
   "icons/icon48.png",
