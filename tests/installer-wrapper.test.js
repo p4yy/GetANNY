@@ -1,6 +1,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const fs=require("node:fs/promises");
+const fsSync=require("node:fs");
 const os=require("node:os");
 const path=require("node:path");
 const crypto=require("node:crypto");
@@ -60,11 +61,11 @@ test("release wrapper refuses missing shell or NSIS payload",async t=>{
 
 test("the NSIS release pipeline launches the dark WPF shell, not the raw wizard", () => {
   const root=path.resolve(__dirname,"..");
-  const workflow=fs.readFileSync(path.join(root,".github/workflows/release.yml"),"utf8");
-  const pages=fs.readFileSync(path.join(root,"installer/GetANNY.Setup/Views/Pages.xaml"),"utf8");
-  const project=fs.readFileSync(path.join(root,"installer/GetANNY.Setup/GetANNY.Setup.csproj"),"utf8");
-  const nsis=fs.readFileSync(path.join(root,"scripts/windows/installer.nsh"),"utf8");
-  const builder=fs.readFileSync(path.join(root,"electron-builder.yml"),"utf8");
+  const workflow=fsSync.readFileSync(path.join(root,".github/workflows/release.yml"),"utf8");
+  const pages=fsSync.readFileSync(path.join(root,"installer/GetANNY.Setup/Views/Pages.xaml"),"utf8");
+  const project=fsSync.readFileSync(path.join(root,"installer/GetANNY.Setup/GetANNY.Setup.csproj"),"utf8");
+  const nsis=fsSync.readFileSync(path.join(root,"scripts/windows/installer.nsh"),"utf8");
+  const builder=fsSync.readFileSync(path.join(root,"electron-builder.yml"),"utf8");
   assert.match(workflow,/wrap-installer-release\.js/);
   assert.match(workflow,/verify-installer-wrapper\.js/);
   assert.match(workflow,/--capture \$capture/);
