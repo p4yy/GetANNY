@@ -62,6 +62,7 @@ class MediaEngine extends EventEmitter {
         media.segment
           ? { phase: "Downloading source for precise trimming" }
           : {
+              phase: "Resolving media source and authorizing the selected stream",
               totalSize: Number(media.estimatedTotalSize) || 0,
               approximateSize: media.estimatedSizeApproximate === true,
             },

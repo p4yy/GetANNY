@@ -10,6 +10,18 @@ if (typeof importScripts === "function")
   );
 const api = globalThis.browser || globalThis.chrome;
 const action = api.action || api.browserAction;
+const EXTENSION_ENABLED_KEY = "getannyExtensionEnabled";
+// Fail closed until the preference is available, so disabling the assistant
+// never leaves a short interception window on service-worker restart.
+let extensionEnabled = false;
+const extensionEnableRead = api.storage.local.get([EXTENSION_ENABLED_KEY]).then((data) => {
+  extensionEnabled = data[EXTENSION_ENABLED_KEY] !== false;
+}).catch(() => { extensionEnabled = false; });
+api.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[EXTENSION_ENABLED_KEY]) return;
+  extensionEnabled = changes[EXTENSION_ENABLED_KEY].newValue !== false;
+  if (!extensionEnabled) { detected.clear(); capturedPlayback.clear(); captureChecks.clear(); }
+});
 const packagedConfig = globalThis.GETANNY_CONFIG || {};
 const pending = new Map();
 const detected = new Map();
@@ -29,6 +41,7 @@ const TIKTOK_MEDIA_HOSTS = [
 // headers with the short-lived capture so TikTok's CDN can authorize the click.
 async function forwardPlayback({ url, pageUrl, mimeType, title }) {
   if (
+    !extensionEnabled ||
     !state.connected ||
     !url?.startsWith("https://") ||
     !pageUrl ||
@@ -72,7 +85,7 @@ async function forwardPlayback({ url, pageUrl, mimeType, title }) {
   }
 }
 async function captureVideoResponse(details, mimeType) {
-  if (!state.connected || details.tabId < 0) return;
+  if (!extensionEnabled || !state.connected || details.tabId < 0) return;
   // Deduplicate BEFORE asynchronous tab messaging: media players often make
   // repeated range requests and should never flood the browser worker.
   const key = details.tabId + "|" + details.url;
@@ -158,7 +171,7 @@ function update(next) {
   state = { ...state, ...next };
 }
 function scheduleReconnect() {
-  if (reconnectTimer) return;
+  if (!extensionEnabled || reconnectTimer) return;
   const delay = Math.min(30000, 1500 * 2 ** Math.min(reconnectAttempts, 4));
   reconnectAttempts++;
   reconnectTimer = setTimeout(() => {
@@ -530,6 +543,8 @@ function startNative(generation) {
   }
 }
 async function connect() {
+  await extensionEnableRead;
+  if (!extensionEnabled) throw new Error("GetANNY browser integration is switched off.");
   if (state.connected) return state;
   if (connecting) return connecting;
   const saved = await api.storage.local.get([
@@ -565,7 +580,7 @@ async function connect() {
     failAttempt(
       "No authenticated handshake from GetANNY. Start the app, refresh this browser's prepared package, or use its recovery key.",
     );
-  }, 20000);
+  }, 12000);
   // Provisioned/saved credentials make the registry-free path primary. Native
   // messaging remains a cold-start and migration bootstrap only.
   if (pairingKey) startWebSocket(generation);
@@ -573,6 +588,9 @@ async function connect() {
   return result;
 }
 async function request(message) {
+  await extensionEnableRead;
+  if (!extensionEnabled)
+    throw new Error("GetANNY is switched off. Enable it in the extension popup.");
   let outgoing =
     message.type === "download"
       ? {
@@ -645,9 +663,10 @@ api.runtime.onMessage.addListener((message, sender, respond) => {
   const ui = sender.url?.startsWith(api.runtime.getURL(""));
   (async () => {
     if (message.type === "status") {
-      if (!state.connected && !connecting)
+      await extensionEnableRead;
+      if (extensionEnabled && !state.connected && !connecting)
         connect().catch((error) => update({ error: error.message }));
-      return { ...state, browserId, protocol: 2 };
+      return { ...state, error: extensionEnabled ? state.error : "Browser integration is off", browserId, protocol: 2, enabled: extensionEnabled };
     }
     if (message.type === "reconnect" && ui) {
       resetConnection("Manual reconnect requested.");
@@ -810,6 +829,7 @@ api.tabs.onUpdated.addListener((tabId, changes) => {
 });
 api.webRequest?.onHeadersReceived.addListener(
   (details) => {
+    if (!extensionEnabled) return;
     const type =
       details.responseHeaders?.find(
         (header) => header.name.toLowerCase() === "content-type",
@@ -918,4 +938,7 @@ interceptor = new globalThis.GetANNYDownloadInterceptor({
   onError: (error) => update({ error: error.message }),
 });
 interceptor.start();
-connect().catch((error) => update({ error: error.message }));
+void extensionEnableRead.then(() => {
+  if (extensionEnabled) return connect();
+  return null;
+}).catch((error) => update({ error: error.message }));

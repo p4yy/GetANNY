@@ -58,7 +58,9 @@ class YtDlpWrapper {
         killTimer,
         metadataFailed = false,
         metadataTimer,
-        timedOut = false;
+        timedOut = false,
+        closeGraceTimer,
+        finished = false;
       const maxRecord = onLine ? 2_000_000 : 25_000_000;
       const decoder = new StringDecoder("utf8");
       const abort = () => {
@@ -169,7 +171,10 @@ class YtDlpWrapper {
           ),
         );
       });
-      child.once("close", (code) => {
+      const settle = (code) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(closeGraceTimer);
         clearTimeout(killTimer);
         clearTimeout(metadataTimer);
         signal?.removeEventListener("abort", abort);
@@ -180,13 +185,20 @@ class YtDlpWrapper {
         else if (killed || signal?.aborted)
           reject(new Error("Media operation stopped."));
         else if (code === 0) resolve(stdout.trim());
-        else
-          reject(
-            new Error(
-              stderr.trim() || `yt-dlp stopped with exit code ${code}.`,
-            ),
-          );
+        else reject(new Error(stderr.trim() || `yt-dlp stopped with exit code ${code}.`));
+      };
+      // A descendant may hold yt-dlp's inherited stdout/stderr pipe open even
+      // after yt-dlp exits. Two seconds permits normal draining; then settle.
+      child.once("exit", (code) => {
+        closeGraceTimer = setTimeout(() => {
+          child.stdout.destroy();
+          child.stderr.destroy();
+          settle(code);
+        }, 2000);
+        // Keep the bounded grace timer referenced so the process promise settles
+        // even if an orphaned pipe is the only remaining resource.
       });
+      child.once("close", (code) => settle(code));
     });
   }
   async getInfo(url, { signal } = {}) {
@@ -392,6 +404,8 @@ class YtDlpWrapper {
       throw new Error("Choose an available media format.");
     if (audioFormatId && !/^[\w.-]+$/.test(audioFormatId))
       throw new Error("Invalid audio format.");
+    const canonicalSource = validateUrl(url);
+    const tiktokPost = canonicalTikTokPost(canonicalSource);
     const tools = await this.availability();
     if (mergeAudio && !tools.ffmpeg)
       throw new Error(
@@ -415,7 +429,7 @@ class YtDlpWrapper {
       "--no-mtime",
       "--windows-filenames",
       "--socket-timeout",
-      String(timeout),
+      String(tiktokPost ? Math.min(15, timeout) : timeout),
       "--retries",
       "2",
       "--fragment-retries",
@@ -450,7 +464,8 @@ class YtDlpWrapper {
     }
     if (tools.ffmpeg) args.push("--ffmpeg-location", this.binPath);
     if (speedLimit > 0) args.push("--limit-rate", String(speedLimit));
-    args.push("--", validateUrl(url));
+    if (tiktokPost) args.push("--add-header", "Referer: https://www.tiktok.com/");
+    args.push("--", tiktokPost || canonicalSource);
     return this.run(args, { onProgress, onFile, signal });
   }
 }

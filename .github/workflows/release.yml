@@ -146,7 +146,7 @@ jobs:
       - name: Test browser handoff and authenticated local bridge
         shell: pwsh
         run: |
-          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js')
+          $targets = @('tests/interceptor.test.js', 'tests/extension-detection.test.js', 'tests/extension-bridge.test.js', 'tests/browser-confirmation.test.js', 'tests/browser-session-vault.test.js', 'tests/extension-preference-master.test.js', 'tests/extension-popup-layout.test.js')
           $targets += @(Get-ChildItem src/main/browser-integration -Filter '*.test.js' -File | ForEach-Object FullName)
           & node --test --test-concurrency=1 --test-reporter=spec --test-reporter=junit --test-reporter-destination=stdout --test-reporter-destination=test-results/windows/browser-junit.xml @targets 2>&1 | Tee-Object test-results/windows/browser-tests.log
           exit $LASTEXITCODE

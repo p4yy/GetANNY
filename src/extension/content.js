@@ -1,5 +1,16 @@
 (() => {
   const api = globalThis.browser || globalThis.chrome;
+  const pref = globalThis.GetANNYDownloadPreferences;
+  let extensionEnabled = false;
+  void api.storage.local.get([pref.enabledKey]).then((data) => {
+    extensionEnabled = data[pref.enabledKey] !== false;
+    if (extensionEnabled) scan();
+  }).catch(() => { extensionEnabled = false; });
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[pref.enabledKey]) return;
+    extensionEnabled = changes[pref.enabledKey].newValue !== false;
+    if (extensionEnabled) scan();
+  });
   const seen = new Set();
   // Keep a bounded independent record: the background can lose initial
   // reports during tab navigation or service-worker restoration.
@@ -21,7 +32,7 @@
     void refreshCapture();
     api.storage?.onChanged?.addListener((changes, area) => {
       const prefs = globalThis.GetANNYDownloadPreferences;
-      if (area === "local" && (changes[prefs.automaticKey] || changes[prefs.siteKey("keep", location.href)]))
+      if (area === "local" && (changes[prefs.enabledKey] || changes[prefs.automaticKey] || changes[prefs.siteKey("keep", location.href)]))
         void refreshCapture();
     });
     document.addEventListener(
@@ -380,6 +391,7 @@
     }
   }
   function scan(root = document) {
+    if (!extensionEnabled) return;
     element(root);
     rememberPosts(root);
     if (root.querySelectorAll)

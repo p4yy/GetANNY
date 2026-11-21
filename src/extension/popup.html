@@ -1,143 +1,107 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <link rel="stylesheet" href="popup.css" />
-    <title>GetANNY · Browser assistant</title>
-  </head>
-  <body>
-    <header>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GetANNY · Browser Assistant</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
       <img class="app-icon" src="icons/icon48.png" alt="" />
-      <div>
+      <div class="brand-text">
         <img class="wordmark" src="icons/wordmark.png" alt="GetANNY" />
-        <span>Browser assistant</span>
+        <span>Browser Assistant</span>
       </div>
-      <button
-        id="reconnect"
-        class="icon"
-        title="Reconnect to desktop"
-        aria-label="Reconnect to desktop"
-      >
-        ↻
-      </button>
-    </header>
-    <main>
-      <div id="status" class="connection" role="status">
-        Checking desktop connection…
+    </div>
+    <button id="reconnect" class="icon" type="button" aria-label="Reconnect to desktop" title="Reconnect to desktop">↻</button>
+  </header>
+  <main>
+    <div id="status" class="connection" role="status" aria-live="polite">Checking desktop connection…</div>
+    <section class="control-deck" aria-label="Extension controls">
+      <div class="control-heading">
+        <span class="eyebrow">CONTROL CENTER</span>
+        <span class="control-hint">Changes save automatically</span>
       </div>
-      <div class="engine-coming-soon">
-        <strong>𝘈𝘝® Engine</strong><span>Coming soon</span>
-      </div>
-      <div class="section-heading">
-        <h1>Send to your desktop</h1>
-        <button id="tab" class="text-button">Use this page</button>
-      </div>
-      <form id="download-form">
-        <label for="url">File or media URL</label
-        ><input
-          id="url"
-          type="url"
-          required
-          placeholder="https://"
-          autocomplete="off"
-        /><label for="kind">Action</label
-        ><select id="kind">
-          <option value="file">Download a file</option>
-          <option value="media">Analyze video or audio page</option></select
-        ><button id="send" class="primary" type="submit">
-          Send to GetANNY <span>↗</span>
-        </button>
-      </form>
-      <details class="capture-settings">
-        <summary>Browser download preferences</summary>
-        <label><input id="automatic-capture" type="checkbox" /> Automatically send browser downloads to GetANNY</label>
-        <label id="capture-site-row" hidden><input id="keep-site" type="checkbox" /> Keep downloads from <span id="capture-site"></span> in the browser</label>
-      </details>
+      <label class="switch-row primary-switch" for="extension-enabled">
+        <span class="switch-info"><strong>Browser integration</strong><small>Turn off to leave your browser downloads untouched</small></span>
+        <span class="switch"><input id="extension-enabled" type="checkbox" role="switch" checked /><span class="switch-track" aria-hidden="true"></span></span>
+      </label>
+      <label class="switch-row" for="automatic-capture">
+        <span class="switch-info"><strong>Automatic capture</strong><small>Send eligible browser downloads to GetANNY</small></span>
+        <span class="switch"><input id="automatic-capture" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span></span>
+      </label>
+      <label id="capture-site-row" class="switch-row" for="keep-site" hidden>
+        <span class="switch-info"><strong>Keep in browser</strong><small id="capture-site"></small></span>
+        <span class="switch"><input id="keep-site" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span></span>
+      </label>
       <div class="cookie-optin">
-        <span class="cookie-icon" aria-hidden="true">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M12 3 4.5 6v5.2c0 4.5 3.2 8.6 7.5 9.8 4.3-1.2 7.5-5.3 7.5-9.8V6L12 3Z"
-            />
-            <path d="m9 12 2 2 4-4" />
-          </svg>
-        </span>
-        <div class="cookie-copy">
-          <label class="cookie-title" for="include-site-cookies"
-            >Include cookies for this download site</label
-          >
-          <p class="cookie-privacy" id="cookie-site"></p>
-          <p class="cookie-privacy" id="cookie-privacy">
-            Enable this for sites that require sign-in. GetANNY uses matching
-            cookies locally to authorize a download from that site.
-          </p>
-        </div>
-        <label class="cookie-switch">
-          <input
-            id="include-site-cookies"
-            type="checkbox"
-            role="switch"
-            aria-describedby="cookie-site cookie-privacy"
-            disabled
-          />
-          <span class="cookie-slider" aria-hidden="true"></span>
+        <label class="switch-row" for="include-site-cookies">
+          <span class="switch-info"><strong>Site cookies</strong><small>On by default for the selected download site</small><small id="cookie-site"></small></span>
+          <span class="switch"><input id="include-site-cookies" type="checkbox" role="switch" aria-describedby="cookie-privacy" disabled /><span class="switch-track" aria-hidden="true"></span></span>
         </label>
+        <p id="cookie-privacy" class="privacy-note">Matching cookies are handed to your local GetANNY app only when a download needs them. Turn off per site at any time.</p>
       </div>
       <div id="overlay-settings" hidden>
-        <label
-          ><input id="hide-overlay" type="checkbox" /> Hide GetANNY on this
-          site</label
-        >
+        <label class="switch-row" for="hide-overlay">
+          <span class="switch-info"><strong>Hide page overlay</strong><small>Disable floating controls for this website</small></span>
+          <span class="switch"><input id="hide-overlay" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
       </div>
-      <p id="message" role="status"></p>
-      <button id="download-social" type="button" hidden>
-        Download all media posts
-      </button>
-      <section id="detected-section" hidden>
-        <h2>Detected on this page</h2>
+    </section>
+    <nav class="view-tabs" role="tablist" aria-label="Extension sections">
+      <button type="button" data-view="downloads" role="tab" aria-selected="true" aria-controls="view-downloads" class="is-active">Downloads</button>
+      <button type="button" data-view="capture" role="tab" aria-selected="false" aria-controls="view-capture">Capture</button>
+      <button type="button" data-view="settings" role="tab" aria-selected="false" aria-controls="view-settings">Settings</button>
+    </nav>
+    <section id="view-downloads" class="view-panel" role="tabpanel">
+      <div class="section-heading"><div><h1>Recent downloads</h1><p>Local browser history · open GetANNY for desktop transfers</p></div><button id="refresh-recent" type="button" class="icon refresh" aria-label="Refresh browser downloads" title="Refresh list">↻</button></div>
+      <div id="recent-downloads" class="recent-list" aria-live="polite"><p class="empty">Loading your browser downloads…</p></div>
+    </section>
+    <section id="view-capture" class="view-panel" role="tabpanel" hidden>
+      <div class="section-heading"><div><h1>Send a download</h1><p>Capture a file or inspect available video qualities</p></div><button id="tab" type="button" class="text-button">Use this page</button></div>
+      <form id="download-form">
+        <label for="url">FILE OR MEDIA URL</label>
+        <input id="url" type="url" required placeholder="https://" autocomplete="off" />
+        <label for="kind">ACTION</label>
+        <select id="kind"><option value="file">Download file</option><option value="media">Analyze video or audio</option></select>
+        <button id="send" class="primary" type="submit">Send to GetANNY <span aria-hidden="true">↗</span></button>
+      </form>
+      <button id="download-social" type="button" class="secondary" hidden>Download all media posts</button>
+      <section id="detected-section" class="detected-section" hidden>
+        <h2>Media detected on this page</h2>
         <div id="detected"></div>
       </section>
-      <details>
-        <summary>Connection &amp; pairing</summary>
-        <p>
-          A package prepared by GetANNY connects directly and automatically.
-          Native messaging is used only to bootstrap older or generic packages.
-          If both are unavailable, copy this browser's recovery key here. Never
-          share this key.
-        </p>
-        <label for="browser">This browser</label
-        ><select id="browser">
-          <option value="helium">Helium</option>
-          <option value="comet">Comet</option>
-          <option value="chrome">Google Chrome</option>
-          <option value="chromium">Chromium</option>
-          <option value="brave">Brave</option>
-          <option value="firefox">Firefox</option>
-          <option value="vivaldi">Vivaldi</option>
-          <option value="opera">Opera</option>
-          <option value="edge">Microsoft Edge</option></select
-        ><label for="pairing">Recovery key (normally automatic)</label
-        ><input
-          id="pairing"
-          type="password"
-          autocomplete="off"
-          placeholder="Usually configured automatically"
-        /><button id="pair" class="secondary">Save &amp; connect</button>
-      </details>
-    </main>
-    <footer>Real downloads. Your control.</footer>
-    <script src="config.js"></script>
-    <script src="download-preferences.js"></script>
-    <script src="overlay-preferences.js"></script>
-    <script src="social-links.js"></script>
-    <script src="popup.js"></script>
-  </body>
+    </section>
+    <section id="view-settings" class="view-panel" role="tabpanel" hidden>
+      <div class="section-heading"><div><h1>Connection &amp; recovery</h1><p>Secure local pairing with the desktop application</p></div></div>
+      <p class="settings-note">Prepared browser packages connect automatically. Recovery keys are used only when automatic pairing is unavailable. Never share your recovery key.</p>
+      <label for="browser">THIS BROWSER</label>
+      <select id="browser">
+        <option value="helium">Helium</option>
+        <option value="comet">Comet</option>
+        <option value="chrome">Google Chrome</option>
+        <option value="chromium">Chromium</option>
+        <option value="brave">Brave</option>
+        <option value="firefox">Firefox</option>
+        <option value="vivaldi">Vivaldi</option>
+        <option value="opera">Opera</option>
+        <option value="edge">Microsoft Edge</option>
+      </select>
+      <label for="pairing">RECOVERY KEY</label>
+      <input id="pairing" type="password" autocomplete="off" placeholder="Usually configured automatically" />
+      <button id="pair" type="button" class="secondary">Save &amp; reconnect</button>
+      <p class="settings-note">Preferences are stored in your browser. GetANNY does not expose credentials in this popup or download history.</p>
+    </section>
+    <p id="message" role="status" aria-live="polite"></p>
+  </main>
+  <footer><span>GETANNY</span><span>Local first. Your control.</span></footer>
+  <script src="config.js"></script>
+  <script src="download-preferences.js"></script>
+  <script src="overlay-preferences.js"></script>
+  <script src="social-links.js"></script>
+  <script src="popup.js"></script>
+  <script src="popup-enhancements.js"></script>
+</body>
 </html>

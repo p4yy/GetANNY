@@ -1,5 +1,6 @@
 (() => {
   const automaticKey = "getannyAutomaticHandoff";
+  const enabledKey = "getannyExtensionEnabled";
   const siteKey = (kind, url) => {
     try {
       const parsed = new URL(url);
@@ -15,14 +16,17 @@
     const keepKey = siteKey("keep", sourceUrl);
     const cookieKey = siteKey("cookies", downloadUrl);
     const saved = await api.storage.local.get(
-      [automaticKey, keepKey, cookieKey].filter(Boolean),
+      [enabledKey, automaticKey, keepKey, cookieKey].filter(Boolean),
     );
+    const enabled = saved[enabledKey] !== false;
     return {
-      automatic: saved[automaticKey] !== false,
+      enabled,
+      automatic: enabled && saved[automaticKey] !== false,
       keepInBrowser: Boolean(keepKey && saved[keepKey] === true),
-      includeSiteCookies: Boolean(cookieKey && saved[cookieKey] === true),
+      // Only the per-site preference is stored, never any cookie value.
+      includeSiteCookies: enabled && Boolean(cookieKey && saved[cookieKey] !== false),
     };
   }
 
-  globalThis.GetANNYDownloadPreferences = { automaticKey, siteKey, get };
+  globalThis.GetANNYDownloadPreferences = { enabledKey, automaticKey, siteKey, get };
 })();

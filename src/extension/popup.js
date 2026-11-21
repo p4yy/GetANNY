@@ -135,10 +135,10 @@ async function bindCapturePreferences(tab) {
     cookie.checked = false;
     $("cookie-site").textContent = key ? new URL(url).hostname : "";
     if (!key) return;
-    const site = await api.storage.local.get(key);
+    const site = await downloadPreferences.get(api, url);
     if (key !== currentKey) return;
-    cookie.checked = site[key] === true;
-    cookie.disabled = false;
+    cookie.checked = site.includeSiteCookies;
+    cookie.disabled = !site.enabled;
   }
   cookie.onchange = () => savePreference(cookie, currentKey);
   $("url").addEventListener("input", () =>
@@ -235,16 +235,20 @@ async function savePreference(input, key) {
   for (const item of items) {
     const button = document.createElement("button");
     button.className = "detected-item";
-    let name;
+    let fileName = "";
+    let hostname = "Website";
     try {
-      name =
-        decodeURIComponent(new URL(item.url).pathname.split("/").pop()) ||
-        item.title;
-    } catch {
-      name = item.title;
-    }
-    button.textContent = `${item.kind === "media" ? "Analyze" : "Download"} · ${name || item.mimeType || "Media"}`;
-    button.title = item.url;
+      const parsed = new URL(item.url);
+      hostname = parsed.hostname;
+      fileName = decodeURIComponent(parsed.pathname.split("/").pop() || "");
+      if (/^(?:video(?:playback)?|download|stream|index|\d+)(?:\.[a-z0-9]+)?$/i.test(fileName))
+        fileName = "";
+    } catch { /* Preserve the provided media title. */ }
+    const title = String(item.title || "").trim();
+    const name = title && title !== item.url ? title : (fileName || item.mimeType || "Media file");
+    button.textContent = `${item.kind === "media" ? "Video / audio" : "File"} · ${name.slice(0, 110)}`;
+    button.title = `${name}\nSource: ${hostname}\n${item.mimeType || "Media"}`;
+    button.setAttribute("aria-label", button.title);
     button.onclick = () => submit(item.url, item.kind);
     $("detected").appendChild(button);
   }

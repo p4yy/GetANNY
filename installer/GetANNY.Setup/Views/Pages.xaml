@@ -277,7 +277,10 @@
                 <TextBlock Style="{StaticResource Text.Body}" Text="{Binding LocateError}" Margin="0,12,0,0" Visibility="{Binding LocateError, Converter={StaticResource VisibleWhen}}" />
             </StackPanel>
 
-            <StackPanel Grid.Row="1" Margin="0,18,0,0" Visibility="{Binding CanUninstall, Converter={StaticResource VisibleWhen}}">
+            <ScrollViewer Grid.Row="1" Margin="0,12,0,8"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding CanUninstall, Converter={StaticResource VisibleWhen}}">
+              <StackPanel Margin="0,6,8,6">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -309,13 +312,17 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-                <CheckBox IsChecked="{Binding RemoveAppData}" Margin="0,18,0,0" AutomationProperties.HelpText="{Binding DataNote}">
+                <CheckBox IsChecked="{Binding RemoveAppData}" Margin="0,16,0,12"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                          AutomationProperties.HelpText="{Binding DataNote}">
                     <StackPanel>
-                        <TextBlock Text="Also remove application data" />
-                        <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding DataNote}" Margin="0,3,0,0" />
+                        <TextBlock Text="Also remove application data" TextWrapping="Wrap" />
+                        <TextBlock Style="{StaticResource Text.Caption}" Text="{Binding DataNote}"
+                                   Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="440" />
                     </StackPanel>
                 </CheckBox>
-            </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Row="2" Margin="{StaticResource Footer.Margin}">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

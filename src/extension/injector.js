@@ -1,5 +1,16 @@
 (() => {
   const api = globalThis.browser || globalThis.chrome;
+  const ENABLED_KEY = "getannyExtensionEnabled";
+  let globallyEnabled = false;
+  void api.storage.local.get([ENABLED_KEY]).then((data) => {
+    globallyEnabled = data[ENABLED_KEY] !== false;
+    if (globallyEnabled) schedule();
+  }).catch(() => { globallyEnabled = false; });
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[ENABLED_KEY]) return;
+    globallyEnabled = changes[ENABLED_KEY].newValue !== false;
+    if (globallyEnabled) schedule(); else hide();
+  });
   const provider =
     /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|twitch\.tv|dailymotion\.com|soundcloud\.com)$/i.test(
       location.hostname,
@@ -188,7 +199,7 @@
   }
   function place() {
     frame = null;
-    if (!host) return;
+    if (!globallyEnabled || !host) { hide(); return; }
     if (
       !current?.isConnected ||
       preference.hidden ||
@@ -224,10 +235,11 @@
     host.style.left = `${Math.max(6, Math.min(innerWidth - width - 6, box.right - width - 8))}px`;
   }
   function schedule() {
+    if (!globallyEnabled) { hide(); return; }
     if (!frame) frame = requestAnimationFrame(place);
   }
   function activate(video) {
-    if (isDismissed()) return;
+    if (!globallyEnabled || isDismissed()) return;
     ensure();
     current = video;
     schedule();
