@@ -64,7 +64,10 @@ test("blob handoff falls back to a native browser download with numeric timer ha
     },
     window,
     document,
-    location: { href: "https://site.test/download" },
+    location: {
+      href: "https://site.test/download",
+      origin: "https://site.test",
+    },
     Element: class Element {},
     MutationObserver: class { observe() {} },
     Node: { ELEMENT_NODE: 1 },
