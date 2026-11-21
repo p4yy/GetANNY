@@ -114,6 +114,18 @@ async function report(root) {
   }
   if (nativeCounts.tests)
     annotation("Compiled C# native bridge suite", nativeCounts);
+  const fullTestLog = await fs
+    .readFile(path.join(root, "full-npm-test.log"), "utf8")
+    .catch(() => "");
+  if (fullTestLog) {
+    const fullCounts = {};
+    for (const key of ["tests", "pass", "fail", "skipped"]) {
+      const match = fullTestLog.match(new RegExp("^ℹ " + key + " (\\d+)$", "m"));
+      if (match) fullCounts[key] = Number(match[1]);
+    }
+    if (fullCounts.tests)
+      annotation("Complete npm test suite", fullCounts);
+  }
   const xml = await fs
     .readFile(path.join(root, "backend-junit.xml"), "utf8")
     .catch(() => "");
