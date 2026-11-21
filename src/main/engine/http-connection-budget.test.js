@@ -112,3 +112,22 @@ test("adaptive feedback remains isolated per origin", async () => {
   assert.equal(budget.origins.get("https://fast.example").limit,3);
   assert.equal(budget.origins.get("https://slow.example").limit,1);
 });
+
+test("duplicate lease release cannot corrupt global or per-origin capacity", async () => {
+  const budget = new HttpConnectionBudget({ global: 1, initial: 1, maximum: 1 });
+  const origin = "https://duplicate-release.example";
+  const first = await budget.acquire(origin);
+  const secondPending = budget.acquire(origin);
+  first({ statusCode: 200 });
+  const second = await secondPending;
+  assert.equal(budget.active, 1);
+  assert.equal(budget.origins.get(origin).active, 1);
+  first({ statusCode: 429, retryAfterMs: 1000 });
+  assert.equal(budget.active, 1);
+  assert.equal(budget.origins.get(origin).active, 1);
+  assert.equal(budget.origins.get(origin).limit, 1);
+  second();
+  second();
+  assert.equal(budget.active, 0);
+  assert.equal(budget.origins.get(origin).active, 0);
+});

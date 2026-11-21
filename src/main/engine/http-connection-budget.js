@@ -152,7 +152,14 @@ class HttpConnectionBudget {
       state.waiting--;
       state.active++;
       this.active++;
-      entry.resolve((response) => this.release(state, response));
+      // The lease is consumed at most once. A duplicate close/error callback
+      // must never create negative counts or release another request's slot.
+      let released = false;
+      entry.resolve((response) => {
+        if (released) return;
+        released = true;
+        this.release(state, response);
+      });
     }
     if (Number.isFinite(nextRetry))
       this.timer = setTimeout(() => this.drain(), Math.max(1, nextRetry - now));
