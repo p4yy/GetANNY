@@ -181,10 +181,9 @@ jobs:
           Remove-Item -LiteralPath 'dist/GetANNY Setup.exe.blockmap' -ErrorAction SilentlyContinue
       # Never publish the raw white NSIS wizard: the dark WPF shell is the user-facing installer.
       - name: Wrap NSIS engine with the original dark GetANNY setup shell
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.candidate_sha256 != '') }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.candidate_sha256 == '' }}
         run: node scripts/windows/wrap-installer-release.js
       - name: Sign branded GetANNY setup wrapper when a certificate is configured
-        if: ${{ secrets.CSC_LINK != '' }}
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}

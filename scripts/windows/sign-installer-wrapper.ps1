@@ -4,7 +4,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($env:CSC_LINK)) {
-  throw 'CSC_LINK is required to sign the final branded GetANNY wrapper.'
+  Write-Host 'No signing certificate is configured; keeping this as an unsigned development build.'
+  exit 0
 }
 if (-not (Test-Path -LiteralPath $InstallerPath)) {
   throw "Installer not found: $InstallerPath"
