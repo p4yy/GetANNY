@@ -183,6 +183,7 @@ jobs:
       - name: Wrap NSIS engine with the original dark GetANNY setup shell
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.candidate_sha256 == '' }}
         run: node scripts/windows/wrap-installer-release.js
+      # Signing is optional; the wrapper build and verification also run without CSC_LINK.
       - name: Sign branded GetANNY setup wrapper when a certificate is configured
         shell: pwsh
         env:
