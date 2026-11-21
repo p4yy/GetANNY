@@ -15,7 +15,10 @@ test("Windows NSIS-only harness waits for async uninstall and CI collects separa
   );
   assert.doesNotMatch(script, /Start-Sleep -Seconds 2/);
   assert.doesNotMatch(script, /test-browser-matrix\.ps1/);
-  assert.match(script, /browserExtensionTests='Skipped per owner request/);
+  assert.match(
+    script,
+    /browserExtensionTests='Extension source regression tests run in the browser-handoff workflow gate; real-browser matrix remains owner validation\.'/,
+  );
   const uninstall = script.indexOf("Run-Checked $uninstaller.FullName");
   const wait = script.indexOf("Wait-ProductRemoved $installedExe");
   const catchFailure = script.indexOf("EXE cleanup gate failed");

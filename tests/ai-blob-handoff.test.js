@@ -46,7 +46,10 @@ async function handoff({ body = Buffer.from("exact AI download bytes"), header =
   window.top = window;
   const context = {
     chrome: {
-      storage: { local: { async get() { return preferences; } } },
+      storage: {
+        local: { async get() { return preferences; } },
+        onChanged: { addListener() {} },
+      },
       runtime: {
         id: "getanny-fixture",
         onMessage: { addListener() {} },
