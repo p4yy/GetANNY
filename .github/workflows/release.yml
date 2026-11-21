@@ -203,8 +203,9 @@ jobs:
           $capture = Join-Path $PWD 'test-results/windows/setup-ui'
           New-Item -ItemType Directory -Path $capture -Force | Out-Null
           $setupExe = (Resolve-Path 'dist/GetANNY Setup.exe').Path
-          & $setupExe --capture $capture
-          if ($LASTEXITCODE -ne 0) { throw "Branded setup UI capture failed with exit code $LASTEXITCODE." }
+          $arguments = '--capture "' + $capture + '"'
+          $captureProcess = Start-Process -FilePath $setupExe -ArgumentList $arguments -Wait -PassThru
+          if ($captureProcess.ExitCode -ne 0) { throw "Branded setup UI capture failed with exit code $($captureProcess.ExitCode)." }
           $images = @(Get-ChildItem $capture -Filter '*.png' -File)
           if ($images.Count -ne 28) { throw "Expected 28 installer/uninstaller screenshots at four DPI scales; found $($images.Count)." }
           foreach ($name in @('install-welcome-100.png','install-options-100.png','install-progress-100.png','install-complete-100.png','uninstall-confirm-100.png','uninstall-progress-100.png','uninstall-complete-100.png')) {
