@@ -7,7 +7,6 @@ const {
   connectionTarget,
   supplementalTrackers,
 } = require("./TorrentEngine");
-const { aria2Args } = require("./aria2");
 const { inspectTorrent } = require("./TorrentMetadata");
 const {
   loadVerifiedTorrent,
@@ -203,26 +202,6 @@ test("public trackers are only suggested for magnets without an announce list", 
     supplementalTrackers("C:\\files\\test.torrent", trackers),
     [],
   );
-});
-
-test("aria2 launch flags keep local RPC private and retain per-job resume data", () => {
-  const args = aria2Args({
-    workPath: "C:\\temp\\job-1",
-    logPath: "C:\\temp\\job-1\\aria2.log",
-    rpcPort: 45001,
-    secret: "local-secret",
-    btPort: 45002,
-    dhtPort: 45003,
-    speedLimit: 0,
-    maxPeers: 120,
-  });
-  assert.ok(args.includes("--rpc-listen-all=false"));
-  assert.ok(args.includes("--rpc-secret=local-secret"));
-  assert.ok(args.includes("--always-resume=true"));
-  assert.ok(args.includes("--enable-dht=true"));
-  assert.ok(args.includes("--enable-peer-exchange=true"));
-  assert.ok(args.includes("--bt-enable-lpd=true"));
-  assert.ok(args.includes("--bt-max-peers=120"));
 });
 
 test("multi-file output keeps a torrent content folder without control files", async (t) => {

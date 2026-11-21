@@ -3,7 +3,7 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const os = require("node:os");
-const { readRemoteTorrent } = require("./aria2");
+const { readRemoteTorrent } = require("./remote-torrent");
 
 const MAX_METADATA_BYTES = 16 * 1024 * 1024;
 
