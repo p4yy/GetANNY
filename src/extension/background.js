@@ -79,7 +79,10 @@ async function forwardPlayback({ url, pageUrl, mimeType, title }) {
     if (
       TIKTOK_MEDIA_HOSTS.some(
         (domain) => host === domain || host.endsWith(`.${domain}`),
-      )
+      ) &&
+      (await globalThis.GetANNYDownloadPreferences.get(
+        api, pageUrl, url,
+      )).includeSiteCookies
     )
       headers = await withSiteCookies(url, headers);
     if (state.connected)
@@ -619,10 +622,16 @@ async function request(message) {
     !message.privateSession &&
     message.includeSiteCookies !== false
   ) {
-    outgoing = {
-      ...outgoing,
-      headers: await withSiteCookies(message.url, outgoing.headers),
-    };
+    // Every manual send honours the destination host's cookie opt-out.
+    // The popup cannot accidentally override the persisted privacy setting.
+    const site = await globalThis.GetANNYDownloadPreferences.get(
+      api, message.page || message.url, message.url,
+    );
+    if (site.includeSiteCookies)
+      outgoing = {
+        ...outgoing,
+        headers: await withSiteCookies(message.url, outgoing.headers),
+      };
   }
   const { includeSiteCookies, ...payload } = outgoing;
   await connect();
