@@ -5,8 +5,16 @@ $version = node -p "require('./package.json').version"
 if ($LASTEXITCODE -ne 0 -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
 $overall = Get-Content "$evidenceRoot/installer-report.json" -Raw | ConvertFrom-Json
 if (-not $overall.passed) { throw 'Cannot assemble an installer from failed EXE evidence.' }
-if ($overall.installer -ne 'NSIS x64 Setup EXE only') { throw 'Unexpected installer target.' }
-if ($overall.browserExtensionTests -notmatch 'Skipped per owner request') { throw 'Browser-test scope was not recorded.' }
+# Keep the release gate aligned with the installer identity and browser-test
+# scope written by test-installers.ps1. Do not silently certify an older target.
+$expectedInstaller = 'Dark WPF setup shell with embedded NSIS x64 engine'
+$expectedBrowserScope = 'Extension source regression tests run in the separate browser-handoff workflow gate; real-browser matrix remains owner validation.'
+if ($overall.installer -cne $expectedInstaller) {
+  throw 'Unexpected installer target; expected the branded WPF shell with its embedded NSIS x64 engine.'
+}
+if ($overall.browserExtensionTests -cne $expectedBrowserScope) {
+  throw 'Browser-test scope was not recorded accurately.'
+}
 $retention = $overall.defaultProfileRetention.exe
 if (-not $retention.retained -or -not $retention.nativeCleanupVerified -or
     $retention.ownedNativeEntries -lt 1 -or $retention.history -lt 1) {
@@ -25,7 +33,7 @@ if ($browserCases -eq 0 -or $browserJUnit.SelectNodes('//failure|//skipped').Cou
   throw 'Browser handoff source test evidence is missing, failed or skipped.'
 }
 $measured = [System.Collections.Generic.List[string]]::new()
-$measured.Add("# GetANNY $version - measured NSIS Setup EXE checks")
+$measured.Add("# GetANNY $version - measured branded Windows Setup EXE checks")
 $measured.Add('')
 $measured.Add(('Desktop source tests: **{0} passed, 0 failed, 0 skipped**.' -f $cases))
 $measured.Add(('Browser handoff and bridge source tests: **{0} passed, 0 failed, 0 skipped**.' -f $browserCases))
@@ -50,7 +58,7 @@ if (-not $tray.passed -or -not $tray.trayLifecycle.passed -or
 $measured.Add(('- Packaged tray idle 10s: **{0} CPU microseconds; {1} MiB working set**.' -f
   $tray.trayLifecycle.idleCpuMicrosOver10Seconds,$tray.trayLifecycle.reportedWorkingSetMiB))
 $measured.Add('')
-$measured.Add('The real NSIS EXE was installed, reinstalled, self-tested, and uninstalled. Shortcuts, user-data retention, completed output and registration cleanup were checked.')
+$measured.Add('The branded WPF Setup EXE, containing the NSIS x64 installation engine, was installed, reinstalled, self-tested, and uninstalled. Shortcuts, user-data retention, completed output and registration cleanup were checked.')
 $measured.Add('The installed real-browser matrix and cross-version upgrade are separate from these checks. Cloud-provider compatibility is not certified here.')
 foreach ($signature in $overall.signatures) {
   $measured.Add(('- Authenticode {0}: **{1}**.' -f $signature.file,$signature.status))

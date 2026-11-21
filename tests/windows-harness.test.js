@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 
-test("Windows NSIS-only harness waits for async uninstall and CI collects separate browser source evidence", async () => {
+test("Windows branded Setup harness waits for async uninstall and CI collects separate browser source evidence", async () => {
   const script = await fs.readFile(
     "scripts/windows/test-installers.ps1",
     "utf8",
@@ -37,6 +37,11 @@ test("Windows NSIS-only harness waits for async uninstall and CI collects separa
   assert.ok(browser > -1 && browser < browserReport && browserReport < installer);
   const assembly = await fs.readFile("scripts/windows/assemble-release.ps1", "utf8");
   assert.match(assembly, /Browser handoff source test evidence is missing, failed or skipped/);
+  assert.match(script, /installer='Dark WPF setup shell with embedded NSIS x64 engine'/);
+  assert.match(assembly, /\$expectedInstaller = 'Dark WPF setup shell with embedded NSIS x64 engine'/);
+  assert.match(assembly, /\$overall\.installer -cne \$expectedInstaller/);
+  assert.match(assembly, /\$expectedBrowserScope = 'Extension source regression tests run in the separate browser-handoff workflow gate; real-browser matrix remains owner validation\.'/);
+  assert.match(assembly, /\$overall\.browserExtensionTests -cne \$expectedBrowserScope/);
 });
 
 test("real-browser harnesses use current privileged Firefox startup and bounded Vivaldi/UI cleanup", async () => {
