@@ -64,7 +64,7 @@
           document.body.append(native);
           native.click();
           native.remove();
-          if (fallbackUrl) setTimeout(() => URL.revokeObjectURL(fallbackUrl), 30000).unref?.();
+          if (fallbackUrl) setTimeout(() => URL.revokeObjectURL(fallbackUrl), 30000);
         });
       },
       true,
