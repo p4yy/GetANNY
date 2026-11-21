@@ -132,6 +132,10 @@ test("content script recovers dropped initial HTML5 media reports without duplic
     querySelectorAll() { return [video]; },
   };
   const api = {
+    storage: {
+      local: { get: async () => ({ getannyExtensionEnabled: true }) },
+      onChanged: { addListener() {} },
+    },
     runtime: {
       id: "getanny@test",
       sendMessage(message) { events.push(message); return Promise.resolve({success:true}); },
@@ -145,6 +149,7 @@ test("content script recovers dropped initial HTML5 media reports without duplic
       browser: api,
       GetANNYSiteDownloads: {providerFor() {return false;}},
       GetANNYSocialLinks: {socialSite() {return false;}},
+      GetANNYDownloadPreferences: {enabledKey:"getannyExtensionEnabled"},
     },
     window,
     document,
@@ -156,6 +161,7 @@ test("content script recovers dropped initial HTML5 media reports without duplic
     setTimeout,
     clearTimeout,
   });
+  await new Promise(setImmediate); // Wait for the asynchronous, fail-closed master preference check.
   assert.equal(events.filter(e => e.type === "media-detected").length,1);
   let response;
   for (const listener of listeners)

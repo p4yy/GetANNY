@@ -23,6 +23,7 @@ function fixture(options = {}) {
     storage: {
       local: {
         get: async () => ({
+          "getannyExtensionEnabled": options.extensionEnabled,
           "getannyAutomaticHandoff": options.automatic,
           "getanny:downloads:keep:example.test": options.keepInBrowser,
           "getanny:downloads:cookies:cdn.example.test": options.includeSiteCookies,
@@ -86,6 +87,12 @@ const item = (id, filename = "file.bin") => ({
   referrer: "https://example.test/page",
   mime: "application/octet-stream",
   state: "in_progress",
+});
+
+test("master OFF leaves native browser downloads completely untouched", async () => {
+  const f = fixture({ extensionEnabled: false });
+  await f.interceptor.created(item(1, "movie.mp4"));
+  assert.equal(f.calls.some((call) => ["request", "pause", "cancel", "erase"].includes(call.name)), false);
 });
 
 test("ordinary browser handoff covers documents, archives, images, media and unknown/large files", async () => {
@@ -272,7 +279,7 @@ test("cookie lookup is opt-in per download host and uses the download's browser 
   const query = f.calls.find((call) => call.name === "cookies").value;
   assert.equal(query.storeId, "firefox-container-2");
   assert.equal(query.url, "https://cdn.example.test/file.bin");
-  const optedOut = fixture();
+  const optedOut = fixture({ includeSiteCookies: false });
   await optedOut.interceptor.created(item(22));
   const request = optedOut.calls.find((call) => call.name === "request").value;
   assert.equal(request.headers.Cookie, undefined);
