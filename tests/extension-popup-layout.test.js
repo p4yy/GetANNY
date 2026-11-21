@@ -30,7 +30,7 @@ test("recent downloads can be cleared or individually hidden without deleting fi
   const enhancements = fs.readFileSync(path.resolve(__dirname,"../src/extension/popup-enhancements.js"),"utf8");
   assert.match(popup,/id="clear-recent"/);
   assert.match(popup,/id="clear-recent-confirm"/);
-  assert.match(enhancements,/id\("confirm-clear-recent"\)/);
+  assert.match(enhancements,/byId\("confirm-clear-recent"\)/);
   assert.match(enhancements,/download-remove/);
   assert.match(enhancements,/Recent list cleared\. Downloaded files were not deleted\./);
   assert.doesNotMatch(enhancements,/downloads\.erase/);
