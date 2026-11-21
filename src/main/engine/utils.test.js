@@ -20,6 +20,21 @@ test("download metadata helpers sanitize and format safely", () => {
   );
   assert.equal(formatBytes(1536), "1.5 KB");
 });
+test("filename sanitizing strips truncation-edge dots and spaces and preserves Unicode characters", () => {
+  assert.equal(
+    sanitizeFilename("a".repeat(219) + ".suffix"),
+    "a".repeat(219),
+  );
+  assert.equal(
+    sanitizeFilename("a".repeat(219) + " .suffix"),
+    "a".repeat(219),
+  );
+  const unicode = sanitizeFilename("a".repeat(219) + "😀tail");
+  assert.equal(unicode, "a".repeat(219) + "😀");
+  assert.equal(Array.from(unicode).length, 220);
+  assert.equal(sanitizeFilename("CON." + "x".repeat(240)).startsWith("_CON."), true);
+});
+
 test("SQLite repositories persist, filter, update and delete records", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "getanny-test-"));
   const db = new Database(dir);

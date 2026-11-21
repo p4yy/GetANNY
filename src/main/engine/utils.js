@@ -78,10 +78,9 @@ const AUTH_REQUIRED_MESSAGE =
 
 function sanitizeFilename(name = "download") {
   let safe = path
-    .basename(String(name).replace(/[\\/:*?"<>|\x00-\x1f]/g, "_"))
-    .replace(/^\.+/, "")
-    .replace(/[. ]+$/, "")
-    .slice(0, 220);
+    .basename(String(name).replace(/[\\/:*?"<>|\x00-\x1f]/g, "_"));
+  safe = Array.from(safe).slice(0, 220).join("");
+  safe = safe.replace(/^\.+/, "").replace(/[. ]+$/, "");
   if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(safe))
     safe = `_${safe}`;
   return safe || "download";
