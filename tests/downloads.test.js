@@ -255,6 +255,37 @@ async function managerFixture(t, settings = {}, options = {}) {
   });
   return { dir, db, repo, manager };
 }
+test("queue order stays monotonic when reordered jobs are followed by new downloads", async (t) => {
+  const now = new Date();
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const start = (minute + 10) % 1440;
+  const { manager } = await managerFixture(t, {
+    scheduleEnabled: true,
+    scheduleStartMinute: start,
+    scheduleEndMinute: (start + 5) % 1440,
+  });
+  const ids = await Promise.all(
+    [1, 2, 3].map((index) =>
+      manager.addDownload({ url: `https://example.test/${index}.bin` }),
+    ),
+  );
+  manager.reorder([ids[1], ids[0]]);
+  const ordered = (id) => manager.requireItem(id).queueOrder;
+  assert.ok(ordered(ids[1]) < ordered(ids[0]));
+  assert.ok(ordered(ids[0]) < ordered(ids[2]));
+  const fourth = await manager.addDownload({
+    url: "https://example.test/4.bin",
+  });
+  assert.ok(ordered(ids[2]) < ordered(fourth));
+  assert.deepEqual(
+    [...manager.items.values()]
+      .filter((item) => item.status === "queued")
+      .sort((a, b) => a.queueOrder - b.queueOrder)
+      .map((item) => item.id),
+    [ids[1], ids[0], ids[2], fourth],
+  );
+});
+
 test("queue slots, retries, history and collision-safe naming are real", async (t) => {
   const server = await fixtureServer(t, { size: 1024 * 1024, delay: 10 });
   const { manager, repo } = await managerFixture(t);

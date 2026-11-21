@@ -107,6 +107,7 @@ class DownloadManager extends EventEmitter {
     this.running = new Map();
     this.pausedEngines = new Map();
     this.queue = [];
+    this.queueSequence = 0;
     this.retryTimers = new Map();
     this.pendingProgress = new Map();
     this.progressDirty = new Set();
@@ -358,7 +359,7 @@ class DownloadManager extends EventEmitter {
       speed: 0,
       eta: null,
       priority,
-      queueOrder: Date.now(),
+      queueOrder: this.allocateQueueOrder(),
       downloadSpeedLimit: 0,
       attempt: 0,
       createdAt: new Date().toISOString(),
@@ -504,6 +505,15 @@ class DownloadManager extends EventEmitter {
     this.pump();
     return this.publicItem(item);
   }
+  allocateQueueOrder() {
+    let maximum = this.queueSequence;
+    for (const item of this.items.values()) {
+      if (Number.isFinite(item.queueOrder))
+        maximum = Math.max(maximum, item.queueOrder);
+    }
+    this.queueSequence = maximum + 1;
+    return this.queueSequence;
+  }
   reorder(ids) {
     if (
       !Array.isArray(ids) ||
@@ -514,10 +524,22 @@ class DownloadManager extends EventEmitter {
     const candidates = ids.map((id) => this.requireItem(id));
     if (candidates.some((item) => item.status !== "queued"))
       throw new Error("Only queued downloads can be reordered.");
-    candidates.forEach((item, index) => {
-      item.queueOrder = index;
+    const selected = new Set(ids);
+    const remaining = [...this.items.values()]
+      .filter((item) => item.status === "queued" && !selected.has(item.id))
+      .sort((a, b) => (a.queueOrder || 0) - (b.queueOrder || 0));
+    const ordered = [...candidates, ...remaining];
+    let sequence = Math.max(
+      this.queueSequence,
+      ...[...this.items.values()].map((item) =>
+        Number.isFinite(item.queueOrder) ? item.queueOrder : 0,
+      ),
+    );
+    for (const item of ordered) {
+      item.queueOrder = ++sequence;
       this.persist(item);
-    });
+    }
+    this.queueSequence = sequence;
     this.snapshot();
     this.pump();
     return true;
