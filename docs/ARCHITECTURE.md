@@ -16,6 +16,30 @@
 - Media: full job IDs isolate output and partial cleanup (never a shared eight-character prefix). A recent analyzed selection generates the yt-dlp format selector. Machine-readable progress is streamed, audio merging requires FFmpeg, and final completion requires successful process exit plus an actual nonempty reported file inside the expected destination. Pause uses continuation files; some websites cannot resume and may restart. Analysis retains at most 20 entries for 30 minutes and exposes only legitimately returned descriptions, tags, thumbnail renditions and manual/automatic caption catalogs. Independent and alongside-video subtitles use the same managed queue; SRT/VTT conversion requires FFmpeg when the source does not directly provide the requested format.
 - Torrents: per-job WebTorrent clients use an ID-isolated destination folder, verify pieces and persist data on pause; resume reopens/rechecks files. Completion stops seeding. Cancellation stops the client but retains verified pieces; torrent directories are never recursively deleted by a generic file/history action. A local TCP transfer is an installed-app CI gate; no public-tracker speed claims are made.
 
+
+## Transfer integrity
+
+The HTTP transfer pipeline is deliberately separate from queue and UI concerns:
+
+- Each job stores ID-scoped partial files and a versioned segment checkpoint in its private work directory.
+- A segment checkpoint is written to a temporary file, flushed, and atomically renamed. The part file is synced before its committed offset advances. On restore, bytes beyond the durable offset are truncated; if the physical file is shorter, the checkpoint is reduced to the available prefix.
+- Resume requires a matching representation identity. Strong ETag / If-Range and exact Content-Range, byte count and final file size prevent combining bytes from different source versions. Compressed range responses are not accepted.
+- When a whole-file checksum is available, it is verified before publication. The final destination is published without overwriting an existing entry, using an atomic hard link or a synced same-destination staging copy when work and destination volumes differ.
+- If publication fails, the verified resumable work remains available for recovery. A failed, truncated or mismatched transfer is never reported as a completed file.
+
+These are core correctness contracts. Changes to durable partials, checksum verification or atomic publication require characterization tests against their current behavior before refactoring.
+
+## Download manager module boundaries
+
+`DownloadManager.js` owns intake validation, duplicate detection, job construction and engine event wiring. The supporting modules separate the responsibilities without changing the public manager API:
+
+- `DownloadQueue.js`: monotonic queue order, manual reordering, scheduling, retry, pause/resume/cancel and shutdown.
+- `DownloadPersistence.js`: progress batching, repository writes, destination reservation, restore and history cleanup.
+- `DownloadSessions.js`: browser session-header handling and encrypted session-vault lifecycle.
+- `DownloadManagerShared.js`: shared active-state, scheduling and safe persistent-header rules.
+
+The active torrent transfer engine is WebTorrent. Remote `.torrent` metadata retrieval is a bounded HTTP helper; there is no second aria2 transfer engine in the runtime.
+
 ## SQLite / preferences
 
 WAL + busy timeout; v1 additive migration to `metadata`. Prepared hot-path statements are reused. Renderer progress is batched at 150 ms and persistence at 2 seconds, with terminal/shutdown flushing. Core searchable columns stay intact; structured metadata retains explicit names, real output paths, media selection, browser transfer identity, completion time, retry state and validated transfer information. Settings use JSON values with an allowlist, type/range/path validation and actual runtime consumers. Connection / per-download rate changes apply on new/resumed jobs; concurrency and browser enablement take effect immediately.

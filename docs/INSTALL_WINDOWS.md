@@ -1,74 +1,82 @@
-# Windows installation, build and release
+# Windows installation, development and release
 
-## End-user installation
+## Install the desktop app
 
-Requirements: Windows 10/11 x64, ordinary user account, writable destination/download folders, network access to your download sources. The standalone application includes its JavaScript runtime, native modules, yt-dlp, FFmpeg/ffprobe and native messaging launcher. Windows supplies .NET Framework 4.x for the small launcher; no separate Node.js or Python is needed.
+GetANNY currently distributes its official Windows **Setup EXE** through [GitHub Releases](https://github.com/p4yy/GetANNY/releases/latest).
 
-1. Download **GetANNY Setup.exe** from the [latest GitHub release](https://github.com/p4yy/GetANNY/releases/latest). GitHub may save it as `GetANNY.Setup.exe`.
-2. In PowerShell compare `Get-FileHash '.\GetANNY.Setup.exe' -Algorithm SHA256` with the checksum in `SHA256SUMS.txt` or in the release notes. Use the filename your browser saved.
-3. Run the installer. Choose your install location and desktop-shortcut preference. Start Menu integration is included.
-4. Open GetANNY → **Browser integration**, select your browser, and click **Set up** (the installer normally completed this already).
-5. Follow [the browser installation steps](BROWSERS.md). Firefox uses Firefox Add-ons. Chromium-family browsers use the folder GetANNY prepares for the selected browser.
-6. Open the extension popup and click **Reconnect**. Look for a verified connection in GetANNY.
-7. Add a direct file URL, intercept a browser download, or analyze a supported media page and choose its format in Media studio.
+1. Download `GetANNY.Setup.exe` and the matching `SHA256SUMS.txt` from the same release.
+2. In PowerShell, run `Get-FileHash '.\GetANNY.Setup.exe' -Algorithm SHA256` and compare the result with the published checksum. Do not run the file if it does not match.
+3. Launch the installer. Choose the installation folder and desktop-shortcut preference.
+4. Open GetANNY from the Start Menu or desktop shortcut.
+5. Choose the download folder and review the settings before starting transfers.
 
-Unsigned installers may show a Windows SmartScreen warning. The release evidence records the actual Authenticode status.
+The user-facing Setup EXE is the dark WPF shell with the supplied animated GetANNY mark. It verifies and launches the original NSIS engine embedded inside it. NSIS remains responsible for installing application files, shortcuts, registration and the matching uninstaller shell.
 
-## Development test-build downloads
+The installer is unsigned unless the release's Authenticode evidence says otherwise. A SmartScreen warning can therefore appear. A logo or icon is not a code signature.
 
-The Actions run retains a development artifact containing the Setup EXE, guide, SHA-256 sums and `BUILD_STATUS.txt`. It can be available while installed-app verification is still running. Downloading Actions artifacts may require GitHub sign-in.
+## Browser integration
 
-## What has actually been measured
+Open **Browser integration** in GetANNY, select the browser, and choose **Set up**. The installer normally prepares the direct connection already; running setup again is a safe repair step.
 
-The release notes and linked Windows Actions run identify the source commit and verification scope. When included, `MEASURED_RESULTS.md` and `Windows-test-evidence.zip` record the individual results. See [historical test evidence](TESTING.md) for earlier builds.
+For Chromium-family browsers, approve the prepared extension through the browser's extensions page and choose **Load unpacked**. Firefox uses the Firefox Add-ons listing for a regular install; a temporary development add-on must be loaded again after Firefox restarts.
 
-## Scripted EXE installation
-
-```powershell
-Start-Process '.\GetANNY Setup.exe' -ArgumentList '/S','/currentuser','/D=C:\Apps\GetANNY' -Wait
-```
-
-Browser credentials and native fallback are provisioned in **HKCU/current-user app data** for the user running setup. On x64 Windows, native-host keys are written in both 64-bit and 32-bit registry views. Each user of a shared machine completes browser setup in their own account and approves extension installation in their browser.
-
-The installer invokes a standalone provisioner to prepare each supported browser. Browser provisioning failures are written to `browser-setup-report.json` and can be repaired after installation. Packaged startup retries stale, missing or incomplete direct provisioning. GetANNY marks a connection verified after an authenticated extension handshake.
+Follow [Browser integration and native messaging](NATIVE_MESSAGING.md) for the exact browser steps, permissions, connection model and troubleshooting. GetANNY does not force-install extensions, edit browser profiles or change enterprise policies.
 
 ## Upgrade, repair and uninstall
 
-- Close GetANNY before upgrading. Use the same installer format and installation directory.
-- SQLite migrates the existing v1 table with an additive metadata column. Settings and history are retained. Older transfers without safe entity/segment metadata may need to restart; they are not blindly appended to different files.
-- Browser-scoped credentials, prepared extension files and native fallback registration are refreshed. A version/install-path marker triggers automatic repair on the next packaged start if installer setup was stale. Reload unpacked extensions on the browser extensions page to apply updated scripts. Firefox temporary add-ons must be loaded again after browser restart.
-- Uninstall from Windows Settings → Apps or run the EXE uninstaller.
-- Native-host registrations owned by this application and prepared connection files are removed. Settings/history/downloaded files are preserved intentionally. Close browsers first so native executables are not locked.
-- Remove the unpacked browser add-on through each browser's UI. GetANNY cannot and does not manipulate personal browser profiles during uninstall.
-- Same-version reinstall and restart preservation are automated in CI. Cross-version upgrade from the old v1 EXE, interactive UI choices, locked-browser uninstallation, and a pristine Windows VM are separate manual gates, not implied by a successful build.
+- Use the same Setup EXE installation channel and choose the existing install directory when upgrading.
+- Settings and download history are stored in the current Windows user's GetANNY profile. They are preserved across normal upgrades and uninstalls.
+- Downloaded files are stored in the destination you selected; uninstall does not delete them.
+- The installer refreshes browser-specific extension files and native fallback registration. If a browser does not reconnect after an upgrade or install-path change, open GetANNY once, run **Browser integration → Set up**, reload the unpacked extension and reconnect.
+- Remove the extension itself through each browser's own extensions UI. GetANNY does not manipulate personal browser profiles during uninstall.
+- Close browsers before uninstalling so native-host executables are not held open.
+- Same-version reinstall and uninstall checks are automated in Windows CI. A pristine consumer Windows VM, cross-version migration from older releases, and manual acceptance in every branded browser remain separate checks; a successful build alone does not certify them.
 
-## Build from source on Windows
+## Development prerequisites
 
-Node 22.22+, npm, Visual Studio C++ build tools, Python for node-gyp, Windows SDK, and .NET Framework C# compiler are build prerequisites (not end-user prerequisites).
+For a Windows source build, use:
+
+- Windows 10/11 x64
+- Node.js 22.22 or newer and npm
+- Visual Studio C++ Build Tools and Windows SDK
+- Python for node-gyp when a native dependency needs source compilation
+- .NET 10 SDK for the WPF setup shell
+- Network access to the pinned upstream tool releases
+
+The packaged application includes its own Electron/Node runtime and required media tools. End users do not need a separate Node.js or Python installation.
+
+## Run the source tests
+
+From the repository root:
 
 ```powershell
 npm ci --ignore-scripts
-npm rebuild node-datachannel
 npm run prepare:tools
 npm run build-extension
 npm test
 npm audit --audit-level=high
-npm run build:renderer
-npm run build:win
+npm run audit:locales -- --strict
 ```
 
-The locked SQLite 13 dependency includes a Windows x64 N-API prebuild shared by Node and Electron; no legacy ABI swap is required. C++/Python tools are used only if a native dependency needs source compilation.
+For the renderer and setup UI:
 
-The output is `dist/GetANNY Setup.exe`. Missing tools, mismatched pinned binary hashes or missing extension/renderer resources fail packaging. Generated binaries are ignored by Git.
+```powershell
+npm run build:renderer
+npm run build:setup-ui
+```
 
-For authorized signing, supply `CSC_LINK` and `CSC_KEY_PASSWORD` in the build environment / GitHub Secrets. Never put certificates or passwords into source control. CI records the real signature status. Without signing credentials, deliver unsigned binaries and disclose that limitation.
+`npm test` is the complete Node test suite. The Windows Actions workflow runs it on code pushes, in addition to the install/reinstall/uninstall harness and secret scan. A test definition is not evidence of a pass: inspect the exact Actions run and its retained logs/reports.
 
-## Test installed packages
+## Build a local candidate
 
-The Windows CI workflow runs `scripts/windows/test-installers.ps1` after generating real packages. Diagnostic mode `GetANNY.exe --self-test --test-user-data <isolated-folder> --report <file.json>` exercises the installed application rather than development files. It writes real files, temporarily registers a test native host for the current user, and then unregisters it. Use it only in an isolated test account; rerun normal browser setup afterward if necessary.
+```powershell
+npm run build:win:candidate
+```
 
-The installer harness covers the packaged renderer and bridge, transfers, restart, same-version reinstall and uninstall. CI also runs deterministic browser handoff tests. For real browser acceptance and cross-version migration, see [browser testing](BROWSERS.md#manual-acceptance-on-windows) and the evidence for the exact release.
+This produces a local candidate under `installer/artifacts/`. It is for development review, not an official release. The canonical branded installer build uses the Windows Actions workflow, which wraps the NSIS engine, captures the installer/uninstaller UI, exercises the installed application and retains evidence.
 
-## Releasing
+## Release process
 
-See [the release process](RELEASING.md) for current verification steps, update metadata and published assets.
+The release workflow only publishes after its required checks pass and an explicit owner approval. It verifies the exact installer bytes, update metadata and SHA-256 checksums before making a release public. See the [latest Windows workflow](https://github.com/p4yy/GetANNY/actions/workflows/release.yml) for current results.
+
+The current official workflow builds the NSIS Setup EXE. Do not infer that MSI or portable installers are available or tested.

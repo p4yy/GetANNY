@@ -10,7 +10,7 @@ When you use the extension, it may read the active page's address and title, sup
 
 The extension does not read passwords that you type into websites.
 
-Cookie forwarding is off until you enable **Include cookies for this download site** for the hostname displayed in the popup. GetANNY may read cookies for matching download URLs and forward them over the authenticated local connection to authorize that download. The desktop app may include those cookies in its download request to the selected website, which handles the request under its own privacy policy.
+Cookie forwarding is enabled by default for matching HTTP(S) download hosts so authenticated downloads can continue. The popup's Cookies control can opt out for an individual site. When enabled, the extension reads cookies for the specific target URL and forwards them over the authenticated local connection to GetANNY; the desktop app may include them in its request to that destination website, which handles the request under its own privacy policy. Cookie values are not sent to a developer-operated analytics or advertising service.
 
 For an unfinished ordinary browser download, GetANNY can retain the supplied session headers in an encrypted local file for up to 12 hours so it can resume after a restart. It uses the operating system's credential protection and keeps the headers in memory when that protection is unavailable. The application excludes those headers from history, logs, and renderer events. It removes the encrypted session when the transfer completes, is cancelled, or the site rejects authentication.
 

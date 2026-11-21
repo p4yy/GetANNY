@@ -3,4 +3,36 @@ Publisher: Acev Apps Co
 
 The project code is licensed under the Apache License, Version 2.0. See LICENSE for its terms.
 The Apache License does not grant rights to use the GetANNY name or logo as a mark or to imply endorsement.
-Third-party components retain their own licenses; see docs/THIRD_PARTY.md.
+
+THIRD-PARTY COMPONENTS AND TOOL PROVENANCE
+
+yt-dlp
+- Project and source: https://github.com/yt-dlp/yt-dlp
+- Pinned version: 2026.10.26. Official platform assets and SHA-256 digests are recorded in scripts/tools-manifest.json.
+- Consult the exact upstream license files for the distributed release and its bundled components. No claim is made that yt-dlp is authored by GetANNY.
+- The default build refuses an unverified or missing tool rather than substituting an unrelated executable.
+
+FFmpeg / ffprobe
+- Distribution build: https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1
+- Upstream source: https://github.com/FFmpeg/FFmpeg/tree/n6.1.1
+- Pinned platform binaries and hashes are recorded in scripts/tools-manifest.json.
+- The corresponding upstream license and source/build references are included beside the prepared executables.
+- FFmpeg builds can be GPL depending on enabled components. Redistribution retains the upstream license and corresponding source/build references; no claim is made that FFmpeg is Apache-licensed or authored by GetANNY. Distributors must honor the exact build's GPL/LGPL obligations, including making corresponding source available where required.
+
+Inter font
+- Bundled for non-Arabic interface text. Source: https://github.com/google/fonts/tree/main/ofl/inter
+- The exact source revision and SHA-256 are recorded in src/renderer/assets/fonts/Inter-source.json.
+- License: SIL Open Font License 1.1; the font license is included in the packaged renderer.
+
+Cairo font
+- Bundled for Arabic interface text. Source: https://github.com/google/fonts/tree/main/ofl/cairo
+- License: SIL Open Font License 1.1; the font license is included in the packaged renderer.
+
+Browser marks
+- The bundled Chromium product icon is sourced from https://github.com/chromium/chromium/blob/main/chrome/app/theme/chromium/product_logo_64.png.
+- Other browser marks are tree-shaken inline SVGs from the react-icons dependency. No browser icon is fetched at runtime.
+
+Other components
+Electron (MIT / Chromium third-party notices), React (MIT), better-sqlite3 (MIT) / SQLite (public domain), WebTorrent and related modules (MIT / package licenses), ws (MIT), React Icons (individual icon licenses), content-disposition (MIT), Zustand (MIT), and build/test tools retain their upstream licenses. Electron platform license and notice files are shipped by electron-builder.
+
+The Chromium manifest key is a public key used solely for a stable extension ID. It is not a signing private key. No private signing key, store credential, browser profile or per-user pairing secret is committed.

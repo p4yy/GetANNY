@@ -1,26 +1,85 @@
-# Native messaging: bootstrap and cold-start fallback
+# Browser integration and native messaging
 
-Native Messaging is no longer GetANNY's normal browser data path. See [BROWSER_INTEGRATION_V2.md](BROWSER_INTEGRATION_V2.md) for the investigation and selected architecture.
+## Connection model
 
-The EXE and MSI installers provision a browser-specific authenticated loopback credential and stable extension folder for every supported browser. Once that prepared extension is approved/loaded, it connects directly to `127.0.0.1:29615` and automatically reconnects without registry discovery.
+Native Messaging is a bootstrap and cold-start fallback, not GetANNY's normal browser data path. The primary transport is an authenticated WebSocket bound only to `127.0.0.1:29615`.
 
-The installers include the **GetANNY Browser Bridge**. Windows identifies its executable, `GetANNY.NativeHost.exe`, as part of GetANNY and shows the same product version as the app. The installer registers it for two cases:
+A prepared extension receives its own browser-scoped 256-bit credential and stable folder under the current Windows user's GetANNY app data. It connects directly and reconnects after browser, service-worker or desktop restarts. A generic release ZIP contains no real credential; it can use the native adapter to bootstrap the correct browser credential or use the explicit recovery key.
 
-1. cold-start GetANNY when a generic/older extension cannot reach the desktop; and
-2. securely bootstrap a generic extension with its browser-specific direct credential.
+The Windows native host ID is `com.getanny.native`. Its compiled `GetANNY.NativeHost.exe` launcher starts the installed Electron runtime in Node mode and relays standard four-byte little-endian Native Messaging frames. The launcher has a separate native-only credential. Native host manifests contain the executable path, stdio type and extension allowlist; they do not rely on an unsupported `args` field.
 
-On Windows, the per-user helper and its manifest live in the `GetANNY Browser Bridge` folder under GetANNY app data. An upgrade re-registers the new path before removing the old helper files. The browser's protocol identifier remains `com.getanny.native` so existing extensions can still connect.
+A connection is considered verified only after credential authentication, a protocol-v2 extension hello and live heartbeat. A detected browser executable, prepared folder, registry entry or open socket alone does not prove the extension is installed or connected.
 
-The launcher is a compiled C# executable because native-host manifests do not support an `args` field. It reads its adjacent per-user configuration, starts the installed Electron runtime in Node mode, relays standard native-message framing and authenticates to the loopback bridge with a credential that is distinct from every browser credential. No external Node.js installation is required.
+## Supported browser targets
 
-Installer setup provisions all browsers and both Windows registry views; it is not gated on executable detection. Loading/enabling the extension still requires browser consent. GetANNY does not write browser profiles or enterprise policy.
+| Browser | Extension package | Management page |
+| --- | --- | --- |
+| Helium | Chromium Manifest V3 | `chrome://extensions` |
+| Google Chrome | Chromium Manifest V3 (Chrome 116+) | `chrome://extensions` |
+| Chromium | Chromium Manifest V3 | `chrome://extensions` |
+| Brave | Chromium Manifest V3 | `brave://extensions` |
+| Vivaldi | Chromium Manifest V3 | `vivaldi://extensions` |
+| Opera | Chromium Manifest V3 | `opera://extensions` |
+| Microsoft Edge | Chromium Manifest V3 | `edge://extensions` |
+| Mozilla Firefox | Separate Firefox package / Gecko ID | `about:addons` |
 
-Recovery command:
+These are supported provisioning targets, not a claim that every browser version has passed real-world acceptance. Check the exact Windows workflow and manual test evidence before treating a browser as certified.
 
-```powershell
-& "C:\path\to\installed\GetANNY.exe" --setup-browser-hosts --quiet
-```
+## Chromium-family setup
 
-Use the installed app, not the portable launcher. The standalone helper does not start SQLite, download engines or the bridge server, so it can run during install/repair while the desktop is open. Results are written to `browser-setup-report.json` under the current user's GetANNY app-data directory.
+1. Install and start GetANNY. Open **Browser integration** and select the actual browser.
+2. Choose **Set up**. GetANNY prepares a stable browser-specific folder and private direct credential. Native Messaging is registered as a bootstrap/cold-start fallback.
+3. Open the browser management page in the table above.
+4. Enable **Developer mode**, choose **Load unpacked**, and select the exact folder shown by GetANNY. Approve the browser's requested permissions and pin the toolbar icon if desired.
+5. Open the GetANNY extension popup and choose **Reconnect**.
+6. Confirm that both the popup and desktop show a verified connection. A prepared folder or registry entry is not enough.
+7. Test with a small non-sensitive file download before relying on browser handoff.
 
-A generic release extension contains no secret. If both direct provisioning and native bootstrap are unavailable, reveal that browser's recovery key in **GetANNY → Browser integration**, paste it into **Connection & pairing**, and reconnect. Treat all bridge credentials as passwords; never share or commit them.
+Browser approval remains an explicit user action. Portable or nonstandard browser installations may need **Locate browser** to open the correct management page; detection does not gate provisioning.
+
+## Firefox
+
+For normal use, install the [GetANNY Firefox add-on](https://addons.mozilla.org/fr/firefox/addon/getanny-downlaod-manager/) and complete setup in GetANNY → Browser integration.
+
+For development, open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select the prepared `manifest.json`. A temporary add-on is removed when Firefox restarts and must be loaded again. The development ZIP is not a signed XPI; do not rename it and describe it as a signed release.
+
+## Cookies, permissions and privacy
+
+Cookie forwarding is enabled by default for matching HTTP(S) download hosts to support authenticated downloads. The popup's Cookies control can opt out for an individual site. GetANNY reads cookies for the specific target URL and sends them over the authenticated local connection; the desktop may include them in the request to that destination website. Cookie values are not stored as a per-site preference and are not sent to a developer-operated analytics service.
+
+The extension permissions support these functions:
+
+- `nativeMessaging`: bootstrap/cold-start fallback.
+- `storage`: browser preferences and the browser-specific local credential.
+- `tabs`: active page context and per-tab detections.
+- `contextMenus`: explicit link, media and page actions.
+- `downloads`: pause/reconcile browser-owned transfers and remove the matching native history entry after GetANNY accepts ownership. The extension does not request the browser's delete-file operation.
+- `cookies` and HTTP(S) host access: optional per-site cookie handoff and supported media inspection.
+- `webRequest`: inspect response types for media detection.
+
+The extension does not read website passwords, modify browser profiles, change enterprise policies or silently install/update itself. The desktop bridge rejects website origins and clients without a valid capability.
+
+## Handoff limits
+
+- Browser APIs do not expose every original request header. GetANNY forwards only the available URL, filename, referer, user-agent and URL-matching cookies; it does not claim arbitrary-header parity.
+- Short, completed or otherwise unpausable downloads stay in the browser to avoid duplicate transfers.
+- An ambiguous handoff stays paused until transfer-ID reconciliation proves which side owns it.
+- Private-window downloads require the browser to allow the extension in private mode and expose one unambiguous private cookie store.
+- Blob URLs are not transferable files; the original page may be analyzed instead. DRM and inaccessible protected streams are unsupported.
+- Some websites use short-lived URLs or authentication flows that cannot be resumed outside the original browser session.
+
+## Troubleshooting
+
+- **No connection:** start GetANNY, confirm Browser integration is enabled, run **Set up**, reload the exact prepared extension folder and choose **Reconnect**.
+- **Credential rejected:** select the correct browser and prepared folder. Credentials are deliberately browser-bound; do not reuse another browser's key.
+- **Generic ZIP cannot connect:** run browser setup to repair Native Messaging bootstrap, or reveal the recovery key for that browser in GetANNY and enter it in **Connection & pairing**. Never share the key.
+- **No response:** check that the desktop is running and that the local bridge is listening on `127.0.0.1:29615`. A port alone is not proof; both UIs must show a verified hello.
+- **Browser handoff remains paused:** reopen GetANNY and the popup, reconnect, and let the transfer ID reconcile. This is duplicate protection.
+- **No media detected:** send the original supported page to Media Studio. DRM, restricted pages and inaccessible media responses cannot be extracted.
+- **After an upgrade:** start the packaged app once, run **Set up** if needed, then reload the extension. Firefox temporary add-ons must be loaded again after browser restart.
+
+## Manual acceptance
+
+For a real browser test, record the browser/version, confirm a verified handshake, transfer a small non-sensitive file, compare its SHA-256 with the source, restart GetANNY and reconnect, then repeat. Test a browser restart during a handoff separately. Mark any step not actually exercised as **UNVERIFIED**. Source tests and a prepared extension are not substitutes for real-browser acceptance.
+
+For service boundaries, security contracts and transfer integrity, see [Architecture](ARCHITECTURE.md).

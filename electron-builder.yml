@@ -18,7 +18,7 @@ files:
   - "!node_modules/bufferutil/**/*"
   - "!node_modules/utf-8-validate/**/*"
   - LICENSE
-  - docs/THIRD_PARTY.md
+  - NOTICE
 extraResources:
   # Native CLI entrypoint must be a real file, not an ASAR virtual path.
   - from: src/main/browser-integration/native-host.js
