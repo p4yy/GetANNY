@@ -39,6 +39,17 @@ class HttpConnectionBudget {
     this.active = 0;
   }
 
+  pruneIdleOrigins() {
+    if (this.origins.size <= 256) return;
+    const now = Date.now();
+    for (const [origin, state] of this.origins) {
+      if (this.origins.size <= 256) break;
+      // Never discard a queued/active lease or forget an active rate limit.
+      if (state.active === 0 && state.waiting === 0 && state.retryAt <= now)
+        this.origins.delete(origin);
+    }
+  }
+
   acquire(origin, signal) {
     signal?.throwIfAborted();
     if (!this.origins.has(origin)) {
@@ -128,6 +139,7 @@ class HttpConnectionBudget {
         state.peakThroughput = throughput;
       }
     }
+    this.pruneIdleOrigins();
     this.drain();
   }
 

@@ -144,3 +144,30 @@ test("successful completion without headers cannot throw or strand a lease", asy
   next();
   assert.equal(budget.active, 0);
 });
+
+
+test("idle origin states are reclaimed after a burst of distinct hosts", async () => {
+  const budget = new HttpConnectionBudget({global: 320, initial: 1, maximum: 1});
+  const leases = await Promise.all(
+    Array.from({length: 300}, (_, index) =>
+      budget.acquire(`https://origin-${index}.example`)),
+  );
+  assert.equal(budget.origins.size, 300);
+  for (const release of leases) release();
+  assert.equal(budget.active, 0);
+  assert.equal(budget.origins.size, 256);
+});
+
+test("pruning never drops active leases, waiters or rate-limited origins", async () => {
+  const budget = new HttpConnectionBudget({global: 320, initial: 1, maximum: 1});
+  const leases = await Promise.all(
+    Array.from({length: 260}, (_, index) =>
+      budget.acquire(`https://origin-${index}.example`)),
+  );
+  const limited = "https://origin-0.example";
+  leases[0]({statusCode:429,retryAfterMs:60_000});
+  for (let i=1;i<leases.length;i++) leases[i]();
+  assert.ok(budget.origins.has(limited));
+  assert.equal(budget.origins.size, 256);
+  assert.equal(budget.active, 0);
+});
