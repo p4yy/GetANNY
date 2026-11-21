@@ -40,4 +40,4 @@
 - Added a release workflow that gates publication on secret scanning, source checks, and Windows installer verification.
 - Preserved owner-tested browser connection, media, torrent, settings, and download-folder behavior.
 
-Earlier release history is in the [historical changelog](docs/CHANGELOG.md). See [release notes](docs/RELEASE_NOTES.md) for user-facing details and verification scope.
+Historical release details remain available in the Git commit history. Current setup, architecture and browser integration guidance is maintained in the README and the three focused guides under `docs/`.
