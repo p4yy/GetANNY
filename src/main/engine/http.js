@@ -60,6 +60,7 @@ async function request(
     signal?.throwIfAborted();
     const parsed = new URL(current);
     const release = await budget.acquire(parsed.origin, signal);
+    const startedAt = Date.now();
     const response = await new Promise((resolve, reject) => {
       const transport = parsed.protocol === "https:" ? https : http;
       const req = transport.request(
@@ -120,8 +121,16 @@ async function request(
       throw error;
     });
     response.retryAfterMs = retryDelay(response.headers["retry-after"]);
-    if (response.closed) release(response);
-    else response.once("close", () => release(response));
+    const releaseResponse = () =>
+      release({
+        statusCode: response.statusCode,
+        headers: response.headers,
+        complete: response.complete,
+        retryAfterMs: response.retryAfterMs,
+        elapsedMs: Math.max(1, Date.now() - startedAt),
+      });
+    if (response.closed) releaseResponse();
+    else response.once("close", releaseResponse);
     if (REDIRECTS.has(response.statusCode) && response.headers.location) {
       const next = validateUrl(
         new URL(response.headers.location, current).href,

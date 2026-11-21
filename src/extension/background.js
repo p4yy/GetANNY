@@ -20,7 +20,18 @@ const extensionEnableRead = api.storage.local.get([EXTENSION_ENABLED_KEY]).then(
 api.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || !changes[EXTENSION_ENABLED_KEY]) return;
   extensionEnabled = changes[EXTENSION_ENABLED_KEY].newValue !== false;
-  if (!extensionEnabled) { detected.clear(); capturedPlayback.clear(); captureChecks.clear(); }
+  if (!extensionEnabled) {
+    // Fully detach the bridge and restore any ambiguous intercepted downloads
+    // rather than merely hiding the popup while the background keeps working.
+    resetConnection("Browser integration was switched off.");
+    rejectPending(new Error("Browser integration was switched off."));
+    interceptor?.disconnected().catch(() => {});
+    for (const tabId of detected.keys())
+      action?.setBadgeText({ tabId, text: "" }).catch?.(() => {});
+    detected.clear();
+    capturedPlayback.clear();
+    captureChecks.clear();
+  } else connect().catch((error) => update({ error: error.message }));
 });
 const packagedConfig = globalThis.GETANNY_CONFIG || {};
 const pending = new Map();

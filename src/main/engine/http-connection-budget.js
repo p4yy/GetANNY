@@ -2,6 +2,26 @@ const GLOBAL_CONNECTIONS = 48;
 const INITIAL_CONNECTIONS_PER_ORIGIN = 6;
 const MAX_CONNECTIONS_PER_ORIGIN = 24;
 const RECOVERY_BYTES = 1024 * 1024;
+const SLOW_SAMPLE_RATIO = 0.45;
+const SLOW_SAMPLES_TO_BACKOFF = 6;
+
+// Connection feedback deliberately requires successful, complete transfers.
+// Untrusted Content-Length or partially received responses never tune limits.
+function completedThroughput(response, concurrent) {
+  const bytes = Number(response?.headers?.["content-length"]);
+  const elapsed = Number(response?.elapsedMs);
+  if (
+    response?.complete !== true ||
+    response.statusCode < 200 ||
+    response.statusCode >= 300 ||
+    !Number.isSafeInteger(bytes) ||
+    bytes < RECOVERY_BYTES ||
+    !Number.isFinite(elapsed) ||
+    elapsed < 40 ||
+    elapsed > 3_600_000
+  ) return 0;
+  return (bytes * 1000 / elapsed) * Math.max(1, concurrent);
+}
 
 // The budget owns active requests, including probes and redirect hops. A
 // request queued here has not opened a socket or started its network timeout.
@@ -37,6 +57,9 @@ class HttpConnectionBudget {
         limit: this.initial,
         healthy: 0,
         retryAt: 0,
+        peakThroughput: 0,
+        slowSamples: 0,
+        observedSamples: 0,
       });
     }
     const state = this.origins.get(origin);
@@ -57,9 +80,11 @@ class HttpConnectionBudget {
   }
 
   release(state, response) {
+    const concurrent = state.active;
     this.active--;
     state.active--;
     if (response?.statusCode === 429 || response?.statusCode === 503) {
+      state.slowSamples = 0;
       state.limit = Math.max(1, Math.floor(state.limit / 2));
       state.healthy = 0;
       state.retryAt = Math.max(
@@ -76,6 +101,32 @@ class HttpConnectionBudget {
     ) {
       state.limit++;
       state.healthy = 0;
+    }
+    // A conservative fallback when measured aggregate throughput collapses
+    // for several complete requests. Do not chase individual slow samples or
+    // tune on redirects, server errors, partial responses, or tiny probes.
+    const throughput = completedThroughput(response, concurrent);
+    if (throughput > 0) {
+      state.observedSamples++;
+      state.peakThroughput = Math.max(
+        throughput,
+        state.peakThroughput * 0.98,
+      );
+      if (
+        state.observedSamples >= SLOW_SAMPLES_TO_BACKOFF &&
+        concurrent >= 2 &&
+        throughput < state.peakThroughput * SLOW_SAMPLE_RATIO
+      ) {
+        state.slowSamples++;
+      } else state.slowSamples = 0;
+      if (state.slowSamples >= SLOW_SAMPLES_TO_BACKOFF && state.limit > 1) {
+        state.limit = Math.max(1, state.limit - 1);
+        state.healthy = 0;
+        state.slowSamples = 0;
+        state.observedSamples = 0;
+        // Avoid pinning to a temporary historical peak after congestion.
+        state.peakThroughput = throughput;
+      }
     }
     this.drain();
   }
